@@ -1,0 +1,453 @@
+// IAM — Identity & Access Management.  Owner: modules/iam.  Schema: "iam".
+//
+// IAM is the authoritative source for users, roles, permissions, groups and
+// organisational structure. Every authorization decision in TechVault is
+// answered from this data (CLAUDE.md §11).
+//
+// Session lifecycle is owned by Supabase Auth, not modelled here — duplicating
+// it would create two sources of truth. IAM records login history and can
+// deactivate a user, which is checked on every request.
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+/// The action half of a `module.resource.action` permission key (CLAUDE.md §11.2).
+enum PermissionAction {
+  ACCESS
+  READ
+  CREATE
+  UPDATE
+  DELETE
+  APPROVE
+  EXPORT
+  DOWNLOAD
+  SHARE
+  ADMINISTER
+
+  @@schema("iam")
+}
+
+/// Which records a grant applies to. Scope answers "which rows", never "which feature".
+enum ScopeType {
+  /// Every record, platform-wide.
+  GLOBAL
+  /// Records belonging to a named organisational unit and its descendants.
+  ORG_UNIT
+  /// Records belonging to the principal's own organisational unit subtree.
+  OWN_ORG_UNIT
+  /// Only records the principal owns (created or is assigned to).
+  OWN
+
+  @@schema("iam")
+}
+
+/// Direct grants may deny as well as allow, so an exception can be carved out of
+/// a role without inventing a near-duplicate role. DENY always wins (§11.2).
+enum GrantEffect {
+  ALLOW
+  DENY
+
+  @@schema("iam")
+}
+
+enum PrincipalType {
+  USER
+  SERVICE_ACCOUNT
+
+  @@schema("iam")
+}
+
+// ---------------------------------------------------------------------------
+// Organisational structure
+// ---------------------------------------------------------------------------
+
+/// A node in the organisation tree. Scope resolution for ORG_UNIT / OWN_ORG_UNIT
+/// walks this tree, so it must stay acyclic — enforced in the service layer.
+model OrganizationalUnit {
+  id       String  @id @default(uuid()) @db.Uuid
+  /// Stable human-readable key, e.g. "finance.accounts-payable".
+  key      String  @unique
+  name     String
+  nameAr   String? @map("name_ar")
+  parentId String? @map("parent_id") @db.Uuid
+  /// Materialised ancestor path ("/root/finance/ap") kept by the service layer so
+  /// subtree queries are an indexed prefix match rather than a recursive CTE.
+  path     String
+  depth    Int     @default(0)
+  isActive Boolean @default(true) @map("is_active")
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  parent      OrganizationalUnit?  @relation("OrgUnitHierarchy", fields: [parentId], references: [id], onDelete: Restrict)
+  children    OrganizationalUnit[] @relation("OrgUnitHierarchy")
+  users       User[]
+  userRoles   UserRole[]
+  userGrants  UserPermissionGrant[]
+  groupGrants GroupRole[]
+
+  @@index([parentId])
+  @@index([path])
+  @@map("organizational_units")
+  @@schema("iam")
+}
+
+// ---------------------------------------------------------------------------
+// Principals
+// ---------------------------------------------------------------------------
+
+/// A login identity. `id` EQUALS the Supabase `auth.users.id` (CLAUDE.md §11.1).
+/// A verified Supabase session whose User row is missing or `isActive = false`
+/// is treated as unauthenticated.
+model User {
+  id       String  @id @db.Uuid
+  email    String  @unique
+  fullName String? @map("full_name")
+  /// UI language preference — "en" or "ar" (ADR-009).
+  locale   String  @default("en")
+  isActive Boolean @default(true) @map("is_active")
+  orgUnitId String? @map("org_unit_id") @db.Uuid
+
+  /// Reference to the HRIS employee record for this person. Plain ID column with
+  /// NO foreign key: HRIS owns the person, IAM owns the login (CLAUDE.md §8.3).
+  hrisEmployeeId String? @map("hris_employee_id") @db.Uuid
+
+  lastLoginAt DateTime? @map("last_login_at") @db.Timestamptz(6)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt   DateTime? @map("deleted_at") @db.Timestamptz(6)
+  createdBy   String?   @map("created_by") @db.Uuid
+  updatedBy   String?   @map("updated_by") @db.Uuid
+
+  orgUnit            OrganizationalUnit?   @relation(fields: [orgUnitId], references: [id], onDelete: SetNull)
+  roles              UserRole[]
+  grants             UserPermissionGrant[]
+  groupMemberships   GroupMember[]
+  loginHistory       LoginHistory[]
+  apiTokens          ApiToken[]
+  delegationsGiven   DelegationGrant[]     @relation("DelegationFrom")
+  delegationsGot     DelegationGrant[]     @relation("DelegationTo")
+
+  @@index([orgUnitId])
+  @@index([hrisEmployeeId])
+  @@index([isActive])
+  @@map("users")
+  @@schema("iam")
+}
+
+/// A non-human principal (integration, scheduled job, external system).
+/// Holds roles exactly as a user does, and is audited the same way.
+model ServiceAccount {
+  id          String  @id @default(uuid()) @db.Uuid
+  key         String  @unique
+  name        String
+  description String?
+  isActive    Boolean @default(true) @map("is_active")
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+  createdBy String?   @map("created_by") @db.Uuid
+
+  roles     ServiceAccountRole[]
+  apiTokens ApiToken[]
+
+  @@map("service_accounts")
+  @@schema("iam")
+}
+
+// ---------------------------------------------------------------------------
+// Permissions & roles
+// ---------------------------------------------------------------------------
+
+/// The catalogue of permissions. Rows are seeded from each module's
+/// `contracts/permissions.ts` — modules declare, IAM stores and grants.
+model Permission {
+  id          String           @id @default(uuid()) @db.Uuid
+  /// Canonical key: "<module>.<resource>.<action>", e.g. "crm.account.read".
+  key         String           @unique
+  module      String
+  resource    String
+  action      PermissionAction
+  description String
+  /// Permissions guarding sensitive data require their own grant and every use
+  /// is audited (CLAUDE.md §11.7).
+  isSensitive Boolean          @default(false) @map("is_sensitive")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  roles  RolePermission[]
+  grants UserPermissionGrant[]
+
+  @@index([module])
+  @@index([isSensitive])
+  @@map("permissions")
+  @@schema("iam")
+}
+
+/// A named bundle of permissions. A ROW, never an enum — adding a role must not
+/// require a deploy (CLAUDE.md §6.4).
+model Role {
+  id          String  @id @default(uuid()) @db.Uuid
+  key         String  @unique
+  name        String
+  nameAr      String? @map("name_ar")
+  description String?
+  /// System roles are seeded and may not be deleted or renamed through the UI.
+  isSystem    Boolean @default(false) @map("is_system")
+  isActive    Boolean @default(true) @map("is_active")
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+
+  permissions     RolePermission[]
+  users           UserRole[]
+  groups          GroupRole[]
+  serviceAccounts ServiceAccountRole[]
+  delegations     DelegationGrant[]
+
+  @@map("roles")
+  @@schema("iam")
+}
+
+model RolePermission {
+  roleId       String @map("role_id") @db.Uuid
+  permissionId String @map("permission_id") @db.Uuid
+
+  grantedAt DateTime @default(now()) @map("granted_at") @db.Timestamptz(6)
+  grantedBy String?  @map("granted_by") @db.Uuid
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@index([permissionId])
+  @@map("role_permissions")
+  @@schema("iam")
+}
+
+/// A role assignment, optionally narrowed to a scope.
+model UserRole {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  roleId    String    @map("role_id") @db.Uuid
+  scopeType ScopeType @default(GLOBAL) @map("scope_type")
+  /// Required when scopeType = ORG_UNIT, otherwise null.
+  scopeOrgUnitId String? @map("scope_org_unit_id") @db.Uuid
+  /// Optional validity window — used by time-boxed access and delegation.
+  startsAt DateTime? @map("starts_at") @db.Timestamptz(6)
+  endsAt   DateTime? @map("ends_at") @db.Timestamptz(6)
+
+  grantedAt DateTime @default(now()) @map("granted_at") @db.Timestamptz(6)
+  grantedBy String?  @map("granted_by") @db.Uuid
+
+  user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role        Role                @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  scopeOrgUnit OrganizationalUnit? @relation(fields: [scopeOrgUnitId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId, scopeType, scopeOrgUnitId])
+  @@index([userId])
+  @@index([roleId])
+  @@map("user_roles")
+  @@schema("iam")
+}
+
+/// A direct per-user grant, for exceptions that do not justify a new role.
+/// DENY beats any ALLOW from any source.
+model UserPermissionGrant {
+  id             String      @id @default(uuid()) @db.Uuid
+  userId         String      @map("user_id") @db.Uuid
+  permissionId   String      @map("permission_id") @db.Uuid
+  effect         GrantEffect @default(ALLOW)
+  scopeType      ScopeType   @default(GLOBAL) @map("scope_type")
+  scopeOrgUnitId String?     @map("scope_org_unit_id") @db.Uuid
+  /// Why this exception exists. Required: an unexplained direct grant is a finding.
+  reason         String
+  startsAt       DateTime?   @map("starts_at") @db.Timestamptz(6)
+  endsAt         DateTime?   @map("ends_at") @db.Timestamptz(6)
+
+  grantedAt DateTime @default(now()) @map("granted_at") @db.Timestamptz(6)
+  grantedBy String?  @map("granted_by") @db.Uuid
+
+  user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  permission   Permission          @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  scopeOrgUnit OrganizationalUnit? @relation(fields: [scopeOrgUnitId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, permissionId, effect, scopeType, scopeOrgUnitId])
+  @@index([userId])
+  @@map("user_permission_grants")
+  @@schema("iam")
+}
+
+model ServiceAccountRole {
+  serviceAccountId String @map("service_account_id") @db.Uuid
+  roleId           String @map("role_id") @db.Uuid
+
+  grantedAt DateTime @default(now()) @map("granted_at") @db.Timestamptz(6)
+  grantedBy String?  @map("granted_by") @db.Uuid
+
+  serviceAccount ServiceAccount @relation(fields: [serviceAccountId], references: [id], onDelete: Cascade)
+  role           Role           @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([serviceAccountId, roleId])
+  @@map("service_account_roles")
+  @@schema("iam")
+}
+
+// ---------------------------------------------------------------------------
+// Groups
+// ---------------------------------------------------------------------------
+
+model Group {
+  id          String  @id @default(uuid()) @db.Uuid
+  key         String  @unique
+  name        String
+  description String?
+  isActive    Boolean @default(true) @map("is_active")
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  members GroupMember[]
+  roles   GroupRole[]
+
+  @@map("groups")
+  @@schema("iam")
+}
+
+model GroupMember {
+  groupId String @map("group_id") @db.Uuid
+  userId  String @map("user_id") @db.Uuid
+
+  addedAt DateTime @default(now()) @map("added_at") @db.Timestamptz(6)
+  addedBy String?  @map("added_by") @db.Uuid
+
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([groupId, userId])
+  @@index([userId])
+  @@map("group_members")
+  @@schema("iam")
+}
+
+model GroupRole {
+  groupId        String    @map("group_id") @db.Uuid
+  roleId         String    @map("role_id") @db.Uuid
+  scopeType      ScopeType @default(GLOBAL) @map("scope_type")
+  scopeOrgUnitId String?   @map("scope_org_unit_id") @db.Uuid
+
+  grantedAt DateTime @default(now()) @map("granted_at") @db.Timestamptz(6)
+  grantedBy String?  @map("granted_by") @db.Uuid
+
+  group        Group               @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  role         Role                @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  scopeOrgUnit OrganizationalUnit? @relation(fields: [scopeOrgUnitId], references: [id], onDelete: Cascade)
+
+  @@id([groupId, roleId, scopeType])
+  @@map("group_roles")
+  @@schema("iam")
+}
+
+// ---------------------------------------------------------------------------
+// API tokens, delegation, history, policy
+// ---------------------------------------------------------------------------
+
+/// API tokens are hashed at rest and shown to the user exactly once (§11.8).
+model ApiToken {
+  id   String @id @default(uuid()) @db.Uuid
+  name String
+  /// First few characters, for identification in lists. Not a secret.
+  prefix String
+  /// SHA-256 of the token. The plaintext is never stored and cannot be recovered.
+  tokenHash String @unique @map("token_hash")
+
+  principalType    PrincipalType @map("principal_type")
+  userId           String?       @map("user_id") @db.Uuid
+  serviceAccountId String?       @map("service_account_id") @db.Uuid
+
+  lastUsedAt DateTime? @map("last_used_at") @db.Timestamptz(6)
+  /// Tokens always expire. A non-expiring credential is not acceptable.
+  expiresAt  DateTime  @map("expires_at") @db.Timestamptz(6)
+  revokedAt  DateTime? @map("revoked_at") @db.Timestamptz(6)
+  revokedBy  String?   @map("revoked_by") @db.Uuid
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdBy String?  @map("created_by") @db.Uuid
+
+  user           User?           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  serviceAccount ServiceAccount? @relation(fields: [serviceAccountId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([serviceAccountId])
+  @@index([expiresAt])
+  @@map("api_tokens")
+  @@schema("iam")
+}
+
+/// Temporary transfer of authority (e.g. cover during leave). Time-boxed by design.
+model DelegationGrant {
+  id         String  @id @default(uuid()) @db.Uuid
+  fromUserId String  @map("from_user_id") @db.Uuid
+  toUserId   String  @map("to_user_id") @db.Uuid
+  roleId     String? @map("role_id") @db.Uuid
+  reason     String
+
+  startsAt DateTime  @map("starts_at") @db.Timestamptz(6)
+  endsAt   DateTime  @map("ends_at") @db.Timestamptz(6)
+  revokedAt DateTime? @map("revoked_at") @db.Timestamptz(6)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdBy String?  @map("created_by") @db.Uuid
+
+  fromUser User  @relation("DelegationFrom", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUser   User  @relation("DelegationTo", fields: [toUserId], references: [id], onDelete: Cascade)
+  role     Role? @relation(fields: [roleId], references: [id], onDelete: SetNull)
+
+  @@index([toUserId, startsAt, endsAt])
+  @@map("delegation_grants")
+  @@schema("iam")
+}
+
+/// Every authentication attempt, successful or not. Feeds the "repeated failures"
+/// alert in §22 and answers "when did this account last sign in".
+model LoginHistory {
+  id            String   @id @default(uuid()) @db.Uuid
+  userId        String?  @map("user_id") @db.Uuid
+  /// Recorded even when no user matches, so failed attempts on unknown addresses
+  /// are still visible. Never store the attempted password or any part of it.
+  email         String
+  success       Boolean
+  failureReason String?  @map("failure_reason")
+  ipAddress     String?  @map("ip_address")
+  userAgent     String?  @map("user_agent")
+  occurredAt    DateTime @default(now()) @map("occurred_at") @db.Timestamptz(6)
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId, occurredAt])
+  @@index([email, occurredAt])
+  @@index([success, occurredAt])
+  @@map("login_history")
+  @@schema("iam")
+}
+
+/// Security policy as configuration, not code: password rules, session lifetime,
+/// MFA requirement. Read through platform/config so a policy change is a row.
+model SecurityPolicy {
+  key         String   @id
+  value       Json
+  description String
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  updatedBy   String?  @map("updated_by") @db.Uuid
+
+  @@map("security_policies")
+  @@schema("iam")
+}

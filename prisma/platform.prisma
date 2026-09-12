@@ -1,0 +1,120 @@
+// Platform — cross-cutting infrastructure tables.  Schema: "platform".
+// Owned by platform/* services, never written directly by a domain module.
+
+enum AuditSeverity {
+  INFO
+  NOTICE
+  WARNING
+  CRITICAL
+
+  @@schema("platform")
+}
+
+enum OutboxStatus {
+  PENDING
+  PROCESSING
+  PROCESSED
+  FAILED
+  /// Exhausted its retries. Visible and alertable — never silently dropped (§10).
+  DEAD
+
+  @@schema("platform")
+}
+
+/// Append-only record of business- and security-significant operations
+/// (CLAUDE.md §18.6). There is deliberately NO update or delete path: the
+/// repository exposes insert and read only, and the database role the app uses
+/// must not hold UPDATE or DELETE on this table.
+model AuditLog {
+  id         String        @id @default(uuid()) @db.Uuid
+  occurredAt DateTime      @default(now()) @map("occurred_at") @db.Timestamptz(6)
+  severity   AuditSeverity @default(INFO)
+
+  /// The acting user, or null for system/scheduled activity (then actorLabel says what).
+  actorId    String? @map("actor_id") @db.Uuid
+  actorLabel String? @map("actor_label")
+
+  /// Dotted action name, e.g. "iam.role.assigned", "ecm.document.downloaded".
+  action     String
+  module     String
+  entityType String  @map("entity_type")
+  entityId   String? @map("entity_id")
+
+  /// Human-readable one-line summary, safe to display. Never put sensitive values here.
+  summary String
+
+  /// Changed fields only. Sensitive values are referenced, never copied (§18.5):
+  /// record that `compensation.baseSalary` changed, not the amounts.
+  changes Json?
+
+  ipAddress     String? @map("ip_address")
+  userAgent     String? @map("user_agent")
+  correlationId String? @map("correlation_id")
+
+  @@index([actorId, occurredAt])
+  @@index([entityType, entityId])
+  @@index([module, occurredAt])
+  @@index([action, occurredAt])
+  @@index([occurredAt])
+  @@map("audit_log")
+  @@schema("platform")
+}
+
+/// Transactional outbox (CLAUDE.md §10). A row is written in the SAME database
+/// transaction as the business change, so an event can never describe a change
+/// that rolled back.
+///
+/// Phase 1 writes to this table; the dispatcher and per-subscriber delivery
+/// arrive in Phase 2. Until then events accumulate as a visible backlog —
+/// which is a deliberate, inspectable state, not lost data.
+model EventOutbox {
+  id         String       @id @default(uuid()) @db.Uuid
+  /// "<module>.<Entity><PastTenseVerb>", e.g. "iam.RoleAssigned".
+  name       String
+  version    Int          @default(1)
+  occurredAt DateTime     @default(now()) @map("occurred_at") @db.Timestamptz(6)
+  actorId    String?      @map("actor_id") @db.Uuid
+  /// Entity IDs and the few fields subscribers need. NEVER sensitive data (§10).
+  payload    Json
+  correlationId String?   @map("correlation_id")
+
+  status      OutboxStatus @default(PENDING)
+  attempts    Int          @default(0)
+  lastError   String?      @map("last_error")
+  availableAt DateTime     @default(now()) @map("available_at") @db.Timestamptz(6)
+  processedAt DateTime?    @map("processed_at") @db.Timestamptz(6)
+
+  @@index([status, availableAt])
+  @@index([name, occurredAt])
+  @@map("event_outbox")
+  @@schema("platform")
+}
+
+/// Runtime settings. Anything an administrator should be able to change without a
+/// deploy lives here, not in code (CLAUDE.md §25.3).
+model AppSetting {
+  key         String   @id
+  value       Json
+  description String
+  /// Settings safe to expose to a browser. Default false — opt in deliberately.
+  isPublic    Boolean  @default(false) @map("is_public")
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  updatedBy   String?  @map("updated_by") @db.Uuid
+
+  @@map("app_settings")
+  @@schema("platform")
+}
+
+/// Feature flags. Remove the flag once a rollout completes (§7).
+model FeatureFlag {
+  key         String   @id
+  description String
+  isEnabled   Boolean  @default(false) @map("is_enabled")
+  /// Optional narrowing: enable for these org units only.
+  orgUnitIds  String[] @map("org_unit_ids") @db.Uuid
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  updatedBy   String?  @map("updated_by") @db.Uuid
+
+  @@map("feature_flags")
+  @@schema("platform")
+}

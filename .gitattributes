@@ -1,0 +1,17 @@
+# Normalise line endings: LF in the repository, native in the working tree.
+# Keeps diffs clean across Windows and CI on Linux.
+* text=auto eol=lf
+
+# Binary files Git must not touch.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.pdf binary
+*.woff binary
+*.woff2 binary
+
+# Generated: collapse in pull request diffs.
+package-lock.json linguist-generated=true -diff

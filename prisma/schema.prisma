@@ -1,0 +1,28 @@
+// TechVault — Prisma schema root.
+//
+// This file holds ONLY the generator and datasource. Models live in one file per
+// module schema alongside it (iam.prisma, platform.prisma, …) and every model
+// declares its Postgres schema with @@schema. See CLAUDE.md §8.2.
+//
+// Conventions (CLAUDE.md §8.4), enforced by review:
+//   - uuid primary keys, default gen_random_uuid()
+//   - snake_case tables and columns via @map / @@map; camelCase in TypeScript
+//   - created_at / updated_at / created_by / updated_by on business tables
+//   - deleted_at for soft delete where history matters
+//   - money as Int in minor units, never Float
+//   - timestamptz, always UTC
+//   - cross-module references are plain ID columns with NO foreign key,
+//     except to iam.users(id) for audit columns
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+
+  // One Postgres schema per module. Add a schema here only together with the
+  // module that owns it — an unowned schema is an architecture violation.
+  // Later phases add: "ecm", "crm", "erp", "hris", "innovation", "bi".
+  schemas = ["iam", "platform"]
+}
