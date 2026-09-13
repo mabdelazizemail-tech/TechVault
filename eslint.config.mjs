@@ -72,6 +72,8 @@ export default tseslint.config(
       "playwright-report/**",
       "test-results/**",
       "prisma/migrations/**",
+      // Design exports (Claude Design canvas runtime + reference markup), not app code.
+      "design/**",
       "next-env.d.ts",
     ],
   },

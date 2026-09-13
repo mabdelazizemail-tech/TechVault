@@ -2,11 +2,8 @@ import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { cn } from "@/lib/cn";
 
 /**
- * The button primitive (CLAUDE.md §16.3).
- *
- * Always renders a real `<button>`, so keyboard activation, focus and assistive
- * technology work without extra effort (§17.5). A clickable `<div>` is never
- * acceptable.
+ * The button primitive (CLAUDE.md §16.3), in the Modernist style: square, heavy
+ * type, the label flush left. Always a real `<button>` (§17.5).
  */
 
 export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
@@ -14,18 +11,18 @@ export type ButtonSize = "sm" | "md";
 
 const VARIANT_CLASSES: Record<ButtonVariant, string> = {
   primary:
-    "bg-primary text-primary-foreground hover:bg-primary-hover border border-transparent",
+    "bg-primary text-primary-foreground hover:bg-primary-hover active:bg-primary-pressed border border-transparent",
   secondary:
-    "bg-surface text-foreground border border-border-strong hover:bg-surface-hover",
+    "bg-transparent text-foreground border border-border-strong hover:bg-surface-hover",
   ghost:
-    "bg-transparent text-foreground-muted border border-transparent hover:bg-surface-hover hover:text-foreground",
+    "bg-transparent text-primary-ink border border-transparent hover:bg-primary/10 px-1",
   danger:
-    "bg-danger text-foreground-inverse hover:bg-danger-hover border border-transparent",
+    "bg-danger text-primary-foreground hover:bg-danger-hover border border-transparent",
 };
 
 const SIZE_CLASSES: Record<ButtonSize, string> = {
-  sm: "h-7 px-2.5 text-xs gap-1.5",
-  md: "h-9 px-3.5 text-sm gap-2",
+  sm: "min-h-7 px-2.5 py-1 text-[13px] gap-1.5",
+  md: "min-h-9 px-3.5 py-2 text-sm gap-1.5",
 };
 
 export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
@@ -55,9 +52,9 @@ export function Button({
       disabled={disabled === true || isPending}
       aria-busy={isPending || undefined}
       className={cn(
-        "inline-flex items-center justify-center rounded-(--radius-control) font-medium",
+        "inline-flex cursor-pointer items-center justify-start leading-tight font-extrabold whitespace-nowrap",
         "transition-colors duration-150",
-        "disabled:pointer-events-none disabled:opacity-55",
+        "disabled:cursor-not-allowed disabled:opacity-45",
         VARIANT_CLASSES[variant],
         SIZE_CLASSES[size],
         className,
@@ -74,7 +71,7 @@ function Spinner() {
   return (
     <span
       aria-hidden="true"
-      className="size-3.5 animate-spin rounded-full border-2 border-current border-t-transparent"
+      className="size-3.5 animate-spin border-2 border-current border-t-transparent"
     />
   );
 }

@@ -19,7 +19,7 @@ export function LoginForm({ next }: { next?: string }) {
   );
 
   return (
-    <form action={formAction} className="flex flex-col gap-4">
+    <form action={formAction} className="flex flex-col gap-3">
       {next !== undefined && <input type="hidden" name="next" value={next} />}
 
       <TextInput
@@ -43,7 +43,7 @@ export function LoginForm({ next }: { next?: string }) {
         // role="alert" so the failure is announced, not only shown (§17.5).
         <p
           role="alert"
-          className="border-danger/25 bg-danger-subtle text-danger rounded-(--radius-control) border px-3 py-2 text-xs"
+          className="border-danger/25 bg-danger-subtle text-danger border px-3 py-2 text-xs"
         >
           {state.error}
         </p>

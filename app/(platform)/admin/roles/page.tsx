@@ -15,7 +15,7 @@ export default async function RolesPage() {
   const roles = await listRoles(actor);
 
   return (
-    <div className="mx-auto max-w-5xl">
+    <div className="max-w-5xl">
       <PageHeader
         title="Roles"
         description="A role is a named bundle of permissions. Users are granted roles, optionally narrowed to an organisational unit."

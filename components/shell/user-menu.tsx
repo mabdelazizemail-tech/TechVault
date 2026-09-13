@@ -27,16 +27,21 @@ export function UserMenu({
     <DropdownMenu.Root>
       <DropdownMenu.Trigger
         aria-label={`Account menu for ${displayName}`}
-        className="hover:bg-surface-hover flex items-center gap-2 rounded-(--radius-control) px-1.5 py-1 text-sm"
+        className="hover:bg-surface-hover flex shrink-0 items-center gap-2.5 px-1 py-1 text-start"
       >
         <span
           aria-hidden="true"
-          className="bg-primary-subtle text-primary flex size-7 items-center justify-center rounded-full text-xs font-semibold"
+          className="bg-foreground text-canvas grid size-[30px] place-items-center text-[11px] font-extrabold"
         >
           {initials}
         </span>
-        <span className="text-foreground hidden max-w-40 truncate sm:block">
-          {displayName}
+        <span className="hidden min-w-0 leading-tight sm:block">
+          <span className="text-foreground block max-w-44 truncate text-xs font-extrabold">
+            {displayName}
+          </span>
+          <span className="text-foreground-muted block max-w-44 truncate text-[10.5px]">
+            {email}
+          </span>
         </span>
       </DropdownMenu.Trigger>
 
@@ -44,10 +49,12 @@ export function UserMenu({
         <DropdownMenu.Content
           align="end"
           sideOffset={6}
-          className="border-border bg-surface-raised z-50 min-w-56 rounded-(--radius-panel) border p-1 shadow-lg"
+          className="border-border-strong bg-surface-raised z-50 min-w-56 border p-1 shadow-[0_12px_32px_color-mix(in_srgb,#2d2b2b_22%,transparent)]"
         >
           <div className="px-2 py-1.5">
-            <p className="text-foreground truncate text-sm font-medium">{displayName}</p>
+            <p className="text-foreground truncate text-sm font-extrabold">
+              {displayName}
+            </p>
             <p className="text-foreground-muted truncate text-xs">{email}</p>
           </div>
 
@@ -62,7 +69,7 @@ export function UserMenu({
                   await onSignOut();
                 });
               }}
-              className="text-foreground data-highlighted:bg-surface-hover w-full cursor-default rounded-(--radius-control) px-2 py-1.5 text-start text-sm outline-none disabled:opacity-55"
+              className="text-foreground data-highlighted:bg-surface-hover w-full cursor-pointer px-2 py-1.5 text-start text-sm outline-none disabled:opacity-45"
             >
               {isPending ? "Signing out…" : "Sign out"}
             </button>

@@ -37,7 +37,7 @@ export default async function UsersPage({
   });
 
   return (
-    <div className="mx-auto max-w-6xl">
+    <div className="max-w-6xl">
       <PageHeader
         title="Users"
         description="Accounts that can sign in to TechVault. Accounts are created deliberately — TechVault never provisions one automatically from a sign-in."

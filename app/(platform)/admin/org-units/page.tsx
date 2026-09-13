@@ -19,7 +19,7 @@ export default async function OrgUnitsPage() {
   const units = await listOrgUnits(actor);
 
   return (
-    <div className="mx-auto max-w-3xl">
+    <div className="max-w-3xl">
       <PageHeader
         title="Organisation units"
         description="The organisational tree. Role assignments can be narrowed to a unit, which grants access to that unit and everything beneath it."

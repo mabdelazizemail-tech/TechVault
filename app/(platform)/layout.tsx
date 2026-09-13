@@ -1,3 +1,4 @@
+import { Breadcrumbs } from "@/components/shell/breadcrumbs";
 import { Header } from "@/components/shell/header";
 import { Sidebar } from "@/components/shell/sidebar";
 import { UserMenu } from "@/components/shell/user-menu";
@@ -9,9 +10,9 @@ import { canAll } from "@/platform/authz/authz";
 /**
  * The authenticated platform shell (CLAUDE.md §16.2).
  *
- * Every module renders inside this. One sidebar, one header, one breadcrumb
- * trail, one user menu — which is what makes seven domains feel like a single
- * product rather than a suite of separate apps.
+ * Every module renders inside this: a full-width header, the sidebar beneath it,
+ * and a content column that opens with the breadcrumb trail — the layout of the
+ * TechVault design.
  *
  * Navigation is filtered on the SERVER: the browser never receives the list of
  * modules this user may not reach. Hiding a link is a usability decision, not a
@@ -38,16 +39,24 @@ export default async function PlatformLayout({
     .filter((section) => section.items.length > 0);
 
   return (
-    <div className="bg-canvas flex h-dvh overflow-hidden">
-      <Sidebar sections={sections} />
+    <div className="bg-canvas flex h-dvh flex-col overflow-hidden">
+      <Header
+        userMenu={
+          <UserMenu fullName={user.fullName} email={user.email} onSignOut={signOut} />
+        }
+      />
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <Header
-          userMenu={
-            <UserMenu fullName={user.fullName} email={user.email} onSignOut={signOut} />
-          }
-        />
-        <main className="flex-1 overflow-y-auto px-4 py-5 md:px-6">{children}</main>
+      <div className="flex min-h-0 flex-1">
+        <Sidebar sections={sections} />
+
+        <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
+          <div className="shrink-0 px-6 pt-3.5 pb-2">
+            <Breadcrumbs />
+          </div>
+          <div className="animate-tv-fade min-h-0 flex-1 overflow-y-auto px-6 pb-8">
+            {children}
+          </div>
+        </main>
       </div>
     </div>
   );

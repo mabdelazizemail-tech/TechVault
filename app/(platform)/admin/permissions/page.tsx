@@ -22,7 +22,7 @@ export default async function PermissionsPage() {
   const permissions = await listPermissions(actor);
 
   return (
-    <div className="mx-auto max-w-5xl">
+    <div className="max-w-5xl">
       <PageHeader
         title="Permissions"
         description="The catalogue of every permission TechVault can grant, in the form module.resource.action."

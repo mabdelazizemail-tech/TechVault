@@ -37,7 +37,7 @@ export default async function AuditPage({
   });
 
   return (
-    <div className="mx-auto max-w-7xl">
+    <div className="max-w-7xl">
       <PageHeader
         title="Audit trail"
         description="Every business- and security-significant operation, in the order it happened. Records are never edited or deleted."

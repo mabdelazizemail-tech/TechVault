@@ -1,161 +1,185 @@
 @import "tailwindcss";
 
 /**
- * TechVault design tokens (CLAUDE.md §17.1).
+ * TechVault design tokens (CLAUDE.md §17.1), taken from the TechVault design
+ * project: the Modernist system (`design/extracted/_ds/.../styles.css`) plus its
+ * runtime theme layer (`tv-tokens.css`).
  *
- * Colours are named SEMANTICALLY (danger, muted, surface) rather than literally
- * (red-500), so theming and dark mode are a token swap rather than a find-and-
- * replace across components. Never put an arbitrary hex value in a component.
- *
- * The palette is deliberately restrained: an operator looks at these screens all
- * day, and saturated colour is reserved for meaning (status, danger, selection).
+ * The system is flat and architectural: Archivo throughout, zero corner radius,
+ * strong rules instead of shadows, one red accent used sparingly for the primary
+ * action and small emphasis. Components reference the SEMANTIC names below, never
+ * a hex value, so the dark theme is a token swap.
  */
 
 @theme {
-  /* Neutral surfaces ----------------------------------------------------- */
-  --color-canvas: oklch(98.4% 0.002 250);
-  --color-surface: oklch(100% 0 0);
-  --color-surface-raised: oklch(100% 0 0);
-  --color-surface-sunken: oklch(96.5% 0.003 250);
-  --color-surface-hover: oklch(96% 0.004 250);
-  --color-surface-selected: oklch(94.5% 0.015 250);
+  /* Ground and surfaces -------------------------------------------------- */
+  --color-canvas: #f3f2f2;
+  --color-surface: #ffffff;
+  --color-surface-raised: #ffffff;
+  --color-surface-sunken: #eae9e9;
+  --color-surface-hover: color-mix(in srgb, #201e1d 6%, transparent);
+  --color-surface-selected: #eae9e9;
 
-  /* Text ----------------------------------------------------------------- */
-  --color-foreground: oklch(21% 0.012 253);
-  --color-foreground-muted: oklch(48% 0.012 253);
-  --color-foreground-subtle: oklch(62% 0.01 253);
-  --color-foreground-inverse: oklch(99% 0 0);
+  /* Ink ------------------------------------------------------------------ */
+  --color-foreground: #201e1d;
+  --color-foreground-muted: color-mix(in srgb, #201e1d 74%, transparent);
+  --color-foreground-subtle: color-mix(in srgb, #201e1d 64%, transparent);
+  --color-foreground-inverse: #f3f2f2;
 
-  /* Borders -------------------------------------------------------------- */
-  --color-border: oklch(90% 0.005 253);
-  --color-border-strong: oklch(82% 0.008 253);
-  --color-border-focus: oklch(55% 0.17 255);
+  /* Rules: a hairline for cell edges, a strong rule between major regions. */
+  --color-border: color-mix(in srgb, #201e1d 16%, transparent);
+  --color-border-strong: color-mix(in srgb, #201e1d 40%, transparent);
+  --color-border-focus: #ec3013;
 
-  /* Brand / primary ------------------------------------------------------ */
-  --color-primary: oklch(48% 0.16 256);
-  --color-primary-hover: oklch(43% 0.16 256);
-  --color-primary-subtle: oklch(95% 0.03 256);
-  --color-primary-foreground: oklch(99% 0 0);
+  /* Accent --------------------------------------------------------------- */
+  --color-primary: #ec3013;
+  --color-primary-hover: #dd2b0f;
+  --color-primary-pressed: #ae1800;
+  --color-primary-ink: #ae1800;
+  --color-primary-subtle: #ffe0d9;
+  --color-primary-foreground: #f3f2f2;
 
   /* Status --------------------------------------------------------------- */
-  --color-success: oklch(52% 0.13 150);
-  --color-success-subtle: oklch(95% 0.04 150);
-  --color-warning: oklch(62% 0.15 75);
-  --color-warning-subtle: oklch(96% 0.05 85);
-  --color-danger: oklch(52% 0.19 22);
-  --color-danger-hover: oklch(47% 0.19 22);
-  --color-danger-subtle: oklch(95% 0.04 22);
-  --color-info: oklch(55% 0.13 245);
-  --color-info-subtle: oklch(95% 0.035 245);
+  --color-success: #1d6b3f;
+  --color-success-subtle: #dceee3;
+  --color-warning: #8a5a00;
+  --color-warning-subtle: #f6e8c8;
+  --color-danger: #ae1800;
+  --color-danger-hover: #7c1405;
+  --color-danger-subtle: #ffe0d9;
+  /* The system is mono: informational tags read as ink on a neutral fill. */
+  --color-info: #201e1d;
+  --color-info-subtle: #eae9e9;
 
-  /* Radii ---------------------------------------------------------------- */
-  --radius-control: 0.375rem;
-  --radius-panel: 0.5rem;
+  /* Shape: no corner is ever rounded. */
+  --radius-control: 0px;
+  --radius-panel: 0px;
 
-  /* Layout -------------------------------------------------------------- */
+  /* Type ----------------------------------------------------------------- */
+  --font-sans: var(--font-archivo), system-ui, "Noto Sans Arabic", sans-serif;
+
+  /* Layout ---------------------------------------------------------------- */
   --spacing-sidebar: 15rem;
-  --spacing-sidebar-collapsed: 3.5rem;
-  --spacing-header: 3.25rem;
+  --spacing-header: 54px;
 }
 
-/**
- * Dark theme. Tokens are REDEFINED here; no component references a colour that
- * exists only inside this block (CLAUDE.md §17.1).
- */
+/* Dark ground — values from tv-tokens.css `[data-tv-theme="dark"]`. Applied for a
+   system dark preference unless the user chose light, and always when they chose
+   dark. Tokens are redefined here; no component owns a dark-only colour. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --color-canvas: oklch(17% 0.008 253);
-    --color-surface: oklch(21% 0.009 253);
-    --color-surface-raised: oklch(24% 0.01 253);
-    --color-surface-sunken: oklch(15% 0.008 253);
-    --color-surface-hover: oklch(26% 0.011 253);
-    --color-surface-selected: oklch(30% 0.02 253);
-
-    --color-foreground: oklch(96% 0.003 253);
-    --color-foreground-muted: oklch(72% 0.01 253);
-    --color-foreground-subtle: oklch(58% 0.01 253);
-    --color-foreground-inverse: oklch(17% 0.008 253);
-
-    --color-border: oklch(30% 0.01 253);
-    --color-border-strong: oklch(38% 0.012 253);
-
-    --color-primary: oklch(66% 0.15 256);
-    --color-primary-hover: oklch(72% 0.15 256);
-    --color-primary-subtle: oklch(28% 0.05 256);
-    --color-primary-foreground: oklch(15% 0.01 256);
-
-    --color-success: oklch(70% 0.14 150);
-    --color-success-subtle: oklch(26% 0.05 150);
-    --color-warning: oklch(76% 0.14 80);
-    --color-warning-subtle: oklch(28% 0.05 80);
-    --color-danger: oklch(66% 0.17 22);
-    --color-danger-hover: oklch(71% 0.17 22);
-    --color-danger-subtle: oklch(27% 0.06 22);
-    --color-info: oklch(70% 0.12 245);
-    --color-info-subtle: oklch(26% 0.05 245);
+    --color-canvas: #161514;
+    --color-surface: #1d1b1a;
+    --color-surface-raised: #1d1b1a;
+    --color-surface-sunken: #232120;
+    --color-surface-hover: color-mix(in srgb, #f1efee 8%, transparent);
+    --color-surface-selected: #232120;
+    --color-foreground: #f1efee;
+    --color-foreground-muted: color-mix(in srgb, #f1efee 76%, transparent);
+    --color-foreground-subtle: color-mix(in srgb, #f1efee 66%, transparent);
+    --color-foreground-inverse: #161514;
+    --color-border: color-mix(in srgb, #f1efee 13%, transparent);
+    --color-border-strong: color-mix(in srgb, #f1efee 34%, transparent);
+    --color-border-focus: #ff563c;
+    --color-primary: #ff563c;
+    --color-primary-hover: #ff9783;
+    --color-primary-pressed: #ffc4b8;
+    --color-primary-ink: #ff9783;
+    --color-primary-subtle: #4d170e;
+    --color-primary-foreground: #161514;
+    --color-success: #6fd39b;
+    --color-success-subtle: #17301f;
+    --color-warning: #e0b25f;
+    --color-warning-subtle: #332713;
+    --color-danger: #ff9783;
+    --color-danger-hover: #ffc4b8;
+    --color-danger-subtle: #3d1409;
+    --color-info: #f1efee;
+    --color-info-subtle: #2b2928;
   }
 }
 
-/* Explicit user choice overrides the system preference in both directions. */
 :root[data-theme="dark"] {
-  --color-canvas: oklch(17% 0.008 253);
-  --color-surface: oklch(21% 0.009 253);
-  --color-surface-raised: oklch(24% 0.01 253);
-  --color-surface-sunken: oklch(15% 0.008 253);
-  --color-surface-hover: oklch(26% 0.011 253);
-  --color-surface-selected: oklch(30% 0.02 253);
-  --color-foreground: oklch(96% 0.003 253);
-  --color-foreground-muted: oklch(72% 0.01 253);
-  --color-foreground-subtle: oklch(58% 0.01 253);
-  --color-foreground-inverse: oklch(17% 0.008 253);
-  --color-border: oklch(30% 0.01 253);
-  --color-border-strong: oklch(38% 0.012 253);
-  --color-primary: oklch(66% 0.15 256);
-  --color-primary-hover: oklch(72% 0.15 256);
-  --color-primary-subtle: oklch(28% 0.05 256);
-  --color-primary-foreground: oklch(15% 0.01 256);
-  --color-success: oklch(70% 0.14 150);
-  --color-success-subtle: oklch(26% 0.05 150);
-  --color-warning: oklch(76% 0.14 80);
-  --color-warning-subtle: oklch(28% 0.05 80);
-  --color-danger: oklch(66% 0.17 22);
-  --color-danger-hover: oklch(71% 0.17 22);
-  --color-danger-subtle: oklch(27% 0.06 22);
-  --color-info: oklch(70% 0.12 245);
-  --color-info-subtle: oklch(26% 0.05 245);
+  --color-canvas: #161514;
+  --color-surface: #1d1b1a;
+  --color-surface-raised: #1d1b1a;
+  --color-surface-sunken: #232120;
+  --color-surface-hover: color-mix(in srgb, #f1efee 8%, transparent);
+  --color-surface-selected: #232120;
+  --color-foreground: #f1efee;
+  --color-foreground-muted: color-mix(in srgb, #f1efee 76%, transparent);
+  --color-foreground-subtle: color-mix(in srgb, #f1efee 66%, transparent);
+  --color-foreground-inverse: #161514;
+  --color-border: color-mix(in srgb, #f1efee 13%, transparent);
+  --color-border-strong: color-mix(in srgb, #f1efee 34%, transparent);
+  --color-border-focus: #ff563c;
+  --color-primary: #ff563c;
+  --color-primary-hover: #ff9783;
+  --color-primary-pressed: #ffc4b8;
+  --color-primary-ink: #ff9783;
+  --color-primary-subtle: #4d170e;
+  --color-primary-foreground: #161514;
+  --color-success: #6fd39b;
+  --color-success-subtle: #17301f;
+  --color-warning: #e0b25f;
+  --color-warning-subtle: #332713;
+  --color-danger: #ff9783;
+  --color-danger-hover: #ffc4b8;
+  --color-danger-subtle: #3d1409;
+  --color-info: #f1efee;
+  --color-info-subtle: #2b2928;
 }
 
 @layer base {
   html {
-    /* Dense but readable: operators scan tables, not prose. */
-    font-size: 15px;
+    font-size: 14px;
     -webkit-text-size-adjust: 100%;
   }
 
   body {
     background-color: var(--color-canvas);
     color: var(--color-foreground);
-    font-family:
-      ui-sans-serif,
-      system-ui,
-      -apple-system,
-      "Segoe UI",
-      Roboto,
-      "Helvetica Neue",
-      "Noto Sans Arabic",
-      Arial,
-      sans-serif;
-    font-feature-settings: "tnum" 1; /* tabular figures: columns of numbers align */
+    font-family: var(--font-sans);
+    line-height: 1.55;
   }
 
-  /* Visible focus on every interactive element (CLAUDE.md §17.5). Never remove
-     this without providing an equally visible alternative. */
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-weight: 800;
+    line-height: 1.12;
+    letter-spacing: -0.015em;
+  }
+
+  /* Numbers line up down a column. */
+  table,
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+
+  ::selection {
+    background: color-mix(in srgb, var(--color-primary) 30%, transparent);
+  }
+
+  /* Themed focus ring on every interactive element — never the browser default
+     (CLAUDE.md §17.5). */
   :focus-visible {
     outline: 2px solid var(--color-border-focus);
     outline-offset: 2px;
   }
 
-  /* Respect a user's reduced-motion preference. */
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  *::-webkit-scrollbar-thumb {
+    background: var(--color-border-strong);
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     *,
     *::before,
@@ -168,7 +192,6 @@
 }
 
 @layer utilities {
-  /* Screen-reader-only text, for labels that must exist without being seen. */
   .sr-only-focusable:not(:focus):not(:focus-within) {
     position: absolute;
     width: 1px;
@@ -176,5 +199,24 @@
     overflow: hidden;
     clip-path: inset(50%);
     white-space: nowrap;
+  }
+
+  /* Kicker: the small uppercase label above a title. */
+  .kicker {
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  @keyframes tv-fade {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  .animate-tv-fade {
+    animation: tv-fade 0.2s ease;
   }
 }
