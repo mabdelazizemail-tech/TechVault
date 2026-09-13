@@ -9,9 +9,10 @@ the rules every change must follow. §28 is the authoritative implementation sta
 
 ## Current state
 
-Phase 0 (foundation) and Phase 1 (identity, audit, app shell) are complete and **verified
-against a live database**: Supabase in eu-west-1, four migrations applied (including
-deny-by-default row-level security and an append-only audit trigger), seed run.
+**Phase 0 and Phase 1 are fully done and verified against a live database**: Supabase in
+eu-west-1, four migrations applied (including deny-by-default row-level security and an
+append-only audit trigger), seed run, and a real administrator account created and
+verified — anyone with that account can sign in today.
 
 | Suite                                        | Result      |
 | -------------------------------------------- | ----------- |
@@ -19,9 +20,6 @@ deny-by-default row-level security and an append-only audit trigger), seed run.
 | Integration vs PostgreSQL (local by default) | 35 passing  |
 | Playwright e2e vs running app + Supabase     | 7 passing   |
 | `npm run build`                              | 10 routes   |
-
-**One step remains before anyone can sign in:** no administrator account exists yet. See
-"Create the first administrator" below.
 
 ## Stack
 
@@ -40,12 +38,12 @@ npx prisma generate
 npm run dev
 ```
 
-### Create the first administrator
+### Creating another administrator (or the first one, on a fresh environment)
 
 The seed deliberately creates no user account — a seeded admin password would be a backdoor
-committed to the repository. Two steps, once:
+committed to the repository. Two steps, once per environment:
 
-1. In the Supabase dashboard, go to **Authentication → Users → Add user**, create your
+1. In the Supabase dashboard, go to **Authentication → Users → Add user**, create the
    account with a password, and copy its **User UID**.
 2. Link it to IAM and grant full administrative access:
 

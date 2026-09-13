@@ -24,7 +24,8 @@
     "db:status": "dotenv -e .env.local -- prisma migrate status",
     "db:deploy": "dotenv -e .env.local -- prisma migrate deploy",
     "db:studio": "dotenv -e .env.local -- prisma studio",
-    "db:seed": "dotenv -e .env.local -- tsx prisma/seed.ts"
+    "db:seed": "dotenv -e .env.local -- tsx prisma/seed.ts",
+    "db:bootstrap-admin": "dotenv -e .env.local -- tsx prisma/bootstrap-admin.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "5.9.1",
