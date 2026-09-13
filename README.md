@@ -10,12 +10,13 @@ the rules every change must follow. §28 is the authoritative implementation sta
 ## Current state
 
 Phase 0 (foundation) and Phase 1 (identity, audit, app shell) are complete and **verified
-against a live database**: Supabase in eu-west-1, three migrations applied, seed run.
+against a live database**: Supabase in eu-west-1, four migrations applied (including
+deny-by-default row-level security and an append-only audit trigger), seed run.
 
 | Suite                                        | Result      |
 | -------------------------------------------- | ----------- |
 | `npm run verify` (typecheck → lint → test)   | 107 passing |
-| Integration vs PostgreSQL (local + Supabase) | 27 passing  |
+| Integration vs PostgreSQL (local by default) | 35 passing  |
 | Playwright e2e vs running app + Supabase     | 7 passing   |
 | `npm run build`                              | 10 routes   |
 
