@@ -1,4 +1,4 @@
-// IAM — Identity & Access Management.  Owner: modules/iam.  Schema: "iam".
+// IAM — Identity & Access Management.  Owner: platform/iam (ADR-010).  Schema: "iam".
 //
 // IAM is the authoritative source for users, roles, permissions, groups and
 // organisational structure. Every authorization decision in TechVault is
@@ -65,7 +65,7 @@ enum PrincipalType {
 /// A node in the organisation tree. Scope resolution for ORG_UNIT / OWN_ORG_UNIT
 /// walks this tree, so it must stay acyclic — enforced in the service layer.
 model OrganizationalUnit {
-  id       String  @id @default(uuid()) @db.Uuid
+  id       String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   /// Stable human-readable key, e.g. "finance.accounts-payable".
   key      String  @unique
   name     String
@@ -140,7 +140,7 @@ model User {
 /// A non-human principal (integration, scheduled job, external system).
 /// Holds roles exactly as a user does, and is audited the same way.
 model ServiceAccount {
-  id          String  @id @default(uuid()) @db.Uuid
+  id          String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   key         String  @unique
   name        String
   description String?
@@ -165,7 +165,7 @@ model ServiceAccount {
 /// The catalogue of permissions. Rows are seeded from each module's
 /// `contracts/permissions.ts` — modules declare, IAM stores and grants.
 model Permission {
-  id          String           @id @default(uuid()) @db.Uuid
+  id          String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   /// Canonical key: "<module>.<resource>.<action>", e.g. "crm.account.read".
   key         String           @unique
   module      String
@@ -191,7 +191,7 @@ model Permission {
 /// A named bundle of permissions. A ROW, never an enum — adding a role must not
 /// require a deploy (CLAUDE.md §6.4).
 model Role {
-  id          String  @id @default(uuid()) @db.Uuid
+  id          String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   key         String  @unique
   name        String
   nameAr      String? @map("name_ar")
@@ -234,7 +234,7 @@ model RolePermission {
 
 /// A role assignment, optionally narrowed to a scope.
 model UserRole {
-  id        String    @id @default(uuid()) @db.Uuid
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId    String    @map("user_id") @db.Uuid
   roleId    String    @map("role_id") @db.Uuid
   scopeType ScopeType @default(GLOBAL) @map("scope_type")
@@ -261,7 +261,7 @@ model UserRole {
 /// A direct per-user grant, for exceptions that do not justify a new role.
 /// DENY beats any ALLOW from any source.
 model UserPermissionGrant {
-  id             String      @id @default(uuid()) @db.Uuid
+  id             String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId         String      @map("user_id") @db.Uuid
   permissionId   String      @map("permission_id") @db.Uuid
   effect         GrantEffect @default(ALLOW)
@@ -305,7 +305,7 @@ model ServiceAccountRole {
 // ---------------------------------------------------------------------------
 
 model Group {
-  id          String  @id @default(uuid()) @db.Uuid
+  id          String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   key         String  @unique
   name        String
   description String?
@@ -362,7 +362,7 @@ model GroupRole {
 
 /// API tokens are hashed at rest and shown to the user exactly once (§11.8).
 model ApiToken {
-  id   String @id @default(uuid()) @db.Uuid
+  id   String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name String
   /// First few characters, for identification in lists. Not a secret.
   prefix String
@@ -394,7 +394,7 @@ model ApiToken {
 
 /// Temporary transfer of authority (e.g. cover during leave). Time-boxed by design.
 model DelegationGrant {
-  id         String  @id @default(uuid()) @db.Uuid
+  id         String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   fromUserId String  @map("from_user_id") @db.Uuid
   toUserId   String  @map("to_user_id") @db.Uuid
   roleId     String? @map("role_id") @db.Uuid
@@ -419,7 +419,7 @@ model DelegationGrant {
 /// Every authentication attempt, successful or not. Feeds the "repeated failures"
 /// alert in §22 and answers "when did this account last sign in".
 model LoginHistory {
-  id            String   @id @default(uuid()) @db.Uuid
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId        String?  @map("user_id") @db.Uuid
   /// Recorded even when no user matches, so failed attempts on unknown addresses
   /// are still visible. Never store the attempted password or any part of it.

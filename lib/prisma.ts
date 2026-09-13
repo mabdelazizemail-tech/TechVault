@@ -18,11 +18,11 @@ import { serverEnv } from "@/platform/config/env";
  */
 function createPrismaClient(): PrismaClient {
   const env = serverEnv();
-  const adapter = new PrismaPg({ connectionString: env.DATABASE_URL });
+  const adapter = new PrismaPg({ connectionString: env.databaseUrl });
 
   return new PrismaClient({
     adapter,
-    log: env.APP_ENV === "development" ? ["warn", "error"] : ["error"],
+    log: env.appEnv === "development" ? ["warn", "error"] : ["error"],
   });
 }
 

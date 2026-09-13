@@ -20,11 +20,14 @@ it is described here.
 | 📋 **PLANNED**     | Agreed design, no code yet. Build it this way when you build it.                     |
 | 💡 **RECOMMENDED** | Proposed by the architect, not yet ratified. Confirm with the owner before building. |
 
-**As of 2026-09-12, Phase 0 (foundation) is ✅ complete and Phase 1 (identity, audit, app
-shell) is 🟡 code-complete but has never run against a database** — no Supabase project
-exists, so no migration has been generated or applied. `npm run verify` passes (typecheck,
-lint, 101 tests) and `npm run build` succeeds; that proves the code compiles and the pure
-logic is correct, not that any database-backed path works.
+**As of 2026-09-13, Phase 0 (foundation) and Phase 1 (identity, audit, app shell) are
+✅ complete and verified against a real database.** A Supabase project is provisioned
+(eu-west-1), three migrations are applied, the seed has run, and the suites pass: 107 unit
+and authorization tests, 27 integration tests against live Postgres, and 7 Playwright
+end-to-end tests against the running app and live Supabase Auth.
+
+**The one thing still outstanding in Phase 1 is a real administrator account** — see §28.
+No user exists yet, because creating one requires a person in the Supabase dashboard.
 
 **§28 holds the authoritative implementation status. Read it before trusting any claim in
 this document, and update it with every change.** Phases 2–10 remain 📋 PLANNED.
@@ -589,20 +592,20 @@ iam · crm · erp · ecm · hris · innovation · bi · platform
 
 **8.4 Conventions** (all mandatory):
 
-| Concern       | Rule                                                                                                                                                                                      |
-| ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Table names   | `snake_case`, plural: `purchase_orders`. Prisma models are PascalCase singular with `@@map`.                                                                                              |
-| Column names  | `snake_case` in the DB, `camelCase` in Prisma via `@map`.                                                                                                                                 |
-| Primary keys  | `id uuid` default `gen_random_uuid()`. No auto-increment integers in business tables.                                                                                                     |
-| Natural keys  | Human-facing numbers (`INV-2026-0001`) are a separate unique column, never the PK.                                                                                                        |
-| Audit columns | Every business table: `created_at`, `updated_at`, `created_by`, `updated_by`.                                                                                                             |
-| Soft delete   | `deleted_at timestamptz` where history matters (financial, HR, documents). Hard delete only for true junk. Every query must filter it — centralise in the repository.                     |
-| Money         | `Int` minor units. Never `float`/`double`/`real` for money. Store the currency code explicitly.                                                                                           |
-| Timestamps    | `timestamptz`, always UTC. Convert at the display layer only.                                                                                                                             |
-| Enums         | Postgres enums for genuinely fixed sets (invoice status). **Lookup tables** for anything a user might extend (pipeline stages, document types, leave types). When in doubt, lookup table. |
-| JSONB         | Allowed for genuinely schemaless data (extracted document metadata, workflow context, event payloads). Never for data you will filter or join on regularly.                               |
-| Indexes       | Every FK, every cross-module ID column, every column used in a `WHERE`/`ORDER BY` on a list screen. Composite indexes match the real query's column order.                                |
-| Constraints   | Express invariants in the DB: `CHECK (amount >= 0)`, unique partial indexes, `NOT NULL` by default. The app is not the last line of defence.                                              |
+| Concern       | Rule                                                                                                                                                                                                                                                                                                                  |
+| ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Table names   | `snake_case`, plural: `purchase_orders`. Prisma models are PascalCase singular with `@@map`.                                                                                                                                                                                                                          |
+| Column names  | `snake_case` in the DB, `camelCase` in Prisma via `@map`.                                                                                                                                                                                                                                                             |
+| Primary keys  | `id uuid` with a DATABASE-level default: `@default(dbgenerated("gen_random_uuid()"))`, not Prisma's `@default(uuid())` — see ADR-013. No auto-increment integers in business tables.                                                                                                                                  |
+| Natural keys  | Human-facing numbers (`INV-2026-0001`) are a separate unique column, never the PK.                                                                                                                                                                                                                                    |
+| Audit columns | Every business table: `created_at`, `updated_at`, `created_by`, `updated_by`.                                                                                                                                                                                                                                         |
+| Soft delete   | `deleted_at timestamptz` where history matters (financial, HR, documents). Hard delete only for true junk. Every query must filter it — centralise in the repository.                                                                                                                                                 |
+| Money         | `Int` minor units. Never `float`/`double`/`real` for money. Store the currency code explicitly.                                                                                                                                                                                                                       |
+| Timestamps    | `timestamptz`, always UTC. Convert at the display layer only.                                                                                                                                                                                                                                                         |
+| Enums         | Postgres enums for genuinely fixed sets (invoice status). **Lookup tables** for anything a user might extend (pipeline stages, document types, leave types). When in doubt, lookup table.                                                                                                                             |
+| JSONB         | Allowed for genuinely schemaless data (extracted document metadata, workflow context, event payloads). Never for data you will filter or join on regularly.                                                                                                                                                           |
+| Indexes       | Every FK, every cross-module ID column, every column used in a `WHERE`/`ORDER BY` on a list screen. Composite indexes match the real query's column order.                                                                                                                                                            |
+| Constraints   | Express invariants in the DB: `CHECK (amount >= 0)`, unique partial indexes, `NOT NULL` by default. The app is not the last line of defence. **A `@@unique` containing a nullable column does not prevent duplicates when that column is NULL** — SQL treats NULLs as distinct. Add a partial unique index (ADR-014). |
 
 **8.5 Migrations.** Prisma Migrate is the only mechanism. Rules:
 
@@ -1211,9 +1214,26 @@ posting; the document ingestion pipeline including failure and retry paths; work
 routing and approvals; sensitive-data access controls (the negative cases especially);
 event publication and handler idempotency; soft-delete filtering.
 
+**Running the integration suite.** It is included in `npm run test` but gates itself on
+`TEST_DATABASE_URL`, reporting as skipped when that is unset — so a fresh clone can run
+`npm run verify` with no database. To run it:
+
+```bash
+TEST_DATABASE_URL="<connection string>" npm run test
+```
+
+`TEST_DATABASE_URL` is deliberately a **separate variable** from `DATABASE_URL`: these tests
+`TRUNCATE` every IAM and platform table, so aiming them at a real database must be an
+explicit act rather than a side effect of having a development connection in the environment.
+Point it at a dedicated database or a Supabase branch, **never** production. Each suite also
+resets in teardown, so it leaves no rows behind.
+
 **Rules.** Test behaviour through the service or endpoint, not implementation internals.
 Integration tests run against a real Postgres (a container or a dedicated Supabase branch),
-never a mock of Prisma — most real defects live in SQL, constraints, and transactions.
+never a mock of Prisma — most real defects live in SQL, constraints, and transactions. The
+first run of this suite found two such defects that every unit test had passed over: a
+unique constraint that did not constrain, and a missing database-level UUID default
+(ADR-013, ADR-014).
 Mock only true externals (payment providers, OCR vendors, email). Every bug fix starts with
 a failing test that reproduces it. Tests are deterministic: fixed clocks, seeded data, no
 sleeps, no shared mutable state, no order dependence. Never weaken or delete a test to make
@@ -1289,7 +1309,9 @@ contain any of them. Log the entity **ID**, not the entity.
 ## 23. Deployment & Environment Management
 
 ✅ CI exists (`.github/workflows/ci.yml`: verify + build + dependency audit).
-📋 Nothing is deployed, and no Supabase project has been provisioned.
+✅ A Supabase project is provisioned (`yobzdfdqonzjbeuvnqox`, eu-west-1, PostgreSQL 17.6)
+with 3 migrations applied and the seed run.
+📋 Nothing is deployed to a hosting environment yet.
 
 **Environments:** `local` (developer machine, local or branch Supabase) → `preview` (per
 pull request, isolated data, **never** production data) → `production`. Never point a
@@ -1315,17 +1337,37 @@ Only variables genuinely safe in a browser bundle may be prefixed `NEXT_PUBLIC_`
 or malformed required variable is a **hard failure at boot**, and the error names the
 variable without ever printing its value.
 
+**Connecting to Supabase — what actually works here.** The project is `yobzdfdqonzjbeuvnqox`
+in **eu-west-1**. Both `DATABASE_URL` and `DIRECT_URL` point at the **session pooler**:
+
+```
+postgresql://postgres.<ref>:<password>@aws-1-eu-west-1.pooler.supabase.com:5432/postgres
+```
+
+Three findings worth keeping, because each cost time to establish:
+
+1. **`db.<ref>.supabase.co` is IPv6-only.** It publishes an `AAAA` record and no `A` record.
+   Any machine or CI runner without routable IPv6 gets `ENOTFOUND` and cannot use the direct
+   connection at all. The session pooler is IPv4-reachable and is the right default.
+2. **Use the SESSION pooler (port 5432), not the transaction pooler (6543).** Session mode
+   supports prepared statements and DDL; transaction mode breaks both migrations and
+   Prisma's prepared statements.
+3. **The pooler username is `postgres.<project-ref>`**, and the hostname generation matters:
+   this project is `aws-1-eu-west-1`, and `aws-0-eu-west-1` returns
+   "tenant or user not found". Take the exact string from the dashboard rather than
+   assuming.
+
 **Migration connection caveat.** Prisma 7's `prisma.config.ts` exposes only `url`, so
-`DIRECT_URL` is not wired in automatically. Against a pooled Supabase connection, run
-migrations with the direct connection substituted:
+`DIRECT_URL` is not wired in automatically. When the two differ, run migrations with the
+direct connection substituted:
 
 ```bash
 DATABASE_URL="$DIRECT_URL" npm run db:migrate
 ```
 
-**A local `.env.local` currently holds placeholder values** so that `prisma generate`,
-typecheck, lint and build run offline. It is gitignored. Replace it with real credentials
-before expecting anything database-backed to work (§29 #3).
+`.env.local` holds the real development credentials and is gitignored. CI needs no real
+secrets: the build runs on placeholders, because proving the code compiles must never
+require production credentials.
 
 **Release rules.** CI runs `typecheck → lint → test → build` on every pull request and must
 be green to merge. Migrations run as an explicit, reviewed step — `prisma migrate deploy`,
@@ -1355,10 +1397,9 @@ before its platform service will be rebuilt.
 
 ```
 Phase 0  ✅ DONE  Foundation: scaffold, Prisma multi-schema, env validation, ESLint boundaries, CI
-Phase 1  🟡 CODE COMPLETE, UNVERIFIED AGAINST A DATABASE
+Phase 1  ✅ DONE (verified against live Postgres + Supabase Auth)
          IAM + platform/auth + platform/authz + platform/audit + the app shell.
-         Remaining: provision Supabase, generate + run the initial migration, run the
-         seed, bootstrap a real admin user, then enable the integration suite (§29 #1–3).
+         Outstanding: create the first administrator account (§28, §29 #2).
 Phase 2  platform/jobs + platform/events dispatcher + platform/storage + notifications
 Phase 3  ECM core (register → store → version → search → download, permissioned)
 Phase 4  platform/workflow + the first real approval flow
@@ -1612,67 +1653,113 @@ migrations against a pooled Supabase connection must be run with `DATABASE_URL` 
 the direct connection (documented in `.env.local.example`). _Revisit when:_ Prisma 8 reaches
 GA, or Supabase's pooler makes a different adapter preferable.
 
+**ADR-013 — UUID primary keys are generated by the database.** _Context:_ §8.4 documents
+`id uuid default gen_random_uuid()`, but Prisma's `@default(uuid())` generates the value in
+the CLIENT and emits no database default. The first integration run proved it: `column_default`
+for `iam.roles.id` was empty. Any raw SQL insert — a data fix, a migration, a psql session,
+a future RLS-era insert — would have failed on a null id. _Decision:_ every uuid primary key
+uses `@default(dbgenerated("gen_random_uuid()"))`. _Consequences:_ the invariant holds
+wherever the row is created, not only when Prisma creates it, which is what §8.4 means by
+"the app is not the last line of defence"; the id is assigned by the database, so code must
+read it back from the result rather than assuming it knew it in advance.
+_Revisit when:_ never, short of changing the key strategy entirely.
+
+**ADR-014 — Partial unique indexes for unscoped grants.** _Context:_ `iam.user_roles`
+declares `@@unique([user_id, role_id, scope_type, scope_org_unit_id])`, and
+`scope_org_unit_id` is NULL for every GLOBAL, OWN_ORG_UNIT and OWN grant. In SQL, NULL is
+not equal to NULL, so the constraint permitted unlimited duplicate rows precisely in the
+common case — a double-submitted "assign role" would have created two identical grants.
+Duplicates are not a privilege escalation (the evaluator is idempotent over grants) but they
+corrupt access review: "why does this user have this permission?" gains phantom answers, and
+revoking one row leaves the other. _Decision:_ partial unique indexes
+(`... WHERE scope_org_unit_id IS NULL`) on `user_roles` and `user_permission_grants`,
+declared as raw SQL inside the Prisma migration history — Prisma's schema language supports
+neither `UNIQUE NULLS NOT DISTINCT` nor partial indexes. Keeping them in `prisma/migrations`
+rather than `supabase/migrations` means replaying history reproduces them and `migrate dev`
+reports no drift. _Consequences:_ the constraint is split between the Prisma schema and raw
+SQL, so anyone changing these tables must read both. _Revisit when:_ Prisma supports partial
+indexes or `NULLS NOT DISTINCT`.
+
 ---
 
 ## 28. Current Implementation Status
 
-**Snapshot date: 2026-09-12, after the Phase 0 + Phase 1 build-out. Keep this section
-honest and current — it is what the next session trusts.**
+**Snapshot date: 2026-09-13, after Phase 1 was verified end to end against a live database.
+Keep this section honest and current — it is what the next session trusts.**
 
-### Verification state
+### Verification state — what was actually run
 
-`npm run verify` (typecheck → lint → test) **passes**: 0 type errors, 0 lint errors,
-**101 tests green** across 7 files. `npm run build` **succeeds** (10 routes). Neither
-proves anything about database behaviour — see the gap below.
+| Gate                                                   | Result                                                                                                                                         |
+| ------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run verify` (typecheck → lint → test)             | ✅ 0 type errors, 0 lint errors, **107 tests passing**                                                                                         |
+| `npm run build`                                        | ✅ succeeds, 10 routes                                                                                                                         |
+| Integration suite vs **live Postgres 17.6**            | ✅ **27 tests passing** (skipped unless `TEST_DATABASE_URL` is set)                                                                            |
+| Playwright e2e vs **running app + live Supabase Auth** | ✅ **7 tests passing**                                                                                                                         |
+| `prisma migrate deploy`                                | ✅ 3 migrations applied                                                                                                                        |
+| `npm run db:seed`                                      | ✅ 25 permissions, 4 system roles, root org unit, 3 security policies                                                                          |
+| `/api/health/ready`                                    | ✅ `{"status":"ready","checks":{"database":"ok"}}`                                                                                             |
+| Anonymous access to `/dashboard`, `/admin/users`       | ✅ 307 → `/login?next=…`                                                                                                                       |
+| Failed sign-in against live Supabase                   | ✅ uniform "Those credentials are not valid."; attempt recorded in `iam.login_history` with IP and user agent, **no credential in the record** |
+
+### Database — provisioned and verified
+
+Supabase project `yobzdfdqonzjbeuvnqox`, eu-west-1, PostgreSQL 17.6, reached through the
+session pooler (§23). Schemas `iam` (16 tables) and `platform` (4 tables).
+
+| Migration                               | What it does                                                     |
+| --------------------------------------- | ---------------------------------------------------------------- |
+| `20260912163132_init`                   | The full `iam` + `platform` schema                               |
+| `20260912164500_unique_unscoped_grants` | Partial unique indexes closing the NULL-in-unique hole (ADR-014) |
+| `20260912163714_uuid_db_defaults`       | Database-level `gen_random_uuid()` defaults (ADR-013)            |
+
+Seeded baseline, confirmed by direct SQL: 25 permissions, 4 roles, 46 role-permission
+links, 1 org unit, 3 security policies, **0 users**, 0 audit rows, 0 outbox rows.
 
 ### ✅ Implemented and verified
 
-| Area              | What exists                                                                                                                                                                                                                                                                                                                            |
-| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Repository        | Git initialised on `main`; `.gitignore` covers `.env*` (with `!.env.local.example`) from the first commit                                                                                                                                                                                                                              |
-| Scaffold          | Next 16 App Router, React 19, TypeScript 5.9 strict (`noUncheckedIndexedAccess`), Tailwind 4 CSS-first tokens                                                                                                                                                                                                                          |
-| Config            | `platform/config/env.ts` — Zod-validated, hard-fails at boot, never echoes a value into an error message; `serverEnv()` throws if called in the browser                                                                                                                                                                                |
-| Boundaries        | ESLint zone rules for all four boundary classes; **each one probe-tested and confirmed to fire**                                                                                                                                                                                                                                       |
-| Database schema   | `iam` (18 models: users, roles, permissions, grants, groups, org units, service accounts, API tokens, delegation, login history, security policy) and `platform` (audit log, event outbox, app settings, feature flags); multi-schema validated, client generates                                                                      |
-| Authorization     | `platform/authz/evaluate.ts` — a **pure** evaluator: `module.resource.action` keys, four scope types, DENY-wins precedence, validity windows, materialised-path subtree matching, no action implication. `scopeFilterFor` derives row-level list filters; `prisma-filter.ts` translates them to `where` fragments and **fails closed** |
-| Authorization API | `can`, `requirePermission`, `scopeFilter`, `canAll`, `explain` — request-cached via React `cache()`, never longer                                                                                                                                                                                                                      |
-| Grant resolution  | `platform/iam/permission-loader.ts` flattens role, group, direct and delegated grants into one list; skips inactive/deleted roles and groups                                                                                                                                                                                           |
-| Audit             | `platform/audit` — append-only writer with no update or delete path, transaction-aware, `diffForAudit` records that a sensitive field changed without its values                                                                                                                                                                       |
-| Events            | `platform/events/publish.ts` — outbox writer requiring a transaction client by signature                                                                                                                                                                                                                                               |
-| Auth              | Supabase SSR server/browser/proxy clients; `getCurrentUser` / `requireUser` / `getActor`; sign-in and sign-out actions with full login-history recording; uniform failure message                                                                                                                                                      |
-| Shell             | One sidebar + header + breadcrumbs + user menu; navigation **permission-filtered on the server** and batched into one evaluation                                                                                                                                                                                                       |
-| UI primitives     | `Button`, `TextInput`, `Panel`, `Badge`, `EmptyState`, `ErrorState`, `PageHeader`, and `DataTable` with DB-side pagination, URL-state sorting, sticky header, mobile column hiding, real empty states                                                                                                                                  |
-| Admin screens     | Users (paginated, sorted, scope-narrowed), Roles, Permissions, Organisation units, Audit trail                                                                                                                                                                                                                                         |
-| IAM services      | `listUsers`, `setUserActive`, `assignRole` — each permission-checked first, Zod-validated, with audit + outbox event written **inside** the transaction                                                                                                                                                                                |
-| Seed              | Idempotent: permission catalogue, 4 system roles, root org unit, security policies. Creates **no** user — a seeded admin password would be a shipped backdoor                                                                                                                                                                          |
-| Tests             | 44 authorization assertions (both directions), plus money, audit-diff, env, logger and catalogue guards; Playwright auth journey specs                                                                                                                                                                                                 |
-| CI                | `.github/workflows/ci.yml` — verify, build and dependency-audit jobs                                                                                                                                                                                                                                                                   |
-| Observability     | Structured JSON logger with a redaction backstop; `/api/health` and `/api/health/ready`                                                                                                                                                                                                                                                |
+| Area            | What exists                                                                                                                                                                                                                       |
+| --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Repository      | Git on `main`; `.gitignore` covered `.env*` before the first commit; `.gitattributes` normalises line endings                                                                                                                     |
+| Scaffold        | Next 16 App Router, React 19, TypeScript 5.9 strict, Tailwind 4 CSS-first tokens                                                                                                                                                  |
+| Config          | `platform/config/env.ts` — Zod-validated, hard-fails at boot, never echoes a value into an error; supports both Supabase client-key generations; the privileged key is **optional** because nothing uses it                       |
+| Boundaries      | ESLint zone rules for all four boundary classes, each probe-tested to confirm it fires                                                                                                                                            |
+| Database schema | 20 tables across two schemas, applied and queried                                                                                                                                                                                 |
+| Authorization   | Pure evaluator: `module.resource.action`, four scope types, DENY-wins, validity windows, materialised-path subtree matching, no action implication. Verified against stored grants, including role/group/direct/delegated sources |
+| Scope narrowing | `scopeFilter` → Prisma `where`, fails closed. **Verified**: a unit-scoped reader sees 2 of 3 users and `total` reflects the narrowing                                                                                             |
+| Audit           | Append-only, no update/delete path, written inside the business transaction. **Verified**: rolls back with its transaction; permission denials recorded at WARNING                                                                |
+| Events          | Outbox writer requiring a transaction client. **Verified**: rolls back with its transaction; payload carries only entity IDs                                                                                                      |
+| Auth            | Supabase SSR clients; no auto-provisioning; sign-in/out actions; login history with IP and user agent                                                                                                                             |
+| Shell           | One sidebar/header/breadcrumbs/user menu; navigation permission-filtered on the server, batched into one evaluation                                                                                                               |
+| UI primitives   | `Button`, `TextInput`, `Panel`, `Badge`, `EmptyState`, `ErrorState`, `PageHeader`, `DataTable` (DB-side pagination, URL-state sorting, mobile column hiding)                                                                      |
+| Admin screens   | Users, Roles, Permissions, Organisation units, Audit trail                                                                                                                                                                        |
+| IAM services    | `listUsers`, `setUserActive`, `assignRole` — permission-checked, Zod-validated, audit + event inside the transaction                                                                                                              |
+| Scripts         | Idempotent `db:seed`; `db:bootstrap-admin` to link a Supabase user and grant `platform-admin`                                                                                                                                     |
+| Tests           | 107 unit/authz + 27 integration + 7 e2e; integration gated on a separate `TEST_DATABASE_URL` and self-cleaning                                                                                                                    |
+| CI              | verify + build + dependency-audit jobs                                                                                                                                                                                            |
 
 ### 🟡 Partial — knowingly incomplete
 
-| Area                                                             | State                                           | What is missing                                                                                                                                |
-| ---------------------------------------------------------------- | ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Database**                                                     | Schema written and validated; **never applied** | No Supabase project, so **no migration has been generated or run**. `prisma/migrations/` is empty. Nothing has touched a real database.        |
-| **End-to-end behaviour**                                         | Unproven                                        | Every DB-dependent path (sign-in, the admin screens, audit writes) is **untested against Postgres**. The passing suite covers pure logic only. |
-| Event pipeline                                                   | Writer only                                     | No dispatcher, no subscriber registry, no retries, no DLQ (Phase 2). Events accumulate as a visible backlog.                                   |
-| RLS                                                              | Not enabled                                     | `supabase/migrations/` is empty; ADR-002 calls for deny-by-default RLS as defence in depth.                                                    |
-| Integration tests                                                | Harness configured, excluded                    | `tests/integration/` is excluded from `verify` until a test database exists.                                                                   |
-| i18n / RTL                                                       | Groundwork only                                 | Logical CSS properties used throughout and `locale` on the user; no string externalisation or Arabic yet (ADR-009).                            |
-| Notifications, search, jobs, workflow, storage, AI, integrations | Not started                                     | Phase 2+                                                                                                                                       |
-| CSP                                                              | Omitted                                         | Other security headers are set in `next.config.ts`; CSP needs a nonce in `proxy.ts` (§29).                                                     |
+| Area                                                             | State           | What is missing                                                                                                                                                                                                                               |
+| ---------------------------------------------------------------- | --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Administrator account**                                        | None exists     | `iam.users` is empty. A person must create the user in Supabase Auth → Users, then run `npm run db:bootstrap-admin -- --id <uuid> --email <address>`. Until then nobody can sign in, and the admin screens are unexercised by a real session. |
+| Event pipeline                                                   | Writer verified | No dispatcher, subscriber registry, retries or DLQ (Phase 2). Events accumulate as a visible backlog.                                                                                                                                         |
+| RLS                                                              | Not enabled     | `supabase/migrations/` is empty; ADR-002 calls for deny-by-default RLS as defence in depth.                                                                                                                                                   |
+| Dedicated test database                                          | Absent          | The integration suite has only ever run against the development database, which is safe **only** while it holds no real data (§29 #1).                                                                                                        |
+| i18n / RTL                                                       | Groundwork only | Logical CSS properties throughout and `locale` on the user; no string externalisation or Arabic yet (ADR-009).                                                                                                                                |
+| Notifications, search, jobs, workflow, storage, AI, integrations | Not started     | Phase 2+                                                                                                                                                                                                                                      |
+| CSP                                                              | Omitted         | Other security headers set in `next.config.ts`; CSP needs a nonce in `proxy.ts` (§29).                                                                                                                                                        |
 
 ### 📋 Not started
 
-All six remaining domain modules (CRM, ERP, ECM, HRIS, Innovation, BI). Their navigation
-entries and permission keys are declared but uncatalogued, so they correctly do not render.
+All six domain modules (CRM, ERP, ECM, HRIS, Innovation, BI). Their navigation entries and
+permission keys are declared but uncatalogued, so they correctly do not render.
 
 ### The honest summary
 
-**The foundation is real and enforced; nothing has touched a database.** The next session's
-first job is to create a Supabase project, fill `.env.local`, generate the initial
-migration, run the seed, and link a real admin user — after which the Phase 1 claims above
-become verifiable rather than merely compiling.
+**The foundation is real, enforced, and now proven against a live database.** The integration
+suite earned its place immediately by finding two defects no unit test could see. What
+remains before Phase 1 is fully closed is a single human step: create the first Supabase Auth
+user and bootstrap it.
 
 ### How to update this section
 
@@ -1682,34 +1769,38 @@ a note. An inaccurate status section is worse than none, because the next sessio
 
 ## 29. Technical Debt
 
-Resolved during the Phase 0/1 build-out (kept for the record, because each was a critical
-risk and regressing any of them would be expensive):
+Resolved (kept for the record, because each was a critical risk and regressing any of them
+would be expensive):
 
-| Was                        | Now                                                                               |
-| -------------------------- | --------------------------------------------------------------------------------- |
-| No git repository          | ✅ Initialised on `main` with a complete `.gitignore` **before** the first commit |
-| Authorization retrofitted  | ✅ Built first; no business feature exists without it                             |
-| Boundaries unenforced      | ✅ ESLint zones, probe-verified                                                   |
-| Audit added later          | ✅ Append-only, written inside business transactions from the start               |
-| No tests on first features | ✅ 101 tests, including 44 authorization assertions                               |
-| Vercel CLI missing         | 🟡 Still not installed — `npm i -g vercel`                                        |
+| Was                                       | Now                                                                               |
+| ----------------------------------------- | --------------------------------------------------------------------------------- |
+| No git repository                         | ✅ Initialised on `main` with a complete `.gitignore` **before** the first commit |
+| Authorization retrofitted                 | ✅ Built first; no business feature exists without it                             |
+| Boundaries unenforced                     | ✅ ESLint zones, probe-verified                                                   |
+| Audit added later                         | ✅ Append-only, inside business transactions, verified to roll back               |
+| No tests on first features                | ✅ 107 unit/authz + 27 integration + 7 e2e                                        |
+| No database ever provisioned              | ✅ Supabase eu-west-1, 3 migrations applied, seeded                               |
+| No integration tests running              | ✅ 27 passing against live Postgres                                               |
+| `.env.local` placeholders                 | ✅ Real credentials in place (gitignored)                                         |
+| Unique constraints that did not constrain | ✅ Partial unique indexes (ADR-014)                                               |
+| UUIDs generated only in application code  | ✅ Database-level defaults (ADR-013)                                              |
 
-Open debt and foundational risk:
+Open debt and risk:
 
-| #   | Item                                                        | Why it matters                                                                                                                                                                                          | Mitigation                                                                                                                                            | Severity    |
-| --- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
-| 1   | **No database has ever been provisioned**                   | Every DB-dependent path is unverified. The schema may be valid and still wrong in practice — a constraint that rejects legitimate data, a missing index, a Prisma relation that does not behave as read | Create the Supabase project, generate and run the initial migration, run the seed, sign in as a real user                                             | 🔴 Critical |
-| 2   | **No integration tests running**                            | The riskiest code (transactions, constraints, scope-narrowed queries) is covered only by pure unit tests. Most real defects live in SQL and transactions                                                | Stand up a test Postgres (container or Supabase branch), drop the `tests/integration` exclusion from `vitest.config.mts`                              | 🔴 Critical |
-| 3   | **`.env.local` holds placeholder values**                   | Created so `prisma generate`, typecheck and the build could run offline. The app will fail at runtime until real values replace them — correctly and loudly, but confusingly if unexpected              | Replace with real Supabase credentials; the file is gitignored                                                                                        | 🟠 High     |
-| 4   | **RLS not enabled**                                         | ADR-002 specifies deny-by-default RLS as defence in depth. Today the only barrier is the application layer                                                                                              | Add policies under `supabase/migrations/` with the first migration                                                                                    | 🟠 High     |
-| 5   | **Event dispatcher missing**                                | Events are written but never delivered. Subscribers do not exist, so cross-module reactions silently do not happen                                                                                      | Phase 2                                                                                                                                               | 🟠 High     |
-| 6   | **No CSP**                                                  | Other security headers are set; CSP needs a nonce-based policy in `proxy.ts` because Next injects inline bootstrap scripts                                                                              | Implement with the nonce; never use `unsafe-inline`                                                                                                   | 🟠 High     |
-| 7   | **Scoped DENY grants are not expressible as a list filter** | `scopeFilterFor` applies global denials but cannot express a scope-limited DENY as a positive SQL predicate. A list may therefore include a row the caller may not act on                               | Documented in `evaluate.ts`: any row a list acts on must be re-checked with `requirePermission` and a target. Revisit if scoped denials become common | 🟡 Medium   |
-| 8   | **Org-unit `path` is maintained by the service layer**      | A bug in re-parenting would silently widen or narrow access platform-wide, since scope resolution is a prefix match on this column                                                                      | Write the re-parent operation with tests before exposing org-unit editing; consider a DB trigger or integrity job                                     | 🟡 Medium   |
-| 9   | **Pinned below the latest TypeScript and ESLint**           | TS 7 and ESLint 10 are published but break linting here (ADR-011). An innocent `npm update` breaks the lint run                                                                                         | Constraints documented in §3 and ADR-011; renovate only with a lint run                                                                               | 🟡 Medium   |
-| 10  | **No seeded admin user path**                               | The seed deliberately creates no account, so first access needs a manual Supabase user plus an `iam.users` row and a role grant                                                                         | Write a documented one-off bootstrap script that takes an existing Supabase user ID                                                                   | 🟡 Medium   |
-| 11  | **i18n/RTL groundwork only**                                | Strings are hardcoded English. Logical CSS properties are used throughout, so layout is ready, but the text is not                                                                                      | Externalise strings when Arabic is scheduled (ADR-009)                                                                                                | 🟡 Medium   |
-| 12  | **`react-hook-form` installed but unused**                  | Phase 1 forms use `useActionState`. An unused dependency is small but real surface                                                                                                                      | Use it in Phase 2 forms or remove it                                                                                                                  | 🟢 Low      |
+| #   | Item                                                        | Why it matters                                                                                                                                                                                                                                                             | Mitigation                                                                                                     | Severity    |
+| --- | ----------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- | ----------- |
+| 1   | **No dedicated test database**                              | The integration suite truncates every IAM and platform table and has only run against the development database. That is safe today because the database holds nothing but seeded reference data — it stops being safe the moment a real user or any business record exists | Create a Supabase branch or a local Postgres for `TEST_DATABASE_URL` **before** the first real data lands      | 🔴 Critical |
+| 2   | **No administrator account**                                | Nobody can sign in, so every admin screen and the full signed-in shell remain unexercised by a real session                                                                                                                                                                | Create the user in Supabase Auth, then `npm run db:bootstrap-admin` (§28)                                      | 🟠 High     |
+| 3   | **RLS not enabled**                                         | ADR-002 specifies deny-by-default RLS as defence in depth. Today the only barrier is the application layer                                                                                                                                                                 | Add policies under `supabase/migrations/`                                                                      | 🟠 High     |
+| 4   | **Event dispatcher missing**                                | Events are written but never delivered, so cross-module reactions silently do not happen                                                                                                                                                                                   | Phase 2                                                                                                        | 🟠 High     |
+| 5   | **No CSP**                                                  | Other security headers are set; CSP needs a nonce-based policy in `proxy.ts` because Next injects inline bootstrap scripts                                                                                                                                                 | Implement with the nonce; never `unsafe-inline`                                                                | 🟠 High     |
+| 6   | **Database password was shared in a chat transcript**       | It now exists outside the password manager and outside `.env.local`                                                                                                                                                                                                        | Rotate it in the Supabase dashboard and update `.env.local`                                                    | 🟠 High     |
+| 7   | **Integration suite is slow (~55s)**                        | Every query crosses the internet to eu-west-1 at 300–700 ms. Slow suites get skipped, and skipped suites rot                                                                                                                                                               | Run it against a local Postgres container; keep the remote run for CI                                          | 🟡 Medium   |
+| 8   | **Scoped DENY grants are not expressible as a list filter** | `scopeFilterFor` applies global denials but cannot express a scope-limited DENY as positive SQL, so a list may include a row the caller may not act on                                                                                                                     | Documented in `evaluate.ts`: re-check any row a list acts on with `requirePermission` and a target             | 🟡 Medium   |
+| 9   | **Org-unit `path` is maintained by the service layer**      | A bug in re-parenting would silently widen or narrow access platform-wide, since scope resolution is a prefix match on this column                                                                                                                                         | Write the re-parent operation with tests before exposing org-unit editing; consider a trigger or integrity job | 🟡 Medium   |
+| 10  | **Pinned below the latest TypeScript and ESLint**           | TS 7 and ESLint 10 break linting here (ADR-011); an innocent `npm update` breaks the lint run                                                                                                                                                                              | Constraints documented in §3 and ADR-011                                                                       | 🟡 Medium   |
+| 11  | **i18n/RTL groundwork only**                                | Strings are hardcoded English; layout is RTL-ready but the text is not                                                                                                                                                                                                     | Externalise strings when Arabic is scheduled (ADR-009)                                                         | 🟡 Medium   |
+| 12  | **`react-hook-form` installed but unused**                  | Phase 1 forms use `useActionState`. An unused dependency is small but real surface                                                                                                                                                                                         | Use it in Phase 2 forms or remove it                                                                           | 🟢 Low      |
 
 Add real debt here as it accrues, with why it was accepted and the trigger to repay it. A
 TODO in code without a row here is invisible debt.
@@ -1719,20 +1810,30 @@ TODO in code without a row here is invisible debt.
 Sequenced by dependency, not by excitement. Each phase ends with something usable, tested,
 and permission-checked.
 
-| Phase                       | Scope                                                                                                                                                                                                       | Done when                                                                                                                                                                                                                                                      |
-| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **0 — Foundation** ✅       | `git init` + `.gitignore`; Next.js + TS strict scaffold; Prisma multi-schema; env validation; ESLint boundary zones; Vitest + Playwright; `npm run verify`; CI                                              | ✅ Done. Verify passes (101 tests), build succeeds, all four boundary rules probe-tested                                                                                                                                                                       |
-| **1 — Identity & shell** 🟡 | IAM schema; Supabase auth; `platform/authz` with `can`/`requirePermission`/`scopeFilter`; `platform/audit`; admin console for users/roles/permissions/org-units/audit; the platform shell                   | 🟡 Code complete, **unverified against a database**. Done when: Supabase provisioned, initial migration run, seed applied, a real user signs in and sees only permitted navigation, and the integration suite runs (§29 #1–3). The command palette is deferred |
-| **2 — Platform backbone**   | Job queue + worker; event outbox + dispatcher + DLQ; object storage adapter; notifications (in-app + email); config and feature flags                                                                       | An event reliably triggers a job that sends a notification, idempotently, with retries visible                                                                                                                                                                 |
-| **3 — ECM core**            | Document register/store/version; document types and metadata schemas as data; permissioned download via signed URLs; full-text search; preview                                                              | A document is uploaded, typed, searched, downloaded — every access audited, quarantine hook in place                                                                                                                                                           |
-| **4 — Workflow engine**     | Definitions, instances, tasks, sequential/parallel/conditional routing, SLA, escalation, delegation, history; first real approval flow                                                                      | An administrator changes an approval threshold **without a deploy**                                                                                                                                                                                            |
-| **5 — CRM core**            | Accounts, contacts, leads, opportunities, pipeline-as-data, activities, tasks; ECM document links                                                                                                           | A sales user works a deal from lead to won, with documents attached and events published                                                                                                                                                                       |
-| **6 — ERP finance core**    | Chart of accounts, double-entry journal, AR invoices, AP bills, payments, period close; approvals via workflow                                                                                              | An invoice posts a balanced journal entry, is approved through workflow, and reconciles                                                                                                                                                                        |
-| **7 — HRIS core**           | Employees, departments, org tree, sensitive-field isolation, leave and attendance, self-service; IAM provisioning and revocation on termination                                                             | Terminating an employee revokes platform access automatically — with a test proving it                                                                                                                                                                         |
-| **8 — Innovation**          | Ideas, categories, configurable stage workflow, assessments, voting, non-gameable points and badges, conversion to ERP project                                                                              | An approved idea creates an ERP project via event, with the points ledger explainable                                                                                                                                                                          |
-| **9 — BI**                  | KPI definitions, rollup jobs, executive and per-module dashboards, scheduled reports, background exports                                                                                                    | A dashboard loads under 1 s from rollups and shows only permitted data                                                                                                                                                                                         |
-| **10 — AI layer**           | Provider abstractions; OCR and classification in the ECM pipeline; embeddings; permission-filtered semantic search; then an assistant                                                                       | Semantic search provably cannot return a document the user may not read                                                                                                                                                                                        |
-| **Later**                   | MFA; SSO (OIDC/SAML); mobile-optimised views; external/customer portal; advanced integrations (banking, Microsoft 365, WhatsApp); extraction of ECM processing into a worker if load justifies it (ADR-001) | —                                                                                                                                                                                                                                                              |
+| Phase                       | Scope                                                                                                                                                                                                       | Done when                                                                                                                                                                                                        |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **0 — Foundation** ✅       | `git init` + `.gitignore`; Next.js + TS strict scaffold; Prisma multi-schema; env validation; ESLint boundary zones; Vitest + Playwright; `npm run verify`; CI                                              | ✅ Done. Verify passes (107 tests), build succeeds, all four boundary rules probe-tested                                                                                                                         |
+| **1 — Identity & shell** ✅ | IAM schema; Supabase auth; `platform/authz` with `can`/`requirePermission`/`scopeFilter`; `platform/audit`; admin console for users/roles/permissions/org-units/audit; the platform shell                   | ✅ Verified against live Postgres and Supabase Auth: 3 migrations applied, seed run, 27 integration + 7 e2e tests passing. Outstanding: create the first admin account (§29 #2). The command palette is deferred |
+| **2 — Platform backbone**   | Job queue + worker; event outbox + dispatcher + DLQ; object storage adapter; notifications (in-app + email); config and feature flags                                                                       | An event reliably triggers a job that sends a notification, idempotently, with retries visible                                                                                                                   |
+| **3 — ECM core**            | Document register/store/version; document types and metadata schemas as data; permissioned download via signed URLs; full-text search; preview                                                              | A document is uploaded, typed, searched, downloaded — every access audited, quarantine hook in place                                                                                                             |
+| **4 — Workflow engine**     | Definitions, instances, tasks, sequential/parallel/conditional routing, SLA, escalation, delegation, history; first real approval flow                                                                      | An administrator changes an approval threshold **without a deploy**                                                                                                                                              |
+| **5 — CRM core**            | Accounts, contacts, leads, opportunities, pipeline-as-data, activities, tasks; ECM document links                                                                                                           | A sales user works a deal from lead to won, with documents attached and events published                                                                                                                         |
+| **6 — ERP finance core**    | Chart of accounts, double-entry journal, AR invoices, AP bills, payments, period close; approvals via workflow                                                                                              | An invoice posts a balanced journal entry, is approved through workflow, and reconciles                                                                                                                          |
+| **7 — HRIS core**           | Employees, departments, org tree, sensitive-field isolation, leave and attendance, self-service; IAM provisioning and revocation on termination                                                             | Terminating an employee revokes platform access automatically — with a test proving it                                                                                                                           |
+| **8 — Innovation**          | Ideas, categories, configurable stage workflow, assessments, voting, non-gameable points and badges, conversion to ERP project                                                                              | An approved idea creates an ERP project via event, with the points ledger explainable                                                                                                                            |
+| **9 — BI**                  | KPI definitions, rollup jobs, executive and per-module dashboards, scheduled reports, background exports                                                                                                    | A dashboard loads under 1 s from rollups and shows only permitted data                                                                                                                                           |
+| **10 — AI layer**           | Provider abstractions; OCR and classification in the ECM pipeline; embeddings; permission-filtered semantic search; then an assistant                                                                       | Semantic search provably cannot return a document the user may not read                                                                                                                                          |
+| **Later**                   | MFA; SSO (OIDC/SAML); mobile-optimised views; external/customer portal; advanced integrations (banking, Microsoft 365, WhatsApp); extraction of ECM processing into a worker if load justifies it (ADR-001) | —                                                                                                                                                                                                                |
 
 **Before building anything in any phase:** re-read §25, confirm ownership in §26, and check
 §28 for what actually exists.
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->

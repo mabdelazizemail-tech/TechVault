@@ -49,7 +49,9 @@ test.describe("sign-in form", () => {
     await page.getByLabel("Password").fill("not-the-password");
     await page.getByRole("button", { name: "Sign in" }).click();
 
-    const alert = page.getByRole("alert");
+    // Scoped to the form: Next.js injects its own role="alert" route announcer
+    // into every page, so an unscoped getByRole("alert") matches two elements.
+    const alert = page.locator("form").getByRole("alert");
     await expect(alert).toBeVisible();
     await expect(alert).toHaveText(/not valid/i);
     // Must not distinguish "no such user" from "wrong password" (§11.6).
@@ -58,11 +60,15 @@ test.describe("sign-in form", () => {
 
   test("is operable by keyboard alone", async ({ page }) => {
     await page.goto("/login");
-    // The email field is focused on load, so tabbing reaches password then submit.
+    // Focus the first field explicitly rather than relying on autoFocus timing:
+    // the property under test is TAB ORDER, which is what a keyboard user needs.
+    await page.getByLabel("Email address").focus();
     await page.keyboard.type("keyboard@example.com");
     await page.keyboard.press("Tab");
-    await page.keyboard.type("some-password");
     await expect(page.getByLabel("Password")).toBeFocused();
+    await page.keyboard.type("some-password");
+    await page.keyboard.press("Tab");
+    await expect(page.getByRole("button", { name: /sign in/i })).toBeFocused();
   });
 
   test("labels every input", async ({ page }) => {

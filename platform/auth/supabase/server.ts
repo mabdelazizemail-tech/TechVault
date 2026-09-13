@@ -9,16 +9,14 @@ import { publicEnv } from "@/platform/config/env";
  * auth provider. Everything else asks `platform/auth/current-user` who the user
  * is, so swapping the provider later touches three files (CLAUDE.md §11.1).
  *
- * Uses the ANON key only: the service-role key bypasses every policy and must
- * never back a user-facing request.
+ * Uses the publishable (anon) key only. The secret/service-role key bypasses every
+ * policy and must never back a user-facing request.
  */
 export async function createServerSupabaseClient() {
   const cookieStore = await cookies();
   const env = publicEnv();
 
-  return createServerClient(
-    env.NEXT_PUBLIC_SUPABASE_URL,
-    env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  return createServerClient(env.supabaseUrl, env.supabaseKey,
     {
       cookies: {
         getAll() {
