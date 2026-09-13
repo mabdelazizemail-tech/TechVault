@@ -16,6 +16,7 @@
     "format:check": "prettier --check .",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:integration": "dotenv -e .env.local -- vitest run tests/integration",
     "test:e2e": "playwright test",
     "verify": "npm run typecheck && npm run lint && npm run test",
     "db:generate": "prisma generate",

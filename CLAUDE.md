@@ -1219,8 +1219,18 @@ event publication and handler idempotency; soft-delete filtering.
 `npm run verify` with no database. To run it:
 
 ```bash
+npm run test:integration      # reads TEST_DATABASE_URL from .env.local
+```
+
+or explicitly:
+
+```bash
 TEST_DATABASE_URL="<connection string>" npm run test
 ```
+
+**Use a LOCAL Postgres, not a remote one.** The suite takes ~9s against a local
+instance and ~55s against Supabase in eu-west-1, where every query crosses the
+internet at 300–700 ms. A slow suite gets skipped, and a skipped suite rots.
 
 `TEST_DATABASE_URL` is deliberately a **separate variable** from `DATABASE_URL`: these tests
 `TRUNCATE` every IAM and platform table, so aiming them at a real database must be an
@@ -1772,35 +1782,35 @@ a note. An inaccurate status section is worse than none, because the next sessio
 Resolved (kept for the record, because each was a critical risk and regressing any of them
 would be expensive):
 
-| Was                                       | Now                                                                               |
-| ----------------------------------------- | --------------------------------------------------------------------------------- |
-| No git repository                         | ✅ Initialised on `main` with a complete `.gitignore` **before** the first commit |
-| Authorization retrofitted                 | ✅ Built first; no business feature exists without it                             |
-| Boundaries unenforced                     | ✅ ESLint zones, probe-verified                                                   |
-| Audit added later                         | ✅ Append-only, inside business transactions, verified to roll back               |
-| No tests on first features                | ✅ 107 unit/authz + 27 integration + 7 e2e                                        |
-| No database ever provisioned              | ✅ Supabase eu-west-1, 3 migrations applied, seeded                               |
-| No integration tests running              | ✅ 27 passing against live Postgres                                               |
-| `.env.local` placeholders                 | ✅ Real credentials in place (gitignored)                                         |
-| Unique constraints that did not constrain | ✅ Partial unique indexes (ADR-014)                                               |
-| UUIDs generated only in application code  | ✅ Database-level defaults (ADR-013)                                              |
+| Was                                       | Now                                                                                              |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| No git repository                         | ✅ Initialised on `main` with a complete `.gitignore` **before** the first commit                |
+| Authorization retrofitted                 | ✅ Built first; no business feature exists without it                                            |
+| Boundaries unenforced                     | ✅ ESLint zones, probe-verified                                                                  |
+| Audit added later                         | ✅ Append-only, inside business transactions, verified to roll back                              |
+| No tests on first features                | ✅ 107 unit/authz + 27 integration + 7 e2e                                                       |
+| No database ever provisioned              | ✅ Supabase eu-west-1, 3 migrations applied, seeded                                              |
+| No integration tests running              | ✅ 27 passing against live Postgres                                                              |
+| `.env.local` placeholders                 | ✅ Real credentials in place (gitignored)                                                        |
+| Unique constraints that did not constrain | ✅ Partial unique indexes (ADR-014)                                                              |
+| UUIDs generated only in application code  | ✅ Database-level defaults (ADR-013)                                                             |
+| No dedicated test database                | ✅ Local PostgreSQL 18.1, database `techvault_test`, isolated from the Supabase development data |
+| Integration suite slow (~55s)             | ✅ ~9s locally via `npm run test:integration`                                                    |
 
 Open debt and risk:
 
-| #   | Item                                                        | Why it matters                                                                                                                                                                                                                                                             | Mitigation                                                                                                     | Severity    |
-| --- | ----------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- | ----------- |
-| 1   | **No dedicated test database**                              | The integration suite truncates every IAM and platform table and has only run against the development database. That is safe today because the database holds nothing but seeded reference data — it stops being safe the moment a real user or any business record exists | Create a Supabase branch or a local Postgres for `TEST_DATABASE_URL` **before** the first real data lands      | 🔴 Critical |
-| 2   | **No administrator account**                                | Nobody can sign in, so every admin screen and the full signed-in shell remain unexercised by a real session                                                                                                                                                                | Create the user in Supabase Auth, then `npm run db:bootstrap-admin` (§28)                                      | 🟠 High     |
-| 3   | **RLS not enabled**                                         | ADR-002 specifies deny-by-default RLS as defence in depth. Today the only barrier is the application layer                                                                                                                                                                 | Add policies under `supabase/migrations/`                                                                      | 🟠 High     |
-| 4   | **Event dispatcher missing**                                | Events are written but never delivered, so cross-module reactions silently do not happen                                                                                                                                                                                   | Phase 2                                                                                                        | 🟠 High     |
-| 5   | **No CSP**                                                  | Other security headers are set; CSP needs a nonce-based policy in `proxy.ts` because Next injects inline bootstrap scripts                                                                                                                                                 | Implement with the nonce; never `unsafe-inline`                                                                | 🟠 High     |
-| 6   | **Database password was shared in a chat transcript**       | It now exists outside the password manager and outside `.env.local`                                                                                                                                                                                                        | Rotate it in the Supabase dashboard and update `.env.local`                                                    | 🟠 High     |
-| 7   | **Integration suite is slow (~55s)**                        | Every query crosses the internet to eu-west-1 at 300–700 ms. Slow suites get skipped, and skipped suites rot                                                                                                                                                               | Run it against a local Postgres container; keep the remote run for CI                                          | 🟡 Medium   |
-| 8   | **Scoped DENY grants are not expressible as a list filter** | `scopeFilterFor` applies global denials but cannot express a scope-limited DENY as positive SQL, so a list may include a row the caller may not act on                                                                                                                     | Documented in `evaluate.ts`: re-check any row a list acts on with `requirePermission` and a target             | 🟡 Medium   |
-| 9   | **Org-unit `path` is maintained by the service layer**      | A bug in re-parenting would silently widen or narrow access platform-wide, since scope resolution is a prefix match on this column                                                                                                                                         | Write the re-parent operation with tests before exposing org-unit editing; consider a trigger or integrity job | 🟡 Medium   |
-| 10  | **Pinned below the latest TypeScript and ESLint**           | TS 7 and ESLint 10 break linting here (ADR-011); an innocent `npm update` breaks the lint run                                                                                                                                                                              | Constraints documented in §3 and ADR-011                                                                       | 🟡 Medium   |
-| 11  | **i18n/RTL groundwork only**                                | Strings are hardcoded English; layout is RTL-ready but the text is not                                                                                                                                                                                                     | Externalise strings when Arabic is scheduled (ADR-009)                                                         | 🟡 Medium   |
-| 12  | **`react-hook-form` installed but unused**                  | Phase 1 forms use `useActionState`. An unused dependency is small but real surface                                                                                                                                                                                         | Use it in Phase 2 forms or remove it                                                                           | 🟢 Low      |
+| #   | Item                                                        | Why it matters                                                                                                                                         | Mitigation                                                                                                     | Severity  |
+| --- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------- | --------- |
+| 1   | **No administrator account**                                | Nobody can sign in, so every admin screen and the full signed-in shell remain unexercised by a real session                                            | Create the user in Supabase Auth, then `npm run db:bootstrap-admin` (§28)                                      | 🟠 High   |
+| 2   | **RLS not enabled**                                         | ADR-002 specifies deny-by-default RLS as defence in depth. Today the only barrier is the application layer                                             | Add policies under `supabase/migrations/`                                                                      | 🟠 High   |
+| 3   | **Event dispatcher missing**                                | Events are written but never delivered, so cross-module reactions silently do not happen                                                               | Phase 2                                                                                                        | 🟠 High   |
+| 4   | **No CSP**                                                  | Other security headers are set; CSP needs a nonce-based policy in `proxy.ts` because Next injects inline bootstrap scripts                             | Implement with the nonce; never `unsafe-inline`                                                                | 🟠 High   |
+| 5   | **Database password was shared in a chat transcript**       | It now exists outside the password manager and outside `.env.local`                                                                                    | Rotate it in the Supabase dashboard and update `.env.local`                                                    | 🟠 High   |
+| 6   | **Scoped DENY grants are not expressible as a list filter** | `scopeFilterFor` applies global denials but cannot express a scope-limited DENY as positive SQL, so a list may include a row the caller may not act on | Documented in `evaluate.ts`: re-check any row a list acts on with `requirePermission` and a target             | 🟡 Medium |
+| 7   | **Org-unit `path` is maintained by the service layer**      | A bug in re-parenting would silently widen or narrow access platform-wide, since scope resolution is a prefix match on this column                     | Write the re-parent operation with tests before exposing org-unit editing; consider a trigger or integrity job | 🟡 Medium |
+| 8   | **Pinned below the latest TypeScript and ESLint**           | TS 7 and ESLint 10 break linting here (ADR-011); an innocent `npm update` breaks the lint run                                                          | Constraints documented in §3 and ADR-011                                                                       | 🟡 Medium |
+| 9   | **i18n/RTL groundwork only**                                | Strings are hardcoded English; layout is RTL-ready but the text is not                                                                                 | Externalise strings when Arabic is scheduled (ADR-009)                                                         | 🟡 Medium |
+| 10  | **`react-hook-form` installed but unused**                  | Phase 1 forms use `useActionState`. An unused dependency is small but real surface                                                                     | Use it in Phase 2 forms or remove it                                                                           | 🟢 Low    |
 
 Add real debt here as it accrues, with why it was accepted and the trigger to repay it. A
 TODO in code without a row here is invisible debt.

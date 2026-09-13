@@ -12,12 +12,12 @@ the rules every change must follow. §28 is the authoritative implementation sta
 Phase 0 (foundation) and Phase 1 (identity, audit, app shell) are complete and **verified
 against a live database**: Supabase in eu-west-1, three migrations applied, seed run.
 
-| Suite                                      | Result      |
-| ------------------------------------------ | ----------- |
-| `npm run verify` (typecheck → lint → test) | 107 passing |
-| Integration vs live PostgreSQL 17.6        | 27 passing  |
-| Playwright e2e vs running app + Supabase   | 7 passing   |
-| `npm run build`                            | 10 routes   |
+| Suite                                        | Result      |
+| -------------------------------------------- | ----------- |
+| `npm run verify` (typecheck → lint → test)   | 107 passing |
+| Integration vs PostgreSQL (local + Supabase) | 27 passing  |
+| Playwright e2e vs running app + Supabase     | 7 passing   |
+| `npm run build`                              | 10 routes   |
 
 **One step remains before anyone can sign in:** no administrator account exists yet. See
 "Create the first administrator" below.
@@ -69,6 +69,7 @@ without routable IPv6 cannot reach it at all. Do not switch to the transaction p
 | `npm run verify`             | **The gate**: typecheck → lint → test. Must pass.    |
 | `npm run build`              | Production build                                     |
 | `npm run test`               | Unit, authorization and (if configured) integration  |
+| `npm run test:integration`   | Integration suite against the local test database    |
 | `npm run test:e2e`           | Playwright against a running app                     |
 | `npm run db:migrate`         | Create and apply a migration (review the diff first) |
 | `npm run db:deploy`          | Apply pending migrations (no schema diffing)         |
@@ -79,15 +80,24 @@ without routable IPv6 cannot reach it at all. Do not switch to the transaction p
 
 ### Running the integration tests
 
-They are part of `npm run test` but skip themselves unless a test database is configured:
-
 ```bash
-TEST_DATABASE_URL="<connection string>" npm run test
+npm run test:integration
 ```
 
+This reads `TEST_DATABASE_URL` from `.env.local`, which points at a **local** PostgreSQL
+database `techvault_test` — isolated from the Supabase development data and ~6x faster than
+reaching eu-west-1 (9s vs 55s).
+
 `TEST_DATABASE_URL` is a **separate variable** from `DATABASE_URL` on purpose: these tests
-`TRUNCATE` every IAM and platform table. Point it at a dedicated database or a Supabase
-branch — never production, and never a database holding real data.
+`TRUNCATE` every IAM and platform table, so pointing them at real data must be a deliberate
+act. Never aim it at Supabase or production.
+
+To recreate the test database from scratch:
+
+```bash
+psql -U postgres -c "CREATE DATABASE techvault_test"
+DATABASE_URL="postgresql://postgres:postgres@127.0.0.1:5432/techvault_test" npx prisma migrate deploy
+```
 
 ## Architecture in one minute
 
