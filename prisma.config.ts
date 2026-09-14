@@ -1,5 +1,5 @@
 import { config as loadEnv } from "dotenv";
-import { defineConfig, env } from "prisma/config";
+import { defineConfig } from "prisma/config";
 
 // `.env.local` is the house convention for local credentials (and is gitignored);
 // `.env` is the fallback so CI can provide values however it prefers.
@@ -19,10 +19,15 @@ export default defineConfig({
   migrations: {
     path: "prisma/migrations",
   },
-  datasource: {
-    // Prisma 7's config exposes only `url` (and `shadowDatabaseUrl`). Against a
-    // pooled Supabase connection, point DATABASE_URL at the DIRECT connection
-    // when running migrations — see .env.local.example.
-    url: env("DATABASE_URL"),
-  },
+  // Prisma 7's config exposes only `url` (and `shadowDatabaseUrl`). Against a
+  // pooled Supabase connection, point DATABASE_URL at the DIRECT connection
+  // when running migrations — see .env.local.example.
+  //
+  // Omitted when DATABASE_URL is unset: `prisma generate` runs on every install
+  // (including CI and Vercel, before any secret exists) and needs no database.
+  // Migrate and introspect still fail loudly without it.
+  datasource:
+    process.env.DATABASE_URL === undefined
+      ? undefined
+      : { url: process.env.DATABASE_URL },
 });
