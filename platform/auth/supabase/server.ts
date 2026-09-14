@@ -16,23 +16,21 @@ export async function createServerSupabaseClient() {
   const cookieStore = await cookies();
   const env = publicEnv();
 
-  return createServerClient(env.supabaseUrl, env.supabaseKey,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll();
-        },
-        setAll(cookiesToSet) {
-          try {
-            for (const { name, value, options } of cookiesToSet) {
-              cookieStore.set(name, value, options);
-            }
-          } catch {
-            // Server Components cannot set cookies. Session refresh is handled by
-            // middleware, so ignoring this is correct rather than a swallowed bug.
+  return createServerClient(env.supabaseUrl, env.supabaseKey, {
+    cookies: {
+      getAll() {
+        return cookieStore.getAll();
+      },
+      setAll(cookiesToSet) {
+        try {
+          for (const { name, value, options } of cookiesToSet) {
+            cookieStore.set(name, value, options);
           }
-        },
+        } catch {
+          // Server Components cannot set cookies. Session refresh is handled by
+          // middleware, so ignoring this is correct rather than a swallowed bug.
+        }
       },
     },
-  );
+  });
 }
