@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/modernist-36bd29c9-a0f6-40d6-82f9-3de3249645b6/styles.css">
+<script src="_ds/modernist-36bd29c9-a0f6-40d6-82f9-3de3249645b6/_ds_bundle.js"></script>
+<link rel="stylesheet" href="tv-tokens.css">
+</helmet>
+
+<div style="font-family:'Archivo',system-ui,sans-serif;color:var(--tv-ink);padding-bottom:48px;animation:tv-fade .2s ease">
+
+  <sc-if value="{{ isDetail }}" hint-placeholder-val="{{ false }}">
+    <div>
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:0 24px 14px;flex-wrap:wrap">
+        <div style="min-width:0;max-width:760px">
+          <div style="display:flex;align-items:center;gap:9px;margin-bottom:5px;flex-wrap:wrap">
+            <span style="font-size:11.5px;color:var(--tv-ink-40);font-variant-numeric:tabular-nums">{{ idea.ref }}</span>
+            <span style="{{ idea.statusStyle }}">{{ idea.status }}</span>
+            <span class="tag tag-neutral">{{ idea.category }}</span>
+          </div>
+          <h1 style="font-size:32px;margin:0 0 6px;line-height:1.08">{{ idea.title }}</h1>
+          <div style="font-size:12.5px;color:var(--tv-ink-55)">{{ idea.meta }}</div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start">
+          <div style="display:flex;flex-direction:column;align-items:center;border:1px solid var(--tv-hair);background:var(--tv-panel)">
+            <button onClick="{{ onUpvote }}" aria-label="Upvote" style="width:56px;padding:6px 0;background:none;border:0;border-bottom:1px solid var(--tv-hair);cursor:pointer;color:var(--tv-accent-ink);font:inherit;font-size:14px;font-weight:800">▲</button>
+            <div style="padding:5px 0;font-weight:800;font-size:17px">{{ voteCount }}</div>
+            <button onClick="{{ onDownvote }}" aria-label="Downvote" style="width:56px;padding:6px 0;background:none;border:0;border-top:1px solid var(--tv-hair);cursor:pointer;color:var(--tv-ink-40);font:inherit;font-size:14px;font-weight:800">▼</button>
+          </div>
+          <button class="btn btn-secondary" onClick="{{ onFollow }}">{{ followLabel }}</button>
+          <button class="btn btn-primary" onClick="{{ onConvert }}">{{ idea.primaryAction }}</button>
+        </div>
+      </div>
+
+      <div style="background:var(--tv-surface);border-top:1px solid var(--tv-hair);border-bottom:1px solid var(--tv-hair);padding:14px 24px">
+        <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--tv-ink-55);margin-bottom:10px">Innovation pipeline — where this idea stands</div>
+        <div style="display:flex;align-items:stretch;overflow-x:auto">
+          <sc-for list="{{ pipeline }}" as="p" hint-placeholder-count="8">
+            <div style="display:flex;align-items:stretch;flex:none">
+              <div style="{{ p.style }}">
+                <div style="font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;opacity:.75">{{ p.index }}</div>
+                <div style="font-weight:800;font-size:12.5px;line-height:1.2;margin-top:2px">{{ p.label }}</div>
+                <div style="font-size:11px;opacity:.75;margin-top:3px">{{ p.note }}</div>
+              </div>
+              <span style="{{ p.arrowStyle }}">→</span>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:1px;background:var(--tv-hair)">
+        <section style="grid-column:span 8;background:var(--tv-panel);padding:20px 24px 26px;min-width:0">
+          <sc-for list="{{ idea.sections }}" as="sec" hint-placeholder-count="5">
+            <div style="margin-bottom:24px">
+              <h4 style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--tv-accent-ink);margin:0 0 8px">{{ sec.label }}</h4>
+              <p style="font-size:14px;line-height:1.6;margin:0;color:var(--tv-ink);max-width:78ch;text-wrap:pretty">{{ sec.body }}</p>
+            </div>
+          </sc-for>
+
+          <div style="height:2px;background:var(--tv-rule);margin:8px 0 20px"></div>
+          <h4 style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--tv-accent-ink);margin:0 0 10px">Assessments</h4>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:1px;background:var(--tv-hair);border:1px solid var(--tv-hair);margin-bottom:24px">
+            <sc-for list="{{ idea.assessments }}" as="a" hint-placeholder-count="4">
+              <div style="background:var(--tv-panel);padding:12px 14px">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+                  <span style="font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--tv-ink-55)">{{ a.label }}</span>
+                  <span style="{{ a.badgeStyle }}">{{ a.verdict }}</span>
+                </div>
+                <div style="font-size:20px;font-weight:800;margin-bottom:3px">{{ a.score }}</div>
+                <div style="font-size:11.5px;color:var(--tv-ink-55);line-height:1.45">{{ a.note }}</div>
+                <div style="font-size:11px;color:var(--tv-ink-40);margin-top:6px">{{ a.who }}</div>
+              </div>
+            </sc-for>
+          </div>
+
+          <h4 style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--tv-accent-ink);margin:0 0 10px">Discussion</h4>
+          <sc-for list="{{ comments }}" as="c" hint-placeholder-count="3">
+            <div style="display:flex;gap:12px;border-top:1px solid var(--tv-hair);padding:12px 0">
+              <div style="width:32px;height:32px;background:var(--tv-surface);display:grid;place-items:center;font-size:11px;font-weight:800;flex:none">{{ c.initials }}</div>
+              <div style="flex:1;min-width:0">
+                <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap">
+                  <span style="font-weight:800;font-size:13px">{{ c.who }}</span>
+                  <span style="font-size:11px;color:var(--tv-ink-40)">{{ c.role }} · {{ c.when }}</span>
+                </div>
+                <p style="font-size:13px;line-height:1.55;margin:4px 0 0;color:var(--tv-ink-70)">{{ c.text }}</p>
+              </div>
+            </div>
+          </sc-for>
+          <form onSubmit="{{ onComment }}" style="display:flex;gap:8px;border-top:1px solid var(--tv-hair);padding-top:14px;margin-top:4px">
+            <input class="input" placeholder="Add to the discussion" value="{{ commentDraft }}" onChange="{{ onCommentChange }}" aria-label="Add a comment">
+            <button class="btn btn-primary" type="submit" style="flex:none">Post</button>
+          </form>
+        </section>
+
+        <aside style="grid-column:span 4;background:var(--tv-panel);padding:20px 20px 26px;min-width:0">
+          <h4 style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--tv-ink-55);margin:0 0 10px">Business case</h4>
+          <sc-for list="{{ idea.financials }}" as="f" hint-placeholder-count="5">
+            <div style="display:flex;justify-content:space-between;gap:10px;border-top:1px solid var(--tv-hair);padding:8px 0">
+              <span style="font-size:12.5px;color:var(--tv-ink-55)">{{ f.label }}</span>
+              <span style="font-size:13px;font-weight:800;font-variant-numeric:tabular-nums">{{ f.value }}</span>
+            </div>
+          </sc-for>
+
+          <div style="height:2px;background:var(--tv-rule);margin:20px 0"></div>
+          <h4 style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--tv-ink-55);margin:0 0 10px">Review history</h4>
+          <sc-for list="{{ idea.history }}" as="h" hint-placeholder-count="4">
+            <div style="display:flex;gap:11px">
+              <div style="flex:none;display:flex;flex-direction:column;align-items:center;width:11px">
+                <span style="{{ h.dotStyle }}"></span>
+                <span style="{{ h.lineStyle }}"></span>
+              </div>
+              <div style="flex:1;min-width:0;padding-bottom:14px">
+                <div style="font-size:12.5px;font-weight:800">{{ h.title }}</div>
+                <div style="font-size:11.5px;color:var(--tv-ink-55)">{{ h.who }}</div>
+                <div style="font-size:11px;color:var(--tv-ink-40)">{{ h.when }}</div>
+              </div>
+            </div>
+          </sc-for>
+
+          <div style="height:2px;background:var(--tv-rule);margin:6px 0 20px"></div>
+          <h4 style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--tv-ink-55);margin:0 0 10px">Attachments</h4>
+          <sc-for list="{{ idea.attachments }}" as="a" hint-placeholder-count="3">
+            <button onClick="{{ a.onClick }}" style="display:flex;align-items:center;gap:9px;width:100%;background:none;border:0;border-top:1px solid var(--tv-hair);padding:9px 0;cursor:pointer;font:inherit;color:inherit;text-align:left">
+              <span style="font-size:9.5px;font-weight:800;background:var(--tv-ink);color:var(--tv-bg);padding:2px 5px;flex:none">{{ a.ext }}</span>
+              <span style="flex:1;min-width:0;font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ a.name }}</span>
+              <span style="color:var(--tv-accent-ink);font-weight:800;flex:none">→</span>
+            </button>
+          </sc-for>
+
+          <div style="height:2px;background:var(--tv-rule);margin:20px 0"></div>
+          <h4 style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--tv-ink-55);margin:0 0 10px">Connected records</h4>
+          <sc-for list="{{ idea.links }}" as="l" hint-placeholder-count="3">
+            <button onClick="{{ l.onClick }}" style="display:flex;justify-content:space-between;align-items:center;width:100%;background:none;border:0;border-top:1px solid var(--tv-hair);padding:9px 0;cursor:pointer;font:inherit;font-size:12.5px;color:inherit;text-align:left">
+              <span style="min-width:0"><span style="display:block;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--tv-ink-55)">{{ l.module }}</span>{{ l.label }}</span>
+              <span style="color:var(--tv-accent-ink);font-weight:800;flex:none">→</span>
+            </button>
+          </sc-for>
+        </aside>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isPipelineView }}" hint-placeholder-val="{{ false }}">
+    <div>
+      <div style="padding:0 24px 14px">
+        <h1 style="font-size:34px;margin:0 0 3px">Innovation Pipeline</h1>
+        <div style="font-size:12.5px;color:var(--tv-ink-55)">312 ideas submitted this year · 62 in assessment · 18 converted to engagements · average time to decision 31 days</div>
+      </div>
+      <div style="display:flex;gap:1px;background:var(--tv-hair);border-top:2px solid var(--tv-rule);overflow-x:auto">
+        <sc-for list="{{ pipelineColumns }}" as="col" hint-placeholder-count="6">
+          <div style="background:var(--tv-bg);min-width:236px;flex:1;display:flex;flex-direction:column">
+            <div style="background:var(--tv-panel);padding:11px 13px;border-bottom:2px solid var(--tv-rule)">
+              <div style="display:flex;justify-content:space-between;align-items:baseline">
+                <span style="font-size:12px;font-weight:800">{{ col.label }}</span>
+                <span style="font-size:11px;color:var(--tv-ink-40)">{{ col.count }}</span>
+              </div>
+              <div style="font-size:11px;color:var(--tv-ink-55)">{{ col.note }}</div>
+            </div>
+            <div style="padding:10px;display:flex;flex-direction:column;gap:9px;flex:1">
+              <sc-for list="{{ col.cards }}" as="c" hint-placeholder-count="2">
+                <button onClick="{{ c.onOpen }}" style="background:var(--tv-panel);border:1px solid var(--tv-hair);border-left:3px solid {{ c.accent }};padding:10px 11px;text-align:left;cursor:pointer;font:inherit;color:inherit;display:flex;flex-direction:column;gap:5px">
+                  <span style="font-size:10px;color:var(--tv-ink-40);font-variant-numeric:tabular-nums">{{ c.ref }}</span>
+                  <span style="font-weight:800;font-size:12.5px;line-height:1.25">{{ c.title }}</span>
+                  <span style="font-size:11px;color:var(--tv-ink-55)">{{ c.author }}</span>
+                  <span style="display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--tv-hair);padding-top:6px;font-size:11px">
+                    <span style="color:var(--tv-accent-ink);font-weight:800">▲ {{ c.votes }}</span>
+                    <span style="color:var(--tv-ink-55)">{{ c.impact }}</span>
+                  </span>
+                </button>
+              </sc-for>
+              <sc-if value="{{ col.empty }}" hint-placeholder-val="{{ false }}">
+                <div style="border:1px dashed var(--tv-hair);padding:12px;font-size:11.5px;color:var(--tv-ink-40)">{{ col.emptyNote }}</div>
+              </sc-if>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isBoard }}" hint-placeholder-val="{{ true }}">
+    <div>
+      <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:16px;padding:0 24px 14px;flex-wrap:wrap">
+        <div>
+          <h1 style="font-size:34px;margin:0 0 3px">{{ boardTitle }}</h1>
+          <div style="font-size:12.5px;color:var(--tv-ink-55)">{{ boardMeta }}</div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-secondary" onClick="{{ onLeaderboard }}">Leaderboard</button>
+          <button class="btn btn-primary" onClick="{{ onSubmit }}">Submit an idea</button>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1px;background:var(--tv-hair);border-top:1px solid var(--tv-hair);border-bottom:1px solid var(--tv-hair)">
+        <sc-for list="{{ stats }}" as="st" hint-placeholder-count="6">
+          <div style="background:var(--tv-panel);padding:14px 16px 16px">
+            <div style="font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--tv-ink-55)">{{ st.label }}</div>
+            <div style="{{ st.valueStyle }}">{{ st.value }}</div>
+            <div style="font-size:11px;color:var(--tv-ink-40)">{{ st.note }}</div>
+          </div>
+        </sc-for>
+      </div>
+
+      <sc-if value="{{ isLeaderboard }}" hint-placeholder-val="{{ false }}">
+        <div style="background:var(--tv-panel);padding:18px 24px 24px">
+          <h3 style="font-size:17px;margin:0 0 4px">Top contributors</h3>
+          <p style="font-size:12.5px;color:var(--tv-ink-55);margin-bottom:14px">Ranked on ideas accepted into assessment, weighted by realised business value. Recognition is reviewed quarterly by the innovation board.</p>
+          <table class="table">
+            <thead><tr><th style="width:40px">#</th><th>Contributor</th><th>Practice</th><th style="text-align:right">Ideas</th><th style="text-align:right">Approved</th><th style="text-align:right">Realised value</th></tr></thead>
+            <tbody>
+              <sc-for list="{{ leaders }}" as="l" hint-placeholder-count="6">
+                <tr>
+                  <td style="{{ l.rankStyle }}">{{ l.rank }}</td>
+                  <td style="font-weight:800"><button onClick="{{ l.onOpen }}" style="background:none;border:0;padding:0;font:inherit;font-weight:800;color:inherit;cursor:pointer">{{ l.name }}</button></td>
+                  <td style="color:var(--tv-ink-55)">{{ l.practice }}</td>
+                  <td style="text-align:right;font-variant-numeric:tabular-nums">{{ l.ideas }}</td>
+                  <td style="text-align:right;font-variant-numeric:tabular-nums">{{ l.approved }}</td>
+                  <td style="text-align:right;font-variant-numeric:tabular-nums;font-weight:800">{{ l.value }}</td>
+                </tr>
+              </sc-for>
+            </tbody>
+          </table>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isFeed }}" hint-placeholder-val="{{ true }}">
+        <div>
+          <div style="display:flex;align-items:center;gap:9px;padding:12px 24px;background:var(--tv-panel);border-bottom:1px solid var(--tv-hair);flex-wrap:wrap">
+            <sc-for list="{{ filters }}" as="f" hint-placeholder-count="5">
+              <button onClick="{{ f.onClick }}" style="{{ f.style }}">{{ f.label }}</button>
+            </sc-for>
+            <div style="flex:1"></div>
+            <span style="font-size:11.5px;color:var(--tv-ink-55)">Sort</span>
+            <div class="seg">
+              <label class="seg-opt"><input type="radio" name="tt-sort" checked="{{ sortVotes }}" onChange="{{ onSortVotes }}">Most voted</label>
+              <label class="seg-opt"><input type="radio" name="tt-sort" checked="{{ sortImpact }}" onChange="{{ onSortImpact }}">Impact</label>
+              <label class="seg-opt"><input type="radio" name="tt-sort" checked="{{ sortRecent }}" onChange="{{ onSortRecent }}">Newest</label>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:1px;background:var(--tv-hair);border-bottom:1px solid var(--tv-hair)">
+            <sc-for list="{{ ideas }}" as="i" hint-placeholder-count="6">
+              <article style="background:var(--tv-panel);padding:16px 18px 14px;display:flex;flex-direction:column;gap:9px;min-width:0">
+                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                  <span style="font-size:10.5px;color:var(--tv-ink-40);font-variant-numeric:tabular-nums">{{ i.ref }}</span>
+                  <span style="{{ i.statusStyle }}">{{ i.status }}</span>
+                  <span class="tag tag-neutral">{{ i.category }}</span>
+                </div>
+                <button onClick="{{ i.onOpen }}" style="background:none;border:0;padding:0;font:inherit;font-weight:800;font-size:17px;line-height:1.2;color:inherit;cursor:pointer;text-align:left">{{ i.title }}</button>
+                <div>
+                  <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--tv-accent-ink);margin-bottom:2px">Problem</div>
+                  <p style="font-size:12.5px;line-height:1.5;margin:0 0 8px;color:var(--tv-ink-70)">{{ i.problem }}</p>
+                  <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--tv-accent-ink);margin-bottom:2px">Proposed solution</div>
+                  <p style="font-size:12.5px;line-height:1.5;margin:0;color:var(--tv-ink-70)">{{ i.solution }}</p>
+                </div>
+                <div style="display:flex;gap:16px;border-top:1px solid var(--tv-hair);padding-top:9px;margin-top:auto">
+                  <div><div style="font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--tv-ink-55)">Impact</div><div style="font-size:13px;font-weight:800">{{ i.impact }}</div></div>
+                  <div><div style="font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--tv-ink-55)">Effort</div><div style="font-size:13px;font-weight:800">{{ i.effort }}</div></div>
+                  <div><div style="font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--tv-ink-55)">Author</div><div style="font-size:13px;font-weight:800">{{ i.author }}</div></div>
+                </div>
+                <div style="display:flex;align-items:center;gap:6px;border-top:1px solid var(--tv-hair);padding-top:9px">
+                  <button onClick="{{ i.onVote }}" style="{{ i.voteStyle }}">▲ {{ i.votes }}</button>
+                  <button onClick="{{ i.onComment }}" style="background:none;border:1px solid var(--tv-hair);color:var(--tv-ink-70);font:inherit;font-size:12px;padding:4px 9px;cursor:pointer">{{ i.comments }} comments</button>
+                  <button onClick="{{ i.onFollow }}" style="{{ i.followStyle }}">{{ i.followLabel }}</button>
+                  <div style="flex:1"></div>
+                  <button class="btn btn-ghost" onClick="{{ i.onOpen }}" style="font-size:12px">Open →</button>
+                </div>
+              </article>
+            </sc-for>
+          </div>
+          <sc-if value="{{ ideasEmpty }}" hint-placeholder-val="{{ false }}">
+            <div style="padding:44px 24px;max-width:60ch;background:var(--tv-panel)">
+              <div style="font-weight:800;font-size:17px;margin-bottom:5px">No ideas in this filter yet</div>
+              <div style="font-size:13px;color:var(--tv-ink-55);margin-bottom:16px">Think Tank collects operational problems and turns them into assessed initiatives. Ideas here become engagements, reusable assets, or knowledge articles — every submission gets a decision within 31 days on average.</div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <button class="btn btn-primary" onClick="{{ onSubmit }}">Submit the first idea</button>
+                <button class="btn btn-secondary" onClick="{{ onClearFilter }}">Show all categories</button>
+              </div>
+            </div>
+          </sc-if>
+        </div>
+      </sc-if>
+    </div>
+  </sc-if>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1180,&quot;height&quot;:900},&quot;sub&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Ideas&quot;,&quot;Innovation Pipeline&quot;,&quot;Reviews&quot;,&quot;Leaderboard&quot;],&quot;default&quot;:&quot;Ideas&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;entity&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;navigate&quot;:{&quot;editor&quot;:null,&quot;tsType&quot;:&quot;(screen: string, sub?: string, entity?: string) =&gt; void&quot;},&quot;toast&quot;:{&quot;editor&quot;:null,&quot;tsType&quot;:&quot;(text: string) =&gt; void&quot;}}">
+const STAGE_NAMES = ['Submitted', 'Review', 'Technical', 'Business', 'Financial', 'Approval', 'Approved', 'Project'];
+
+const IDEAS = [
+  { id: 'idea-1', ref: 'IDEA-2026-041', title: 'Regulatory-change radar for banking clients', status: 'Business assessment', kind: 'warn', category: 'Client offering', author: 'Adaeze Okafor', practice: 'Financial Services', votes: 148, comments: 31, impact: '€4.2M', effort: '2 quarters', stage: 3,
+    problem: 'Banking clients learn about regulatory change from their own compliance teams weeks after we could have flagged it, so remediation work arrives as an emergency rather than a plan.',
+    solution: 'A monitored feed of regulatory change mapped to each client’s obligations register, sold as a subscription that feeds advisory work upstream.' },
+  { id: 'idea-2', ref: 'IDEA-2026-018', title: 'Reusable ESG assurance toolkit', status: 'Converted to project', kind: 'pos', category: 'Delivery asset', author: 'Camille Béranger', practice: 'Sustainability', votes: 121, comments: 24, impact: '€2.8M', effort: '1 quarter', stage: 7,
+    problem: 'Every ESG assurance engagement rebuilds evidence templates and testing scripts from scratch, costing roughly six weeks of setup per engagement.',
+    solution: 'A standard toolkit of fifteen evidence templates and testing scripts, versioned in ECM and mandated for new ESG engagements.' },
+  { id: 'idea-3', ref: 'IDEA-2026-052', title: 'Engagement staffing simulator', status: 'Submitted', kind: 'neutral', category: 'Internal efficiency', author: 'Hiroshi Tanabe', practice: 'Delivery Excellence', votes: 96, comments: 12, impact: '€1.6M', effort: '1 quarter', stage: 0,
+    problem: 'Staffing decisions are made after a proposal is signed, which is when partner availability turns out to conflict with the delivery plan.',
+    solution: 'Model staffing scenarios against pipeline probability at proposal stage, using HRIS availability and the CRM close forecast.' },
+  { id: 'idea-4', ref: 'IDEA-2026-047', title: 'Client obligation register as a product', status: 'Technical assessment', kind: 'warn', category: 'Client offering', author: 'Priya Raghunathan', practice: 'Insurance', votes: 84, comments: 18, impact: '€3.4M', effort: '3 quarters', stage: 2,
+    problem: 'Insurers cannot produce a defensible view of which obligations map to which controls, and rebuild it for every regulatory inspection.',
+    solution: 'A maintained obligation register hosted in our platform, kept current by the regulatory radar feed and reviewed quarterly by our specialists.' },
+  { id: 'idea-5', ref: 'IDEA-2026-055', title: 'Automated engagement closure pack', status: 'Review', kind: 'neutral', category: 'Internal efficiency', author: 'Lena Fischbach', practice: 'Public Sector', votes: 62, comments: 9, impact: '€740k', effort: '1 quarter', stage: 1,
+    problem: 'Closure packs take four to six days of manager time per engagement and are inconsistent between practices.',
+    solution: 'Generate the closure pack from ERP financials, ECM deliverables and the engagement plan, leaving the manager to review rather than assemble.' },
+  { id: 'idea-6', ref: 'IDEA-2026-039', title: 'Alumni network for referral generation', status: 'Financial assessment', kind: 'warn', category: 'Growth', author: 'Marek Dvořák', practice: 'Energy', votes: 58, comments: 14, impact: '€2.1M', effort: '2 quarters', stage: 4,
+    problem: 'Former colleagues now sit in client decision-making roles, and we track those relationships only in personal address books.',
+    solution: 'A managed alumni register linked to CRM contacts, with referral attribution so the originator is credited on won work.' },
+  { id: 'idea-7', ref: 'IDEA-2026-058', title: 'Bid/no-bid scoring from historical outcomes', status: 'Management approval', kind: 'neg', category: 'Growth', author: 'Tomas Reinhardt', practice: 'Financial Services', votes: 51, comments: 21, impact: '€1.9M', effort: '1 quarter', stage: 5,
+    problem: 'We chase work we rarely win. Win rate on unqualified public-sector tenders is 11% against a 34% group average.',
+    solution: 'Score every bid against historical outcomes on client, sector, incumbent and deal size, and require partner override to proceed below threshold.' },
+  { id: 'idea-8', ref: 'IDEA-2026-061', title: 'Shared research library with attribution', status: 'Approved', kind: 'pos', category: 'Knowledge', author: 'Camille Béranger', practice: 'Sustainability', votes: 44, comments: 7, impact: '€620k', effort: '1 quarter', stage: 6,
+    problem: 'Research produced for one client is rewritten for the next because nobody can find the original or knows whether it can be reused.',
+    solution: 'A research library in ECM with reuse rights recorded per item and attribution back to the original author.' }
+];
+
+const DETAIL = {
+  'idea-1': {
+    sections: [
+      ['Problem statement', 'Banking clients learn about regulatory change from their own compliance teams several weeks after our specialists have already read the consultation papers. By the time the client asks for help, the work is emergency remediation at premium rates and compressed timelines, which is bad for delivery quality and bad for the relationship. Across the financial services practice we counted eleven engagements in the last two years that began this way.'],
+      ['Proposed solution', 'A monitored feed of regulatory change, mapped to each client’s own obligations register, delivered as a subscription. Our regulatory specialists already read the source material; the proposal is to capture that reading once, structure it against client obligations, and push it to the client with an assessed impact rating. Advisory work then arrives as a planned response rather than a scramble.'],
+      ['Expected benefits', 'Three effects, in order of confidence: remediation work moves earlier in the cycle and is scoped properly; the subscription itself carries a recurring fee at high margin; and the obligations mapping becomes an asset that makes the next engagement cheaper to start. The financial services practice estimates €4.2M of three-year contribution, of which €1.1M is subscription revenue and the rest is pulled-forward advisory work.'],
+      ['Technical feasibility', 'The regulatory sources are public and structured enough to parse. The harder part is the obligations mapping per client, which needs a specialist to set up and roughly two days per client per quarter to maintain. TechVault already holds the client obligation data in ECM for six banking clients, which is the initial pilot set.'],
+      ['Market potential', 'Two of the four large advisory firms sell a version of this at a materially higher price point and with no obligations mapping. The differentiator is that we already hold the client’s control environment from assurance work, so our mapping starts from real evidence rather than a questionnaire.']
+    ],
+    assessments: [
+      ['Technical', 'Feasible', 'pos', '8.2 / 10', 'Sources parse reliably. Mapping needs specialist setup per client.', 'Hiroshi Tanabe · 28 Aug 2026'],
+      ['Business', 'Strong', 'pos', '8.8 / 10', 'Pulls advisory work forward and defends six banking relationships.', 'Adaeze Okafor · 4 Sep 2026'],
+      ['Financial', 'In progress', 'warn', '—', 'Awaiting CFO review of the subscription pricing assumption.', 'Group Finance · open'],
+      ['Risk', 'Acceptable', 'neutral', 'Medium', 'Advice liability if a mapped obligation is missed. Needs a disclaimer regime.', 'Legal Operations · 1 Sep 2026']
+    ],
+    financials: [
+      ['Three-year contribution', '€4.2M'], ['Subscription revenue', '€1.1M'], ['Pulled-forward advisory', '€3.1M'],
+      ['Build investment', '€480k'], ['Annual run cost', '€210k'], ['Payback', '14 months'], ['Confidence', 'Medium-high']
+    ],
+    history: [
+      ['Business assessment passed', 'Adaeze Okafor · Principal', '4 Sep 2026', true],
+      ['Technical assessment passed', 'Hiroshi Tanabe · Delivery Excellence', '28 Aug 2026', false],
+      ['Accepted into assessment', 'Innovation board', '14 Aug 2026', false],
+      ['Submitted', 'Adaeze Okafor', '9 Aug 2026', false]
+    ],
+    attachments: [
+      ['PDF', 'Regulatory radar — concept note.pdf'],
+      ['XLSX', 'Three-year contribution model.xlsx'],
+      ['PDF', 'Competitor pricing scan.pdf']
+    ],
+    links: [
+      ['CRM · Customer', 'Meridian Federal Bank — pilot candidate', ['crm', 'Customers', 'meridian']],
+      ['ECM · Documents', 'Obligation registers — six banking clients', ['ecm', 'Repository']],
+      ['Workflow · Approval', 'WF-2026-11833 — finance gate', ['workflow', 'My approvals']],
+      ['BI · Analytics', 'Innovation contribution tracking', ['bi', '']]
+    ],
+    comments: [
+      ['HT', 'Hiroshi Tanabe', 'Delivery Excellence', '3 days ago', 'The mapping effort is the real cost. Two days per client per quarter is right for a bank with a mature obligations register, but Blackfen-type clients do not have one — we would be building it, and that should be priced as setup work rather than absorbed.'],
+      ['AP', 'Anja Pedersen', 'Legal Operations', '2 days ago', 'We need a clear position on advice liability. If a client acts on a radar item that we mapped incorrectly, our current engagement letters do not obviously cover it. I would want a separate subscription agreement with its own liability regime before the first client goes live.'],
+      ['TR', 'Tomas Reinhardt', 'Financial Services', 'Yesterday', 'Meridian asked for something very close to this in the Phase 2 steering meeting. If the finance gate clears this month we could pilot with them at no charge for two quarters and use it in the Phase 2 negotiation.']
+    ]
+  }
+};
+
+class Component extends DCLogic {
+  state = { votes: {}, following: {}, filter: 'All', sort: 'votes', commentDraft: '', extraComments: [] };
+
+  nav = (screen, sub, entity) => { const f = this.props.navigate; if (f) f(screen, sub, entity); };
+  toast = (t) => { const f = this.props.toast; if (f) f(t); };
+  go = (to) => () => this.nav(to[0], to[1], to[2]);
+
+  tagStyle(kind) {
+    const map = { pos: ['var(--tv-pos-tint)', 'var(--tv-pos)'], warn: ['var(--tv-warn-tint)', 'var(--tv-warn)'], neg: ['var(--tv-neg-tint)', 'var(--tv-neg)'], neutral: ['var(--tv-surface)', 'var(--tv-ink-70)'] };
+    const c = map[kind] || map.neutral;
+    return 'display:inline-flex;align-items:center;font-size:11px;font-weight:800;letter-spacing:.04em;padding:2px 7px;background:' + c[0] + ';color:' + c[1];
+  }
+
+  voteOf(i) { return i.votes + (this.state.votes[i.id] || 0); }
+
+  renderVals() {
+    const s = this.state;
+    const sub = this.props.sub || 'Ideas';
+    const entity = this.props.entity;
+    const isDetail = !!entity;
+    const isPipelineView = sub === 'Innovation Pipeline' && !entity;
+    const isLeaderboard = sub === 'Leaderboard' && !entity;
+    const isFeed = !isDetail && !isPipelineView && !isLeaderboard;
+
+    const idea = IDEAS.find((i) => i.id === entity) || IDEAS[0];
+    const detail = DETAIL[idea.id] || DETAIL['idea-1'];
+
+    const pipeline = STAGE_NAMES.map((label, i) => {
+      const done = i < idea.stage, current = i === idea.stage;
+      return {
+        index: '0' + (i + 1), label: label,
+        note: done ? 'Cleared' : current ? 'Current step' : 'Not started',
+        style: 'padding:9px 13px;min-width:124px;background:' + (current ? 'var(--tv-accent)' : done ? 'var(--tv-ink)' : 'var(--tv-panel)') +
+          ';color:' + (current || done ? 'var(--tv-on-accent)' : 'var(--tv-ink-40)') + ';border:1px solid ' + (current || done ? 'transparent' : 'var(--tv-hair)'),
+        arrowStyle: i === STAGE_NAMES.length - 1 ? 'display:none' : 'display:grid;place-items:center;padding:0 7px;color:var(--tv-ink-40);font-size:12px'
+      };
+    });
+
+    const pipelineColumns = [
+      ['Submitted', 0, 'Awaiting triage'], ['Review', 1, 'Innovation board triage'], ['Assessment', 2, 'Technical and business'],
+      ['Financial', 4, 'Business case review'], ['Approval', 5, 'Management decision'], ['Converted', 7, 'Now an engagement']
+    ].map((col) => {
+      const cards = IDEAS.filter((i) => (col[0] === 'Assessment' ? (i.stage === 2 || i.stage === 3) : col[0] === 'Converted' ? i.stage >= 6 : i.stage === col[1]));
+      return {
+        label: col[0], note: col[2],
+        count: cards.length + (cards.length === 1 ? ' idea' : ' ideas'),
+        empty: cards.length === 0,
+        emptyNote: 'No ideas at this gate. Items arrive automatically as assessments complete.',
+        cards: cards.map((i) => ({
+          ref: i.ref, title: i.title, author: i.author, votes: String(this.voteOf(i)), impact: i.impact,
+          accent: i.stage >= 6 ? 'var(--tv-pos)' : i.stage >= 4 ? 'var(--tv-accent)' : 'var(--tv-ink-40)',
+          onOpen: () => this.nav('think', 'Ideas', i.id)
+        }))
+      };
+    });
+
+    const filters = ['All', 'Client offering', 'Internal efficiency', 'Growth', 'Delivery asset', 'Knowledge'].map((f) => ({
+      label: f,
+      onClick: () => this.setState({ filter: f }),
+      style: 'background:' + (s.filter === f ? 'var(--tv-ink)' : 'none') + ';color:' + (s.filter === f ? 'var(--tv-bg)' : 'var(--tv-ink-55)') +
+        ';border:1px solid ' + (s.filter === f ? 'var(--tv-ink)' : 'var(--tv-hair)') + ';padding:5px 10px;font:inherit;font-size:12px;font-weight:' + (s.filter === f ? '800' : '400') + ';cursor:pointer;white-space:nowrap'
+    }));
+
+    let list = IDEAS.filter((i) => s.filter === 'All' || i.category === s.filter);
+    if (s.sort === 'votes') list = list.slice().sort((a, b) => this.voteOf(b) - this.voteOf(a));
+    if (s.sort === 'impact') list = list.slice().sort((a, b) => parseFloat(b.impact.replace(/[^0-9.]/g, '')) * (b.impact.indexOf('k') > 0 ? 0.001 : 1) - parseFloat(a.impact.replace(/[^0-9.]/g, '')) * (a.impact.indexOf('k') > 0 ? 0.001 : 1));
+    if (s.sort === 'recent') list = list.slice().sort((a, b) => b.ref.localeCompare(a.ref));
+
+    const comments = detail.comments.concat(s.extraComments).map((c) => ({
+      initials: c[0], who: c[1], role: c[2], when: c[3], text: c[4]
+    }));
+
+    return {
+      isDetail: isDetail,
+      isPipelineView: isPipelineView,
+      isBoard: !isDetail && !isPipelineView,
+      isFeed: isFeed,
+      isLeaderboard: isLeaderboard,
+
+      boardTitle: isLeaderboard ? 'Innovation Leaderboard' : 'Think Tank',
+      boardMeta: isLeaderboard
+        ? 'Recognition is based on assessed and realised value, not submission volume'
+        : 'Ideas from 2,417 employees, assessed on a single pipeline and converted into engagements, assets and knowledge',
+      onSubmit: () => this.toast('Submission wizard: problem, solution, expected benefit, attachments'),
+      onLeaderboard: () => this.nav('think', 'Leaderboard'),
+      onClearFilter: () => this.setState({ filter: 'All' }),
+
+      stats: [
+        ['Ideas this year', '312', '+38 this quarter', false],
+        ['New this week', '14', 'awaiting triage', false],
+        ['In assessment', '62', 'across four gates', false],
+        ['Approved', '29', '9.3% of submissions', false],
+        ['Converted to projects', '18', 'from 29 approved', true],
+        ['Realised value', '€11.4M', 'three-year basis', true]
+      ].map((st) => ({
+        label: st[0], value: st[1], note: st[2],
+        valueStyle: 'font-size:27px;font-weight:800;line-height:1.1;letter-spacing:-.02em;margin-top:4px;color:' + (st[3] ? 'var(--tv-accent)' : 'var(--tv-ink)')
+      })),
+
+      filters: filters,
+      sortVotes: s.sort === 'votes',
+      sortImpact: s.sort === 'impact',
+      sortRecent: s.sort === 'recent',
+      onSortVotes: () => this.setState({ sort: 'votes' }),
+      onSortImpact: () => this.setState({ sort: 'impact' }),
+      onSortRecent: () => this.setState({ sort: 'recent' }),
+      ideasEmpty: list.length === 0,
+      ideas: list.map((i) => {
+        const voted = (s.votes[i.id] || 0) > 0;
+        const following = !!s.following[i.id];
+        return {
+          ref: i.ref, title: i.title, problem: i.problem, solution: i.solution, category: i.category,
+          status: i.status, statusStyle: this.tagStyle(i.kind),
+          impact: i.impact, effort: i.effort, author: i.author,
+          votes: String(this.voteOf(i)), comments: String(i.comments),
+          voteStyle: 'background:' + (voted ? 'var(--tv-accent)' : 'none') + ';border:1px solid ' + (voted ? 'var(--tv-accent)' : 'var(--tv-hair)') +
+            ';color:' + (voted ? 'var(--tv-on-accent)' : 'var(--tv-accent)') + ';font:inherit;font-size:12px;font-weight:800;padding:4px 9px;cursor:pointer',
+          onVote: () => this.setState((st) => ({ votes: Object.assign({}, st.votes, { [i.id]: voted ? 0 : 1 }) })),
+          onComment: () => this.nav('think', 'Ideas', i.id),
+          followLabel: following ? 'Following' : 'Follow',
+          followStyle: 'background:' + (following ? 'var(--tv-ink)' : 'none') + ';border:1px solid ' + (following ? 'var(--tv-ink)' : 'var(--tv-hair)') +
+            ';color:' + (following ? 'var(--tv-bg)' : 'var(--tv-ink-70)') + ';font:inherit;font-size:12px;padding:4px 9px;cursor:pointer',
+          onFollow: () => this.setState((st) => ({ following: Object.assign({}, st.following, { [i.id]: !following }) })),
+          onOpen: () => this.nav('think', 'Ideas', i.id)
+        };
+      }),
+
+      leaders: [
+        ['01', 'Adaeze Okafor', 'Financial Services', '11', '4', '€6.4M', 'emp-1'],
+        ['02', 'Camille Béranger', 'Sustainability', '9', '3', '€3.2M', 'emp-3'],
+        ['03', 'Hiroshi Tanabe', 'Delivery Excellence', '14', '2', '€1.9M', 'emp-4'],
+        ['04', 'Priya Raghunathan', 'Insurance', '6', '2', '€1.4M', 'emp-5'],
+        ['05', 'Marek Dvořák', 'Energy', '7', '1', '€820k', 'emp-2'],
+        ['06', 'Lena Fischbach', 'Public Sector', '5', '1', '€610k', 'emp-6']
+      ].map((l) => ({
+        rank: l[0], name: l[1], practice: l[2], ideas: l[3], approved: l[4], value: l[5],
+        rankStyle: 'font-weight:800;color:' + (l[0] === '01' ? 'var(--tv-accent)' : 'var(--tv-ink-40)'),
+        onOpen: () => this.nav('hr', 'Employees', l[6])
+      })),
+
+      idea: {
+        ref: idea.ref, title: idea.title, status: idea.status, statusStyle: this.tagStyle(idea.kind), category: idea.category,
+        meta: idea.author + ' · ' + idea.practice + ' practice · submitted 9 Aug 2026 · ' + idea.comments + ' comments · followed by 42 people',
+        primaryAction: idea.stage >= 6 ? 'Convert to project' : 'Advance to next gate',
+        sections: detail.sections.map((x) => ({ label: x[0], body: x[1] })),
+        assessments: detail.assessments.map((a) => ({ label: a[0], verdict: a[1], badgeStyle: this.tagStyle(a[2]), score: a[3], note: a[4], who: a[5] })),
+        financials: detail.financials.map((f) => ({ label: f[0], value: f[1] })),
+        history: detail.history.map((h, i) => ({
+          title: h[0], who: h[1], when: h[2],
+          dotStyle: 'width:9px;height:9px;flex:none;margin-top:4px;background:' + (h[3] ? 'var(--tv-accent)' : 'var(--tv-ink-40)'),
+          lineStyle: i === detail.history.length - 1 ? 'display:none' : 'flex:1;width:1px;background:var(--tv-hair);margin-top:3px'
+        })),
+        attachments: detail.attachments.map((a) => ({ ext: a[0], name: a[1], onClick: () => this.nav('ecm', 'Document Viewer', 'doc-2') })),
+        links: detail.links.map((l) => ({ module: l[0], label: l[1], onClick: this.go(l[2]) }))
+      },
+      pipeline: pipeline,
+      voteCount: String(this.voteOf(idea)),
+      onUpvote: () => { this.setState((st) => ({ votes: Object.assign({}, st.votes, { [idea.id]: 1 }) })); this.toast('Vote recorded · your name is visible to the innovation board'); },
+      onDownvote: () => { this.setState((st) => ({ votes: Object.assign({}, st.votes, { [idea.id]: -1 }) })); this.toast('Vote recorded'); },
+      followLabel: s.following[idea.id] ? 'Following' : 'Follow idea',
+      onFollow: () => this.setState((st) => ({ following: Object.assign({}, st.following, { [idea.id]: !st.following[idea.id] }) })),
+      onConvert: () => { this.toast('Engagement PRJ-2026-118 created from ' + idea.ref + ' · opening in ERP'); setTimeout(() => this.nav('erp', 'Projects'), 700); },
+      comments: comments,
+      commentDraft: s.commentDraft,
+      onCommentChange: (e) => this.setState({ commentDraft: e.target.value }),
+      onComment: (e) => {
+        e.preventDefault();
+        const v = s.commentDraft.trim();
+        if (!v) return;
+        this.setState((st) => ({ extraComments: [...st.extraComments, ['IS', 'Ingrid Solberg', 'CFO · Group', 'Just now', v]], commentDraft: '' }));
+      }
+    };
+  }
+}
+
+</script>
+</body>
+</html>

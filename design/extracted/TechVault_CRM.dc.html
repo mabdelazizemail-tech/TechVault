@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/modernist-36bd29c9-a0f6-40d6-82f9-3de3249645b6/styles.css">
+<script src="_ds/modernist-36bd29c9-a0f6-40d6-82f9-3de3249645b6/_ds_bundle.js"></script>
+<link rel="stylesheet" href="tv-tokens.css">
+</helmet>
+
+<div style="font-family:'Archivo',system-ui,sans-serif;color:var(--tv-ink);padding-bottom:48px;animation:tv-fade .2s ease">
+
+  <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:16px;padding:0 24px 12px;flex-wrap:wrap">
+    <div style="min-width:0">
+      <h1 style="font-size:34px;margin:0 0 3px">{{ pageTitle }}</h1>
+      <div style="font-size:12.5px;color:var(--tv-ink-55)">{{ pageMeta }}</div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-secondary" onClick="{{ onReport }}">Reports</button>
+      <button class="btn btn-primary" onClick="{{ onCreate }}">{{ createLabel }}</button>
+    </div>
+  </div>
+
+  <sc-if value="{{ isDashboard }}" hint-placeholder-val="{{ false }}">
+    <div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:1px;background:var(--tv-hair);border-top:1px solid var(--tv-hair);border-bottom:1px solid var(--tv-hair)">
+        <sc-for list="{{ crmKpis }}" as="k" hint-placeholder-count="5">
+          <div style="background:var(--tv-panel);padding:14px 16px 16px">
+            <div style="font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--tv-ink-55)">{{ k.label }}</div>
+            <div style="font-size:28px;font-weight:800;line-height:1.1;letter-spacing:-.02em;margin-top:4px">{{ k.value }}</div>
+            <div style="font-size:12px"><span style="{{ k.deltaStyle }}">{{ k.delta }}</span> <span style="color:var(--tv-ink-40)">{{ k.note }}</span></div>
+          </div>
+        </sc-for>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:1px;background:var(--tv-hair);border-bottom:1px solid var(--tv-hair)">
+        <section style="grid-column:span 7;background:var(--tv-panel);padding:14px 16px 18px;min-width:0">
+          <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--tv-accent-ink)">Forecast</div>
+          <h3 style="font-size:16px;margin:2px 0 14px">Commit versus quota by practice</h3>
+          <sc-for list="{{ forecast }}" as="f" hint-placeholder-count="4">
+            <div style="border-top:1px solid var(--tv-hair);padding:10px 0">
+              <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:6px">
+                <span style="font-weight:800">{{ f.label }}</span>
+                <span><span style="font-weight:800">{{ f.commit }}</span> <span style="color:var(--tv-ink-40)">of {{ f.quota }}</span></span>
+              </div>
+              <div style="height:10px;background:var(--tv-surface);position:relative">
+                <div style="{{ f.style }}"></div>
+                <div style="{{ f.markStyle }}"></div>
+              </div>
+            </div>
+          </sc-for>
+          <div style="font-size:11px;color:var(--tv-ink-40);margin-top:10px">Vertical rule marks quota. Bars show weighted commit at 12 Sep 2026.</div>
+        </section>
+        <section style="grid-column:span 5;background:var(--tv-panel);padding:14px 16px 18px;min-width:0">
+          <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--tv-accent-ink)">Next 7 days</div>
+          <h3 style="font-size:16px;margin:2px 0 8px">Upcoming follow-ups</h3>
+          <sc-for list="{{ followUps }}" as="f" hint-placeholder-count="5">
+            <button onClick="{{ f.onClick }}" style="display:flex;gap:12px;width:100%;text-align:left;background:none;border:0;border-top:1px solid var(--tv-hair);padding:10px 0;cursor:pointer;font:inherit;color:inherit">
+              <span style="width:52px;flex:none;font-size:11.5px;font-weight:800;color:var(--tv-accent-ink)">{{ f.when }}</span>
+              <span style="flex:1;min-width:0">
+                <span style="display:block;font-weight:800;font-size:13px">{{ f.title }}</span>
+                <span style="display:block;font-size:11.5px;color:var(--tv-ink-55)">{{ f.meta }}</span>
+              </span>
+            </button>
+          </sc-for>
+        </section>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isPipeline }}" hint-placeholder-val="{{ false }}">
+    <div>
+      <div style="display:flex;align-items:center;gap:10px;padding:0 24px 12px;flex-wrap:wrap">
+        <div class="seg">
+          <label class="seg-opt"><input type="radio" name="crm-view" checked onChange="{{ noop }}">Board</label>
+          <label class="seg-opt"><input type="radio" name="crm-view" onChange="{{ noop }}">Table</label>
+          <label class="seg-opt"><input type="radio" name="crm-view" onChange="{{ noop }}">Forecast</label>
+        </div>
+        <div style="font-size:12px;color:var(--tv-ink-55)">Drag is replaced by stage controls in this prototype — use ‹ › on a card to advance it.</div>
+      </div>
+      <div style="display:flex;gap:1px;background:var(--tv-hair);border-top:1px solid var(--tv-hair);overflow-x:auto;align-items:stretch">
+        <sc-for list="{{ board }}" as="col" hint-placeholder-count="5">
+          <div style="background:var(--tv-bg);min-width:268px;flex:1;display:flex;flex-direction:column">
+            <div style="padding:12px 14px;background:var(--tv-panel);border-bottom:2px solid var(--tv-rule)">
+              <div style="display:flex;justify-content:space-between;align-items:baseline">
+                <span style="font-size:12.5px;font-weight:800">{{ col.label }}</span>
+                <span style="font-size:11px;color:var(--tv-ink-40)">{{ col.count }}</span>
+              </div>
+              <div style="font-size:17px;font-weight:800;letter-spacing:-.01em">{{ col.total }}</div>
+            </div>
+            <div style="padding:10px;display:flex;flex-direction:column;gap:10px;flex:1">
+              <sc-for list="{{ col.cards }}" as="c" hint-placeholder-count="2">
+                <div style="background:var(--tv-panel);border:1px solid var(--tv-hair);padding:11px 12px;animation:tv-rise .18s ease">
+                  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+                    <span style="font-size:10.5px;color:var(--tv-ink-40);font-variant-numeric:tabular-nums">{{ c.ref }}</span>
+                    <span style="{{ c.riskStyle }}">{{ c.risk }}</span>
+                  </div>
+                  <button onClick="{{ c.onOpen }}" style="background:none;border:0;padding:0;font:inherit;font-weight:800;font-size:13.5px;line-height:1.25;color:inherit;cursor:pointer;text-align:left;display:block;margin-bottom:4px">{{ c.title }}</button>
+                  <div style="font-size:11.5px;color:var(--tv-ink-55);margin-bottom:8px">{{ c.client }}</div>
+                  <div style="display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--tv-hair);padding-top:8px">
+                    <span style="font-size:14px;font-weight:800">{{ c.value }}</span>
+                    <span style="font-size:11px;color:var(--tv-ink-55)">{{ c.prob }}</span>
+                  </div>
+                  <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
+                    <span style="font-size:11px;color:var(--tv-ink-40)">{{ c.owner }} · {{ c.close }}</span>
+                    <span style="display:flex;gap:4px">
+                      <button onClick="{{ c.onPrev }}" aria-label="Move back a stage" style="width:22px;height:22px;border:1px solid var(--tv-hair);background:none;color:inherit;cursor:pointer;font:inherit;font-size:11px">‹</button>
+                      <button onClick="{{ c.onNext }}" aria-label="Advance a stage" style="width:22px;height:22px;border:1px solid var(--tv-accent);background:none;color:var(--tv-accent-ink);cursor:pointer;font:inherit;font-size:11px">›</button>
+                    </span>
+                  </div>
+                </div>
+              </sc-for>
+              <sc-if value="{{ col.empty }}" hint-placeholder-val="{{ false }}">
+                <div style="border:1px dashed var(--tv-hair);padding:14px;font-size:12px;color:var(--tv-ink-40)">Nothing at this stage. Advance an opportunity from {{ col.prevLabel }} or create one.</div>
+              </sc-if>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isTable }}" hint-placeholder-val="{{ false }}">
+    <div>
+      <div style="border-top:1px solid var(--tv-hair);background:var(--tv-panel);padding:10px 24px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <div style="display:flex;align-items:center;gap:7px;background:var(--tv-surface);border:1px solid var(--tv-hair);padding:0 9px;height:32px;min-width:220px;flex:1;max-width:320px">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--tv-ink-40)" stroke-width="2" style="flex:none"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+          <input value="{{ tableQuery }}" onChange="{{ onTableQuery }}" placeholder="Search {{ tableNoun }}" aria-label="Search records" style="flex:1;min-width:0;border:0;background:none;font:inherit;font-size:13px;color:inherit;outline:none">
+        </div>
+        <sc-for list="{{ savedViews }}" as="v" hint-placeholder-count="3">
+          <button onClick="{{ v.onClick }}" style="{{ v.style }}">{{ v.label }}</button>
+        </sc-for>
+        <div style="flex:1"></div>
+        <span style="font-size:11.5px;color:var(--tv-ink-55)">{{ rowCount }}</span>
+        <button class="btn btn-secondary" style="padding:5px 10px;font-size:12px" onClick="{{ onColumns }}">Columns</button>
+        <button class="btn btn-secondary" style="padding:5px 10px;font-size:12px" onClick="{{ onFilters }}">Filters</button>
+        <button class="btn btn-secondary" style="padding:5px 10px;font-size:12px" onClick="{{ onExport }}">Export</button>
+      </div>
+      <sc-if value="{{ hasSelection }}" hint-placeholder-val="{{ false }}">
+        <div style="background:var(--tv-ink);color:var(--tv-bg);padding:8px 24px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;animation:tv-rise .15s ease">
+          <span style="font-size:12.5px;font-weight:800">{{ selectionLabel }}</span>
+          <button onClick="{{ onBulkOwner }}" style="background:none;border:1px solid var(--tv-bg);color:var(--tv-bg);font:inherit;font-size:12px;padding:3px 9px;cursor:pointer">Reassign owner</button>
+          <button onClick="{{ onBulkTag }}" style="background:none;border:1px solid var(--tv-bg);color:var(--tv-bg);font:inherit;font-size:12px;padding:3px 9px;cursor:pointer">Add tag</button>
+          <button onClick="{{ onBulkExport }}" style="background:none;border:1px solid var(--tv-bg);color:var(--tv-bg);font:inherit;font-size:12px;padding:3px 9px;cursor:pointer">Export selection</button>
+          <button onClick="{{ onClearSelection }}" style="background:none;border:0;color:var(--tv-bg);font:inherit;font-size:12px;cursor:pointer;text-decoration:underline">Clear</button>
+        </div>
+      </sc-if>
+      <div style="overflow-x:auto;background:var(--tv-panel);border-top:1px solid var(--tv-hair)">
+        <table class="table" style="min-width:860px">
+          <thead>
+            <tr>
+              <th style="width:34px"><input type="checkbox" checked="{{ allSelected }}" onChange="{{ onSelectAll }}" aria-label="Select all rows"></th>
+              <sc-for list="{{ columns }}" as="c" hint-placeholder-count="5">
+                <th style="{{ c.style }}"><button onClick="{{ c.onSort }}" style="background:none;border:0;padding:0;font:inherit;color:inherit;cursor:pointer;letter-spacing:.08em;text-transform:uppercase;font-size:11px">{{ c.label }}{{ c.arrow }}</button></th>
+              </sc-for>
+            </tr>
+          </thead>
+          <tbody>
+            <sc-for list="{{ rows }}" as="r" hint-placeholder-count="6">
+              <tr>
+                <td><input type="checkbox" checked="{{ r.selected }}" onChange="{{ r.onSelect }}" aria-label="Select row"></td>
+                <sc-for list="{{ r.cells }}" as="cell" hint-placeholder-count="5">
+                  <td style="{{ cell.tdStyle }}">
+                    <sc-if value="{{ cell.isLink }}" hint-placeholder-val="{{ false }}">
+                      <button onClick="{{ cell.onClick }}" style="background:none;border:0;padding:0;font:inherit;font-weight:800;color:inherit;cursor:pointer;text-align:left">{{ cell.text }}</button>
+                    </sc-if>
+                    <sc-if value="{{ cell.isTag }}" hint-placeholder-val="{{ false }}">
+                      <span style="{{ cell.tagStyle }}">{{ cell.text }}</span>
+                    </sc-if>
+                    <sc-if value="{{ cell.isPlain }}" hint-placeholder-val="{{ true }}">
+                      <span>{{ cell.text }}</span>
+                    </sc-if>
+                  </td>
+                </sc-for>
+              </tr>
+            </sc-for>
+          </tbody>
+        </table>
+        <sc-if value="{{ tableEmpty }}" hint-placeholder-val="{{ false }}">
+          <div style="padding:40px 24px;max-width:60ch">
+            <div style="font-weight:800;font-size:17px;margin-bottom:5px">No {{ tableNoun }} match “{{ tableQuery }}”</div>
+            <div style="font-size:13px;color:var(--tv-ink-55);margin-bottom:14px">This list shows records you own or follow, plus anything shared with Group Finance. Widen the saved view or clear the search to see the full book.</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="btn btn-secondary" onClick="{{ onClearTableQuery }}">Clear search</button>
+              <button class="btn btn-primary" onClick="{{ onCreate }}">{{ createLabel }}</button>
+            </div>
+          </div>
+        </sc-if>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 24px;background:var(--tv-panel);border-top:1px solid var(--tv-hair);flex-wrap:wrap">
+        <span style="font-size:11.5px;color:var(--tv-ink-55)">{{ pageLabel }}</span>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-secondary" style="padding:4px 10px;font-size:12px" onClick="{{ onPrevPage }}">Previous</button>
+          <button class="btn btn-secondary" style="padding:4px 10px;font-size:12px" onClick="{{ onNextPage }}">Next</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isCustomer }}" hint-placeholder-val="{{ false }}">
+    <div>
+      <div style="background:var(--tv-panel);border-top:1px solid var(--tv-hair);border-bottom:2px solid var(--tv-rule);padding:16px 24px">
+        <div style="display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap">
+          <div style="width:56px;height:56px;background:var(--tv-ink);color:var(--tv-bg);display:grid;place-items:center;font-weight:800;font-size:18px;flex:none">{{ cust.initials }}</div>
+          <div style="flex:1;min-width:220px">
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:3px">
+              <h2 style="font-size:26px;margin:0">{{ cust.name }}</h2>
+              <span class="tag tag-accent">{{ cust.tier }}</span>
+              <span style="font-size:11.5px;color:var(--tv-ink-40)">{{ cust.ref }}</span>
+            </div>
+            <div style="font-size:12.5px;color:var(--tv-ink-55)">{{ cust.meta }}</div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(4,minmax(96px,auto));gap:1px;background:var(--tv-hair);border:1px solid var(--tv-hair)">
+            <sc-for list="{{ cust.stats }}" as="st" hint-placeholder-count="4">
+              <div style="background:var(--tv-panel);padding:8px 12px">
+                <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--tv-ink-55)">{{ st.label }}</div>
+                <div style="font-size:17px;font-weight:800">{{ st.value }}</div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-secondary" onClick="{{ onLogActivity }}">Log activity</button>
+            <button class="btn btn-primary" onClick="{{ onNewOpp }}">New opportunity</button>
+          </div>
+        </div>
+      </div>
+
+      <div style="background:var(--tv-surface);border-bottom:1px solid var(--tv-hair);padding:12px 24px">
+        <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--tv-ink-55);margin-bottom:9px">Entity 360 — this customer across TechVault</div>
+        <div style="display:flex;align-items:stretch;gap:0;overflow-x:auto">
+          <sc-for list="{{ relationship }}" as="rel" hint-placeholder-count="7">
+            <div style="display:flex;align-items:stretch;flex:none">
+              <button onClick="{{ rel.onClick }}" style="{{ rel.style }}">
+                <span style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--tv-ink-55)">{{ rel.module }}</span>
+                <span style="display:block;font-weight:800;font-size:13px;margin-top:2px">{{ rel.label }}</span>
+                <span style="display:block;font-size:18px;font-weight:800;color:var(--tv-accent-ink);line-height:1.1">{{ rel.count }}</span>
+              </button>
+              <span style="{{ rel.arrowStyle }}">→</span>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+
+      <div style="display:flex;padding:0 24px;border-bottom:2px solid var(--tv-rule);background:var(--tv-panel);overflow-x:auto">
+        <sc-for list="{{ custTabs }}" as="t" hint-placeholder-count="6">
+          <button onClick="{{ t.onClick }}" style="{{ t.style }}">{{ t.label }}</button>
+        </sc-for>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:1px;background:var(--tv-hair)">
+        <section style="grid-column:span 8;background:var(--tv-panel);padding:16px 20px 22px;min-width:0">
+          <sc-if value="{{ custIsOverview }}" hint-placeholder-val="{{ true }}">
+            <div>
+              <div style="border:1px solid var(--tv-accent);background:var(--tv-accent-tint);padding:12px 14px;margin-bottom:18px">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--tv-accent-ink)" stroke-width="2"><path d="M12 3l1.9 4.8L18.7 9.7 13.9 11.6 12 16.4 10.1 11.6 5.3 9.7 10.1 7.8z"></path></svg>
+                  <span style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--tv-accent-ink);font-weight:800">TechVault AI · relationship summary</span>
+                </div>
+                <p style="font-size:13px;line-height:1.5;margin:0 0 8px;color:var(--tv-accent-ink)">{{ cust.aiSummary }}</p>
+                <button class="btn btn-ghost" onClick="{{ onAskAI }}" style="font-size:12px;color:var(--tv-accent-ink)">Ask a follow-up question →</button>
+              </div>
+              <h4 style="font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--tv-ink-55);margin:0 0 10px">Account detail</h4>
+              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px 24px;margin-bottom:22px">
+                <sc-for list="{{ cust.fields }}" as="f" hint-placeholder-count="8">
+                  <div style="border-top:1px solid var(--tv-hair);padding-top:7px">
+                    <div style="font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--tv-ink-55)">{{ f.label }}</div>
+                    <div style="font-size:13.5px;font-weight:800">{{ f.value }}</div>
+                  </div>
+                </sc-for>
+              </div>
+              <h4 style="font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--tv-ink-55);margin:0 0 10px">Open opportunities</h4>
+              <table class="table">
+                <thead><tr><th>Opportunity</th><th>Stage</th><th style="text-align:right">Value</th><th style="text-align:right">Prob.</th><th>Close</th></tr></thead>
+                <tbody>
+                  <sc-for list="{{ cust.opps }}" as="o" hint-placeholder-count="3">
+                    <tr>
+                      <td><button onClick="{{ o.onOpen }}" style="background:none;border:0;padding:0;font:inherit;font-weight:800;color:inherit;cursor:pointer;text-align:left">{{ o.title }}</button></td>
+                      <td><span style="{{ o.stageStyle }}">{{ o.stage }}</span></td>
+                      <td style="text-align:right;font-variant-numeric:tabular-nums">{{ o.value }}</td>
+                      <td style="text-align:right">{{ o.prob }}</td>
+                      <td style="color:var(--tv-ink-55)">{{ o.close }}</td>
+                    </tr>
+                  </sc-for>
+                </tbody>
+              </table>
+            </div>
+          </sc-if>
+          <sc-if value="{{ custIsRelated }}" hint-placeholder-val="{{ false }}">
+            <div>
+              <h4 style="font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--tv-ink-55);margin:0 0 4px">{{ relatedTitle }}</h4>
+              <p style="font-size:12.5px;color:var(--tv-ink-55);margin-bottom:14px">{{ relatedNote }}</p>
+              <table class="table">
+                <thead><tr><sc-for list="{{ relatedCols }}" as="rc" hint-placeholder-count="4"><th style="{{ rc.style }}">{{ rc.label }}</th></sc-for></tr></thead>
+                <tbody>
+                  <sc-for list="{{ relatedRows }}" as="rr" hint-placeholder-count="4">
+                    <tr>
+                      <sc-for list="{{ rr.cells }}" as="cell" hint-placeholder-count="4">
+                        <td style="{{ cell.tdStyle }}">
+                          <sc-if value="{{ cell.isTag }}" hint-placeholder-val="{{ false }}"><span style="{{ cell.tagStyle }}">{{ cell.text }}</span></sc-if>
+                          <sc-if value="{{ cell.isLink }}" hint-placeholder-val="{{ false }}"><button onClick="{{ cell.onClick }}" style="background:none;border:0;padding:0;font:inherit;font-weight:800;color:inherit;cursor:pointer;text-align:left">{{ cell.text }}</button></sc-if>
+                          <sc-if value="{{ cell.isPlain }}" hint-placeholder-val="{{ true }}"><span>{{ cell.text }}</span></sc-if>
+                        </td>
+                      </sc-for>
+                    </tr>
+                  </sc-for>
+                </tbody>
+              </table>
+            </div>
+          </sc-if>
+          <sc-if value="{{ custIsTimeline }}" hint-placeholder-val="{{ false }}">
+            <div>
+              <h4 style="font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--tv-ink-55);margin:0 0 14px">Relationship timeline</h4>
+              <sc-for list="{{ cust.timeline }}" as="t" hint-placeholder-count="6">
+                <div style="display:flex;gap:14px">
+                  <div style="width:84px;flex:none;font-size:11.5px;color:var(--tv-ink-55);padding-top:1px">{{ t.when }}</div>
+                  <div style="flex:none;display:flex;flex-direction:column;align-items:center;width:12px">
+                    <span style="{{ t.dotStyle }}"></span>
+                    <span style="flex:1;width:1px;background:var(--tv-hair)"></span>
+                  </div>
+                  <div style="flex:1;min-width:0;padding-bottom:18px">
+                    <div style="font-weight:800;font-size:13.5px">{{ t.title }}</div>
+                    <div style="font-size:12px;color:var(--tv-ink-55)">{{ t.meta }}</div>
+                    <button onClick="{{ t.onClick }}" style="{{ t.linkStyle }}">{{ t.link }}</button>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+          </sc-if>
+        </section>
+        <aside style="grid-column:span 4;background:var(--tv-panel);padding:16px 18px 22px;min-width:0">
+          <h4 style="font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--tv-ink-55);margin:0 0 10px">Key contacts</h4>
+          <sc-for list="{{ cust.contacts }}" as="c" hint-placeholder-count="3">
+            <div style="display:flex;gap:10px;border-top:1px solid var(--tv-hair);padding:10px 0">
+              <div style="width:30px;height:30px;background:var(--tv-surface);display:grid;place-items:center;font-size:11px;font-weight:800;flex:none">{{ c.initials }}</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-weight:800;font-size:13px">{{ c.name }}</div>
+                <div style="font-size:11.5px;color:var(--tv-ink-55)">{{ c.role }}</div>
+                <div style="font-size:11px;color:var(--tv-ink-40)">{{ c.note }}</div>
+              </div>
+            </div>
+          </sc-for>
+          <div style="height:2px;background:var(--tv-rule);margin:18px 0"></div>
+          <h4 style="font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--tv-ink-55);margin:0 0 10px">Go to related module</h4>
+          <sc-for list="{{ crossLinks }}" as="x" hint-placeholder-count="5">
+            <button onClick="{{ x.onClick }}" style="display:flex;justify-content:space-between;align-items:center;width:100%;background:none;border:0;border-top:1px solid var(--tv-hair);padding:9px 0;cursor:pointer;font:inherit;font-size:13px;color:inherit;text-align:left">
+              <span>{{ x.label }}</span>
+              <span style="color:var(--tv-accent-ink);font-weight:800">→</span>
+            </button>
+          </sc-for>
+          <div style="height:2px;background:var(--tv-rule);margin:18px 0"></div>
+          <h4 style="font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--tv-ink-55);margin:0 0 8px">Permissions</h4>
+          <div style="font-size:12px;color:var(--tv-ink-55);line-height:1.5">You see this account as <strong style="color:var(--tv-ink)">Group Finance — read all, approve commercial</strong>. Contract terms and payment data are visible; HR records of the delivery team are not.</div>
+        </aside>
+      </div>
+    </div>
+  </sc-if>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1180,&quot;height&quot;:820},&quot;sub&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Dashboard&quot;,&quot;Customers&quot;,&quot;Contacts&quot;,&quot;Leads&quot;,&quot;Opportunities&quot;,&quot;Activities&quot;],&quot;default&quot;:&quot;Dashboard&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;entity&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;navigate&quot;:{&quot;editor&quot;:null,&quot;tsType&quot;:&quot;(screen: string, sub?: string, entity?: string) =&gt; void&quot;},&quot;toast&quot;:{&quot;editor&quot;:null,&quot;tsType&quot;:&quot;(text: string) =&gt; void&quot;}}">
+const STAGES = ['Qualification', 'Discovery', 'Proposal', 'Negotiation', 'Closing'];
+
+const OPPS = [
+  { id: 'opp-1', ref: 'OPP-2026-0874', title: 'Core Banking Migration Phase 2', client: 'Meridian Federal Bank', value: 8.4, stage: 2, prob: '65%', owner: 'T. Reinhardt', close: '30 Nov', risk: 'Idle 24d', riskKind: 'warn', cust: 'meridian' },
+  { id: 'opp-2', ref: 'OPP-2026-0881', title: 'Spectrum Advisory Retainer', client: 'Corvus Telecom Group', value: 2.1, stage: 3, prob: '80%', owner: 'A. Okafor', close: '14 Oct', risk: 'Discount approval', riskKind: 'neg', cust: 'corvus' },
+  { id: 'opp-3', ref: 'OPP-2026-0902', title: 'Grid Resilience Programme', client: 'Halden Energy Nordics', value: 5.6, stage: 1, prob: '35%', owner: 'M. Dvořák', close: '28 Feb', risk: 'On track', riskKind: 'pos', cust: 'halden' },
+  { id: 'opp-4', ref: 'OPP-2026-0866', title: 'Claims Target Operating Model', client: 'Quillon Insurance', value: 2.7, stage: 2, prob: '50%', owner: 'P. Raghunathan', close: '12 Dec', risk: 'Idle 22d', riskKind: 'warn', cust: 'quillon' },
+  { id: 'opp-5', ref: 'OPP-2026-0911', title: 'Network Optimisation Study', client: 'Ostara Logistics', value: 3.9, stage: 0, prob: '20%', owner: 'L. Fischbach', close: '31 Mar', risk: 'New', riskKind: 'neutral', cust: 'ostara' },
+  { id: 'opp-6', ref: 'OPP-2026-0848', title: 'Procurement Reform Wave 3', client: 'Blackfen Municipal Authority', value: 1.9, stage: 4, prob: '90%', owner: 'L. Fischbach', close: '26 Sep', risk: 'Legal review', riskKind: 'warn', cust: 'blackfen' },
+  { id: 'opp-7', ref: 'OPP-2026-0893', title: 'Data Platform Assurance', client: 'Verity Health Systems', value: 1.4, stage: 1, prob: '40%', owner: 'H. Tanabe', close: '18 Jan', risk: 'On track', riskKind: 'pos', cust: 'verity' },
+  { id: 'opp-8', ref: 'OPP-2026-0915', title: 'Treasury Controls Review', client: 'Meridian Federal Bank', value: 1.2, stage: 3, prob: '75%', owner: 'T. Reinhardt', close: '07 Nov', risk: 'On track', riskKind: 'pos', cust: 'meridian' }
+];
+
+const CUSTOMERS = [
+  ['meridian', 'Meridian Federal Bank', 'Financial services', 'Frankfurt', 'Strategic', '€24.8M', 'T. Reinhardt', 'Active'],
+  ['corvus', 'Corvus Telecom Group', 'Telecommunications', 'Rotterdam', 'Strategic', '€18.2M', 'A. Okafor', 'Active'],
+  ['halden', 'Halden Energy Nordics', 'Utilities', 'Oslo', 'Key', '€11.4M', 'M. Dvořák', 'Active'],
+  ['verity', 'Verity Health Systems', 'Healthcare', 'Dublin', 'Key', '€9.6M', 'P. Raghunathan', 'Active'],
+  ['ostara', 'Ostara Logistics', 'Transport & logistics', 'Gdańsk', 'Growth', '€6.1M', 'L. Fischbach', 'Active'],
+  ['blackfen', 'Blackfen Municipal Authority', 'Public sector', 'Manchester', 'Key', '€7.8M', 'L. Fischbach', 'At risk'],
+  ['quillon', 'Quillon Insurance', 'Insurance', 'Zurich', 'Growth', '€4.3M', 'P. Raghunathan', 'Active'],
+  ['aldergate', 'Aldergate Asset Management', 'Asset management', 'London', 'Growth', '€3.9M', 'T. Reinhardt', 'Prospect'],
+  ['norrsken', 'Norrsken Industrier', 'Manufacturing', 'Malmö', 'Emerging', '€2.2M', 'M. Dvořák', 'Active'],
+  ['calderwood', 'Calderwood Rail', 'Infrastructure', 'Glasgow', 'Emerging', '€1.7M', 'H. Tanabe', 'Dormant']
+];
+
+const CONTACTS = [
+  ['Elise Brenner', 'Group CIO', 'Meridian Federal Bank', 'Economic buyer', '3 days ago', 'meridian'],
+  ['Rafael Duarte', 'Head of Procurement', 'Corvus Telecom Group', 'Influencer', 'Yesterday', 'corvus'],
+  ['Anneke Vos', 'CFO', 'Corvus Telecom Group', 'Economic buyer', '2 weeks ago', 'corvus'],
+  ['Sigrid Haugen', 'Director, Grid Operations', 'Halden Energy Nordics', 'Champion', '5 days ago', 'halden'],
+  ['Declan Moore', 'Chief Risk Officer', 'Verity Health Systems', 'Economic buyer', '1 week ago', 'verity'],
+  ['Marta Kowalczyk', 'VP Network', 'Ostara Logistics', 'Champion', '3 weeks ago', 'ostara'],
+  ['Ian Pemberton', 'Procurement Director', 'Blackfen Municipal Authority', 'Blocker', '4 days ago', 'blackfen'],
+  ['Nadia Frei', 'Head of Claims', 'Quillon Insurance', 'Champion', '6 days ago', 'quillon']
+];
+
+const LEADS = [
+  ['Thurlow Building Society', 'Inbound — regulatory webinar', 'Financial services', 'Marketing qualified', '78', 'A. Okafor'],
+  ['Tessellate Payments', 'Referral — Meridian CIO', 'Payments', 'Sales qualified', '91', 'T. Reinhardt'],
+  ['Nordvik Shipping', 'Outbound — practice campaign', 'Transport & logistics', 'Contacted', '54', 'L. Fischbach'],
+  ['Brightwater Utilities', 'Event — Energy Transition Forum', 'Utilities', 'Marketing qualified', '66', 'M. Dvořák'],
+  ['Casimir Clinics', 'Inbound — website', 'Healthcare', 'New', '32', 'Unassigned'],
+  ['Helvetia Reinsurance', 'Referral — Quillon', 'Insurance', 'Sales qualified', '84', 'P. Raghunathan']
+];
+
+const ACTIVITIES = [
+  ['Today 09:41', 'Call', 'Elise Brenner — phase 2 governance model', 'Meridian Federal Bank', 'I. Solberg', 'meridian'],
+  ['Today 08:05', 'Meeting', 'Commercial review — discount position', 'Corvus Telecom Group', 'A. Okafor', 'corvus'],
+  ['Yesterday', 'Email', 'Redlines returned on liability cap', 'Meridian Federal Bank', 'Legal Ops', 'meridian'],
+  ['Yesterday', 'Site visit', 'Grid control centre walkthrough', 'Halden Energy Nordics', 'M. Dvořák', 'halden'],
+  ['Wed', 'Call', 'Change request escalation', 'Blackfen Municipal Authority', 'L. Fischbach', 'blackfen'],
+  ['Tue', 'Workshop', 'Claims TOM design session 3', 'Quillon Insurance', 'P. Raghunathan', 'quillon'],
+  ['Mon', 'Email', 'Renewal timetable proposal', 'Corvus Telecom Group', 'A. Okafor', 'corvus']
+];
+
+const CUST_DETAIL = {
+  meridian: {
+    initials: 'MF', name: 'Meridian Federal Bank', ref: 'CUS-000148', tier: 'Strategic account',
+    meta: 'Financial services · Frankfurt · 41,200 employees · customer since March 2019 · relationship partner Tomas Reinhardt',
+    aiSummary: 'Meridian is your largest relationship at €24.8M lifetime revenue and is currently your largest receivable risk: €1.24M is 18 days overdue while Phase 2 of the migration sits in Legal review over two liability clauses. Delivery health moved to amber last week on a 74% burn against a €6.2M budget. The commercial upside is a €8.4M Phase 2 opportunity with a 30 November close.',
+    stats: [['Lifetime', '€24.8M'], ['Open pipeline', '€9.6M'], ['Receivables', '€1.24M'], ['Health', 'Amber']],
+    fields: [
+      ['Industry', 'Retail & commercial banking'], ['Headquarters', 'Frankfurt am Main, DE'],
+      ['Relationship partner', 'Tomas Reinhardt'], ['Account tier', 'Strategic — tier 1'],
+      ['Master agreement', 'MSA 2026 · expires 31 Dec 2028'], ['Payment terms', 'Net 45'],
+      ['Credit rating', 'A- (internal)'], ['Regulatory exposure', 'ECB direct supervision']
+    ],
+    contacts: [
+      ['EB', 'Elise Brenner', 'Group CIO', 'Economic buyer · last contact 3 days ago'],
+      ['HK', 'Henrik Kaufmann', 'Director of Payments Technology', 'Champion · sponsor of Phase 2'],
+      ['SW', 'Sabine Wenzel', 'Head of Procurement', 'Gatekeeper · owns the MSA'],
+      ['JM', 'Jonas Mehldau', 'CISO Office', 'Security questionnaire owner']
+    ],
+    timeline: [
+      ['Today', 'Receivable escalated to dunning stage 2', 'INV-2026-04417 · €1,240,000 · 18 days overdue', 'Open invoice in ERP', ['erp', 'Finance', 'inv-1'], true],
+      ['4 h ago', 'Statement of Work returned with redlines', 'Two liability cap clauses contested by Meridian counsel', 'Open document in ECM', ['ecm', 'Document Viewer', 'doc-2'], true],
+      ['3 days ago', 'Governance call with Group CIO', 'Phase 2 steering model agreed; monthly board reporting requested', '', null, false],
+      ['2 weeks ago', 'Engagement health moved to amber', 'Burn 74% against €6.2M budget · two milestones at risk', 'Open engagement', ['erp', 'Projects', 'proj-1'], false],
+      ['12 Feb 2026', 'Master services agreement executed', 'MSA 2026 v4.2 signed by both parties', 'Open contract', ['ecm', 'Document Viewer', 'doc-1'], false],
+      ['Mar 2019', 'Relationship opened', 'First engagement: payments architecture review', '', null, false]
+    ]
+  }
+};
+
+const GENERIC_CUST = {
+  initials: 'CV', name: 'Corvus Telecom Group', ref: 'CUS-000206', tier: 'Strategic account',
+  meta: 'Telecommunications · Rotterdam · 18,400 employees · customer since June 2021 · relationship partner Adaeze Okafor',
+  aiSummary: 'Corvus is in renewal territory: the spectrum advisory retainer expires 31 January 2027 and a 14% discount request is waiting on your approval. Delivery is green, receivables are clean, and the account has produced two Think Tank ideas now in assessment.',
+  stats: [['Lifetime', '€18.2M'], ['Open pipeline', '€2.1M'], ['Receivables', '€486k'], ['Health', 'Green']],
+  fields: [
+    ['Industry', 'Fixed and mobile telecommunications'], ['Headquarters', 'Rotterdam, NL'],
+    ['Relationship partner', 'Adaeze Okafor'], ['Account tier', 'Strategic — tier 2'],
+    ['Master agreement', 'MSA 2024 · expires 31 Jan 2027'], ['Payment terms', 'Net 30'],
+    ['Credit rating', 'BBB+ (internal)'], ['Regulatory exposure', 'National regulator ACM']
+  ],
+  contacts: [
+    ['RD', 'Rafael Duarte', 'Head of Procurement', 'Influencer · owns the retainer'],
+    ['AV', 'Anneke Vos', 'Chief Financial Officer', 'Economic buyer'],
+    ['PS', 'Pieter Smit', 'Director of Spectrum Strategy', 'Champion']
+  ],
+  timeline: [
+    ['Yesterday', 'Discount approval requested', '14% off rate card on €2.1M retainer', 'Open approval', ['workflow', 'My approvals'], true],
+    ['4 days ago', 'Opportunity advanced to Negotiation', 'Probability raised to 80% by Adaeze Okafor', '', null, false],
+    ['2 weeks ago', 'Renewal timetable proposed', 'Retainer expires 31 Jan 2027', '', null, false],
+    ['Jun 2021', 'Relationship opened', 'First engagement: spectrum auction advisory', '', null, false]
+  ]
+};
+
+class Component extends DCLogic {
+  state = { tab: 'Overview', tableQuery: '', view: 'My book', sort: null, sortDir: 1, selected: [], page: 1, stageOverrides: {} };
+
+  nav = (screen, sub, entity) => { const f = this.props.navigate; if (f) f(screen, sub, entity); };
+  toast = (t) => { const f = this.props.toast; if (f) f(t); else console.log(t); };
+  go = (to) => () => this.nav(to[0], to[1], to[2]);
+
+  tagStyle(kind) {
+    const map = { pos: ['var(--tv-pos-tint)', 'var(--tv-pos)'], warn: ['var(--tv-warn-tint)', 'var(--tv-warn)'], neg: ['var(--tv-neg-tint)', 'var(--tv-neg)'], neutral: ['var(--tv-surface)', 'var(--tv-ink-70)'] };
+    const c = map[kind] || map.neutral;
+    return 'display:inline-flex;align-items:center;font-size:11px;font-weight:800;letter-spacing:.04em;padding:2px 7px;background:' + c[0] + ';color:' + c[1];
+  }
+
+  cell(text, opts) {
+    const o = opts || {};
+    return {
+      text: text,
+      isLink: !!o.link, isTag: !!o.tag, isPlain: !o.link && !o.tag,
+      onClick: o.link ? o.link : () => {},
+      tagStyle: o.tag ? this.tagStyle(o.tag) : '',
+      tdStyle: (o.align === 'right' ? 'text-align:right;font-variant-numeric:tabular-nums;' : '') + (o.muted ? 'color:var(--tv-ink-55);' : '')
+    };
+  }
+
+  renderVals() {
+    const s = this.state;
+    const sub = this.props.sub || 'Dashboard';
+    const entity = this.props.entity;
+    const go = this.go;
+    const isCustomer = !!(entity && (sub === 'Customers' || sub === 'Dashboard'));
+    const isOppDetail = !!(entity && sub === 'Opportunities');
+    const isPipeline = sub === 'Opportunities' && !entity;
+    const isDashboard = sub === 'Dashboard' && !entity;
+    const tableSub = ['Customers', 'Contacts', 'Leads', 'Activities'].indexOf(sub) >= 0 && !entity;
+
+    // ── pipeline board ────────────────────────────────────────────────────
+    const stageOf = (o) => (s.stageOverrides[o.id] !== undefined ? s.stageOverrides[o.id] : o.stage);
+    const board = STAGES.map((label, i) => {
+      const cards = OPPS.filter((o) => stageOf(o) === i);
+      const total = cards.reduce((a, b) => a + b.value, 0);
+      return {
+        label: label,
+        count: cards.length + (cards.length === 1 ? ' deal' : ' deals'),
+        total: '€' + total.toFixed(1) + 'M',
+        empty: cards.length === 0,
+        prevLabel: i > 0 ? STAGES[i - 1] : 'a new lead',
+        cards: cards.map((o) => ({
+          ref: o.ref, title: o.title, client: o.client, value: '€' + o.value.toFixed(1) + 'M', prob: o.prob, owner: o.owner, close: o.close,
+          risk: o.risk, riskStyle: this.tagStyle(o.riskKind),
+          onOpen: () => this.nav('crm', 'Customers', o.cust),
+          onPrev: () => { if (i > 0) { this.setState((st) => ({ stageOverrides: Object.assign({}, st.stageOverrides, { [o.id]: i - 1 }) })); this.toast(o.ref + ' moved back to ' + STAGES[i - 1]); } },
+          onNext: () => { if (i < STAGES.length - 1) { this.setState((st) => ({ stageOverrides: Object.assign({}, st.stageOverrides, { [o.id]: i + 1 }) })); this.toast(o.ref + ' advanced to ' + STAGES[i + 1]); } }
+        }))
+      };
+    });
+
+    // ── tables ────────────────────────────────────────────────────────────
+    let columns = [], source = [], noun = 'customers';
+    if (sub === 'Customers') {
+      noun = 'customers';
+      columns = ['Customer', 'Industry', 'Location', 'Tier', 'Lifetime revenue', 'Owner', 'Status'];
+      source = CUSTOMERS.map((c) => ({
+        key: c[1] + ' ' + c[2] + ' ' + c[3] + ' ' + c[6],
+        cells: [
+          this.cell(c[1], { link: () => this.nav('crm', 'Customers', c[0]) }),
+          this.cell(c[2], { muted: true }), this.cell(c[3], { muted: true }),
+          this.cell(c[4], { tag: c[4] === 'Strategic' ? 'neg' : c[4] === 'Key' ? 'warn' : 'neutral' }),
+          this.cell(c[5], { align: 'right' }), this.cell(c[6], { muted: true }),
+          this.cell(c[7], { tag: c[7] === 'At risk' ? 'neg' : c[7] === 'Active' ? 'pos' : 'neutral' })
+        ]
+      }));
+    } else if (sub === 'Contacts') {
+      noun = 'contacts';
+      columns = ['Name', 'Role', 'Customer', 'Buying role', 'Last contact'];
+      source = CONTACTS.map((c) => ({
+        key: c.join(' '),
+        cells: [
+          this.cell(c[0], { link: () => this.nav('crm', 'Customers', c[5]) }),
+          this.cell(c[1], { muted: true }),
+          this.cell(c[2], { link: () => this.nav('crm', 'Customers', c[5]) }),
+          this.cell(c[3], { tag: c[3] === 'Blocker' ? 'neg' : c[3] === 'Economic buyer' ? 'warn' : 'neutral' }),
+          this.cell(c[4], { muted: true })
+        ]
+      }));
+    } else if (sub === 'Leads') {
+      noun = 'leads';
+      columns = ['Organisation', 'Source', 'Industry', 'Status', 'Score', 'Owner'];
+      source = LEADS.map((l) => ({
+        key: l.join(' '),
+        cells: [
+          this.cell(l[0], { link: () => this.toast('Lead conversion wizard opens in three steps') }),
+          this.cell(l[1], { muted: true }), this.cell(l[2], { muted: true }),
+          this.cell(l[3], { tag: l[3] === 'Sales qualified' ? 'pos' : l[3] === 'New' ? 'neutral' : 'warn' }),
+          this.cell(l[4], { align: 'right' }),
+          this.cell(l[5], { muted: true })
+        ]
+      }));
+    } else if (sub === 'Activities') {
+      noun = 'activities';
+      columns = ['When', 'Type', 'Subject', 'Customer', 'Owner'];
+      source = ACTIVITIES.map((a) => ({
+        key: a.join(' '),
+        cells: [
+          this.cell(a[0], { muted: true }),
+          this.cell(a[1], { tag: 'neutral' }),
+          this.cell(a[2], { link: () => this.nav('crm', 'Customers', a[5]) }),
+          this.cell(a[3], { muted: true }), this.cell(a[4], { muted: true })
+        ]
+      }));
+    }
+
+    const q = s.tableQuery.trim().toLowerCase();
+    let rowsSrc = source.filter((r) => !q || r.key.toLowerCase().indexOf(q) >= 0);
+    if (s.view === 'At risk') rowsSrc = rowsSrc.filter((r) => r.key.indexOf('Blackfen') >= 0 || r.key.indexOf('Calderwood') >= 0 || r.key.indexOf('Blocker') >= 0);
+    if (s.sort !== null) {
+      rowsSrc = rowsSrc.slice().sort((a, b) => {
+        const x = String(a.cells[s.sort].text), y = String(b.cells[s.sort].text);
+        return x.localeCompare(y) * s.sortDir;
+      });
+    }
+
+    const rows = rowsSrc.map((r, i) => ({
+      cells: r.cells,
+      selected: s.selected.indexOf(i) >= 0,
+      onSelect: () => this.setState((st) => ({ selected: st.selected.indexOf(i) >= 0 ? st.selected.filter((x) => x !== i) : [...st.selected, i] }))
+    }));
+
+    const columnDefs = columns.map((c, i) => ({
+      label: c,
+      arrow: s.sort === i ? (s.sortDir === 1 ? ' ↑' : ' ↓') : '',
+      style: i >= 4 && (c.indexOf('revenue') >= 0 || c === 'Score') ? 'text-align:right' : '',
+      onSort: () => this.setState((st) => ({ sort: i, sortDir: st.sort === i ? -st.sortDir : 1 }))
+    }));
+
+    const savedViews = ['My book', 'All accounts', 'At risk', 'Renewals 90d'].map((v) => ({
+      label: v,
+      onClick: () => this.setState({ view: v, selected: [] }),
+      style: 'background:' + (s.view === v ? 'var(--tv-ink)' : 'none') + ';color:' + (s.view === v ? 'var(--tv-bg)' : 'var(--tv-ink-55)') +
+        ';border:1px solid ' + (s.view === v ? 'var(--tv-ink)' : 'var(--tv-hair)') + ';padding:5px 10px;font:inherit;font-size:12px;font-weight:' + (s.view === v ? '800' : '400') + ';cursor:pointer;white-space:nowrap'
+    }));
+
+    // ── customer 360 ──────────────────────────────────────────────────────
+    const c360 = CUST_DETAIL[entity] || GENERIC_CUST;
+    const custTabNames = ['Overview', 'Contacts', 'Opportunities', 'Documents', 'Contracts', 'Projects', 'Invoices', 'Timeline'];
+    const custTabs = custTabNames.map((t) => ({
+      label: t,
+      onClick: () => this.setState({ tab: t }),
+      style: 'background:none;border:0;border-bottom:2px solid ' + (s.tab === t ? 'var(--tv-accent)' : 'transparent') +
+        ';margin-bottom:-2px;padding:10px 14px 9px;font:inherit;font-size:13px;font-weight:' + (s.tab === t ? '800' : '400') +
+        ';color:' + (s.tab === t ? 'var(--tv-ink)' : 'var(--tv-ink-55)') + ';cursor:pointer;white-space:nowrap'
+    }));
+
+    const relChain = [
+      ['CRM', 'Contacts', '4', ['crm', 'Contacts']],
+      ['CRM', 'Opportunities', '2', ['crm', 'Opportunities']],
+      ['ECM', 'Documents', '148', ['ecm', 'Repository']],
+      ['ECM', 'Contracts', '3', ['ecm', 'Document Viewer', 'doc-1']],
+      ['ERP', 'Engagements', '5', ['erp', 'Projects', 'proj-1']],
+      ['ERP', 'Invoices', '22', ['erp', 'Finance', 'inv-1']],
+      ['ERP', 'Payments', '19', ['erp', 'Finance']],
+      ['BI', 'Analytics', '—', ['bi', '']]
+    ];
+    const relationship = relChain.map((r, i) => ({
+      module: r[0], label: r[1], count: r[2], onClick: go(r[3]),
+      style: 'background:var(--tv-panel);border:1px solid var(--tv-hair);padding:9px 14px;min-width:118px;text-align:left;cursor:pointer;font:inherit;color:inherit',
+      arrowStyle: i === relChain.length - 1 ? 'display:none' : 'display:grid;place-items:center;padding:0 8px;color:var(--tv-ink-40);font-size:13px'
+    }));
+
+    const relatedSets = {
+      Contacts: {
+        title: 'Contacts at ' + c360.name, note: 'Buying roles are maintained by the account team and feed the relationship map.',
+        cols: ['Name', 'Role', 'Buying role', 'Last contact'],
+        rows: c360.contacts.map((k) => [this.cell(k[1], { link: () => this.toast('Contact record opens in CRM') }), this.cell(k[2], { muted: true }), this.cell('Mapped', { tag: 'neutral' }), this.cell(k[3], { muted: true })])
+      },
+      Opportunities: {
+        title: 'Opportunities', note: 'Open and recently closed opportunities for this customer.',
+        cols: ['Opportunity', 'Stage', 'Value', 'Close'],
+        rows: OPPS.filter((o) => o.cust === (entity || 'corvus')).map((o) => [this.cell(o.title, { link: () => this.nav('crm', 'Opportunities') }), this.cell(STAGES[stageOf(o)], { tag: 'neutral' }), this.cell('€' + o.value.toFixed(1) + 'M', { align: 'right' }), this.cell(o.close, { muted: true })])
+      },
+      Documents: {
+        title: 'Documents', note: 'Everything filed against this customer in ECM, with security classification.',
+        cols: ['Document', 'Type', 'Version', 'Security'],
+        rows: [
+          [this.cell('MSA 2026 — executed.pdf', { link: () => this.nav('ecm', 'Document Viewer', 'doc-1') }), this.cell('Contract', { muted: true }), this.cell('v4.2', { muted: true }), this.cell('Confidential', { tag: 'neg' })],
+          [this.cell('Phase 2 Statement of Work.docx', { link: () => this.nav('ecm', 'Document Viewer', 'doc-2') }), this.cell('Proposal', { muted: true }), this.cell('v1.7', { muted: true }), this.cell('Restricted', { tag: 'warn' })],
+          [this.cell('Security questionnaire 2026.xlsx', { link: () => this.nav('ecm', 'Repository') }), this.cell('Assurance', { muted: true }), this.cell('v1.0', { muted: true }), this.cell('Confidential', { tag: 'neg' })],
+          [this.cell('Phase 1 closure report.pdf', { link: () => this.nav('ecm', 'Repository') }), this.cell('Deliverable', { muted: true }), this.cell('v2.0', { muted: true }), this.cell('Internal', { tag: 'neutral' })]
+        ]
+      },
+      Contracts: {
+        title: 'Contracts', note: 'Contract records link the signed document, the commercial terms and the billing schedule.',
+        cols: ['Contract', 'Term', 'Value', 'Status'],
+        rows: [
+          [this.cell('MSA 2026', { link: () => this.nav('ecm', 'Document Viewer', 'doc-1') }), this.cell('Jan 2026 – Dec 2028', { muted: true }), this.cell('Framework', { align: 'right' }), this.cell('Active', { tag: 'pos' })],
+          [this.cell('Phase 1 delivery SOW', { link: () => this.nav('ecm', 'Repository') }), this.cell('Feb 2026 – Aug 2026', { muted: true }), this.cell('€6.2M', { align: 'right' }), this.cell('Completed', { tag: 'neutral' })],
+          [this.cell('Phase 2 delivery SOW', { link: () => this.nav('ecm', 'Document Viewer', 'doc-2') }), this.cell('Pending signature', { muted: true }), this.cell('€8.4M', { align: 'right' }), this.cell('In legal review', { tag: 'warn' })]
+        ]
+      },
+      Projects: {
+        title: 'Engagements', note: 'Delivery records in ERP, with health derived from milestone and burn variance.',
+        cols: ['Engagement', 'Partner', 'Burn', 'Health'],
+        rows: [
+          [this.cell('Core Banking Migration', { link: () => this.nav('erp', 'Projects', 'proj-1') }), this.cell('A. Okafor', { muted: true }), this.cell('74%', { align: 'right' }), this.cell('Amber', { tag: 'warn' })],
+          [this.cell('Treasury Controls Review', { link: () => this.nav('erp', 'Projects') }), this.cell('T. Reinhardt', { muted: true }), this.cell('22%', { align: 'right' }), this.cell('Green', { tag: 'pos' })],
+          [this.cell('Payments Architecture Review', { link: () => this.nav('erp', 'Projects') }), this.cell('H. Tanabe', { muted: true }), this.cell('100%', { align: 'right' }), this.cell('Closed', { tag: 'neutral' })]
+        ]
+      },
+      Invoices: {
+        title: 'Invoices and payments', note: 'Receivables position for this customer, sourced from ERP accounts receivable.',
+        cols: ['Invoice', 'Issued', 'Amount', 'Status'],
+        rows: [
+          [this.cell('INV-2026-04417', { link: () => this.nav('erp', 'Finance', 'inv-1') }), this.cell('25 Aug 2026', { muted: true }), this.cell('€1,240,000', { align: 'right' }), this.cell('18 days overdue', { tag: 'neg' })],
+          [this.cell('INV-2026-04302', { link: () => this.nav('erp', 'Finance') }), this.cell('28 Jul 2026', { muted: true }), this.cell('€980,000', { align: 'right' }), this.cell('Paid', { tag: 'pos' })],
+          [this.cell('INV-2026-04188', { link: () => this.nav('erp', 'Finance') }), this.cell('30 Jun 2026', { muted: true }), this.cell('€1,120,000', { align: 'right' }), this.cell('Paid', { tag: 'pos' })]
+        ]
+      }
+    };
+    const related = relatedSets[s.tab];
+
+    const kpiData = [
+      ['Open pipeline', '€96.4M', '+9.2%', true, 'weighted €41.7M'],
+      ['Won this quarter', '€18.7M', '+12.4%', true, '14 deals'],
+      ['Win rate', '34.2%', '-1.8pp', false, 'rolling 12m'],
+      ['Average deal size', '€1.42M', '+6.1%', true, 'up from €1.34M'],
+      ['Activities logged', '1,284', '+3.0%', true, 'this month']
+    ];
+
+    return {
+      noop: () => {},
+      pageTitle: isCustomer ? 'Customer 360' : isPipeline ? 'Opportunity Pipeline' : isDashboard ? 'CRM Dashboard' : sub,
+      pageMeta: isCustomer ? 'Every record connected to this customer, across all TechVault modules'
+        : isPipeline ? '214 open opportunities · €96.4M · FY2026 Q3 · owner view: Group'
+        : isDashboard ? 'Group commercial performance · 12 Sep 2026'
+        : rowsSrc.length + ' records · saved view “' + s.view + '”',
+      createLabel: isPipeline ? 'New opportunity' : sub === 'Contacts' ? 'New contact' : sub === 'Leads' ? 'New lead' : sub === 'Activities' ? 'Log activity' : 'New customer',
+      onCreate: () => this.toast('Create form opens as a three-section wizard with inline validation'),
+      onReport: () => this.nav('bi', ''),
+
+      isDashboard: isDashboard,
+      isPipeline: isPipeline || isOppDetail,
+      isTable: tableSub,
+      isCustomer: isCustomer,
+
+      crmKpis: kpiData.map((k) => ({ label: k[0], value: k[1], delta: k[2], note: k[4], deltaStyle: 'font-weight:800;color:' + (k[3] ? 'var(--tv-pos)' : 'var(--tv-neg)') })),
+      forecast: [
+        ['Financial Services', '€38.4M', '€42.0M', 91, 100], ['Telecom & Media', '€21.2M', '€19.0M', 100, 90],
+        ['Energy & Utilities', '€14.8M', '€20.0M', 74, 100], ['Public Sector', '€9.1M', '€15.0M', 61, 100]
+      ].map((f) => ({
+        label: f[0], commit: f[1], quota: f[2],
+        style: 'position:absolute;left:0;top:0;bottom:0;width:' + f[3] + '%;background:' + (f[3] >= 100 ? 'var(--tv-pos)' : f[3] >= 85 ? 'var(--tv-ink)' : 'var(--tv-accent)'),
+        markStyle: 'position:absolute;top:-3px;bottom:-3px;left:' + f[4] + '%;width:2px;background:var(--tv-ink)'
+      })),
+      followUps: [
+        ['Mon 09:00', 'Meridian Phase 2 legal call', 'Elise Brenner · resolve liability caps', ['ecm', 'Document Viewer', 'doc-2']],
+        ['Mon 14:30', 'Corvus renewal commercial review', 'Rafael Duarte · discount decision needed', ['crm', 'Customers', 'corvus']],
+        ['Tue 11:00', 'Halden grid programme scoping', 'Sigrid Haugen · €5.6M opportunity', ['crm', 'Opportunities']],
+        ['Wed 16:00', 'Quillon claims TOM session 4', 'Nadia Frei · workshop series', ['crm', 'Customers', 'quillon']],
+        ['Fri 10:00', 'Aldergate first meeting', 'Prospect · introduced by Meridian CIO', ['crm', 'Customers', 'aldergate']]
+      ].map((f) => ({ when: f[0], title: f[1], meta: f[2], onClick: go(f[3]) })),
+
+      board: board,
+
+      tableQuery: s.tableQuery,
+      tableNoun: noun,
+      onTableQuery: (e) => this.setState({ tableQuery: e.target.value, selected: [] }),
+      onClearTableQuery: () => this.setState({ tableQuery: '' }),
+      savedViews: savedViews,
+      columns: columnDefs,
+      rows: rows,
+      rowCount: rowsSrc.length + ' of ' + source.length + ' records',
+      tableEmpty: rowsSrc.length === 0,
+      allSelected: s.selected.length === rows.length && rows.length > 0,
+      onSelectAll: () => this.setState((st) => ({ selected: st.selected.length === rows.length ? [] : rows.map((r, i) => i) })),
+      hasSelection: s.selected.length > 0,
+      selectionLabel: s.selected.length + (s.selected.length === 1 ? ' record selected' : ' records selected'),
+      onClearSelection: () => this.setState({ selected: [] }),
+      onBulkOwner: () => { this.toast('Owner reassigned on ' + s.selected.length + ' records'); this.setState({ selected: [] }); },
+      onBulkTag: () => { this.toast('Tag applied to ' + s.selected.length + ' records'); this.setState({ selected: [] }); },
+      onBulkExport: () => this.toast('Export of ' + s.selected.length + ' records queued'),
+      onColumns: () => this.toast('Column picker: 14 available, 7 shown, order saved to your view'),
+      onFilters: () => this.toast('Advanced filter builder with AND/OR groups'),
+      onExport: () => this.toast('Export queued · XLSX with the current column set'),
+      onPrevPage: () => this.toast('Page 1 of 1 in this demo dataset'),
+      onNextPage: () => this.toast('Page 1 of 1 in this demo dataset'),
+      pageLabel: 'Showing 1–' + rowsSrc.length + ' · 50 rows per page · column widths and order saved per user',
+
+      cust: {
+        initials: c360.initials, name: c360.name, ref: c360.ref, tier: c360.tier, meta: c360.meta, aiSummary: c360.aiSummary,
+        stats: c360.stats.map((x) => ({ label: x[0], value: x[1] })),
+        fields: c360.fields.map((x) => ({ label: x[0], value: x[1] })),
+        contacts: c360.contacts.map((x) => ({ initials: x[0], name: x[1], role: x[2], note: x[3] })),
+        opps: OPPS.filter((o) => o.cust === (entity || 'meridian')).map((o) => ({
+          title: o.title, stage: STAGES[stageOf(o)], value: '€' + o.value.toFixed(1) + 'M', prob: o.prob, close: o.close,
+          stageStyle: this.tagStyle(stageOf(o) >= 3 ? 'pos' : 'neutral'), onOpen: go(['crm', 'Opportunities'])
+        })),
+        timeline: c360.timeline.map((t) => ({
+          when: t[0], title: t[1], meta: t[2], link: t[3],
+          dotStyle: 'width:9px;height:9px;display:block;margin-top:5px;background:' + (t[5] ? 'var(--tv-accent)' : 'var(--tv-ink-40)'),
+          linkStyle: t[3] ? 'background:none;border:0;padding:0;margin-top:3px;font:inherit;font-size:12px;color:var(--tv-accent-ink);cursor:pointer;text-align:left' : 'display:none',
+          onClick: t[4] ? go(t[4]) : () => {}
+        }))
+      },
+      custTabs: custTabs,
+      custIsOverview: s.tab === 'Overview',
+      custIsTimeline: s.tab === 'Timeline',
+      custIsRelated: !!related,
+      relatedTitle: related ? related.title : '',
+      relatedNote: related ? related.note : '',
+      relatedCols: related ? related.cols.map((c, i) => ({ label: c, style: i === 2 ? 'text-align:right' : '' })) : [],
+      relatedRows: related ? related.rows.map((r) => ({ cells: r })) : [],
+      relationship: relationship,
+      crossLinks: [
+        { label: 'Documents in ECM', onClick: go(['ecm', 'Repository']) },
+        { label: 'Engagements in ERP', onClick: go(['erp', 'Projects', 'proj-1']) },
+        { label: 'Receivables in Finance', onClick: go(['erp', 'Finance', 'inv-1']) },
+        { label: 'Delivery team in HR', onClick: go(['hr', 'Employees', 'emp-1']) },
+        { label: 'Account analytics in BI', onClick: go(['bi', '']) },
+        { label: 'Open workflows', onClick: go(['workflow', 'My approvals']) }
+      ],
+      onLogActivity: () => this.toast('Activity logged against ' + c360.name),
+      onNewOpp: () => this.toast('New opportunity pre-filled with this customer and contact'),
+      onAskAI: () => this.toast('Ask the assistant from the header — it keeps this customer in context')
+    };
+  }
+}
+
+</script>
+</body>
+</html>

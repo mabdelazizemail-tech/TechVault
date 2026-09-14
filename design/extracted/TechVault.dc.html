@@ -1,0 +1,1449 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/modernist-36bd29c9-a0f6-40d6-82f9-3de3249645b6/styles.css">
+<script src="_ds/modernist-36bd29c9-a0f6-40d6-82f9-3de3249645b6/_ds_bundle.js"></script>
+<link rel="stylesheet" href="tv-tokens.css">
+</helmet>
+
+<div data-tv-theme="{{ theme }}" style="height:100vh;display:flex;flex-direction:column;background:var(--tv-bg);color:var(--tv-ink);font-family:'Archivo',system-ui,sans-serif;font-size:14px;overflow:hidden">
+
+  <sc-if value="{{ showLogin }}" hint-placeholder-val="{{ true }}">
+    <div style="flex:1;display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);min-height:0">
+      <div style="background:var(--tv-accent);color:var(--tv-on-accent);padding:48px;display:flex;flex-direction:column;justify-content:space-between;min-width:0">
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="width:30px;height:30px;background:var(--tv-on-accent);display:grid;place-items:center;font-weight:800;font-size:14px;color:var(--tv-accent);flex:none">TV</div>
+          <div style="font-weight:800;font-size:18px;letter-spacing:-.01em">TechVault</div>
+        </div>
+        <div>
+          <div style="font-size:11px;letter-spacing:.14em;text-transform:uppercase;opacity:.75;margin-bottom:20px">Enterprise operating platform</div>
+          <h1 style="font-size:clamp(38px,5.2vw,66px);line-height:.98;margin:0 0 22px;max-width:14ch">One ecosystem. Every business process.</h1>
+          <div style="height:2px;background:var(--tv-on-accent);opacity:.4;margin-bottom:22px"></div>
+          <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;background:color-mix(in srgb, #f3f2f2 40%, transparent)">
+            <div style="background:var(--tv-accent);padding:14px 14px 14px 0"><div style="font-size:22px;font-weight:800">11</div><div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;opacity:.8">Modules</div></div>
+            <div style="background:var(--tv-accent);padding:14px"><div style="font-size:22px;font-weight:800">2,417</div><div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;opacity:.8">Users</div></div>
+            <div style="background:var(--tv-accent);padding:14px"><div style="font-size:22px;font-weight:800">ISO 27001</div><div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;opacity:.8">Certified</div></div>
+          </div>
+        </div>
+        <div style="font-size:11px;opacity:.7">Northbridge Advisory Group — production tenant · eu-central-1</div>
+      </div>
+      <div style="padding:48px;display:flex;flex-direction:column;justify-content:center;min-width:0;overflow:auto">
+        <div style="max-width:360px">
+          <div style="font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--tv-ink-55);margin-bottom:8px">Sign in</div>
+          <h2 style="font-size:30px;margin:0 0 6px">Northbridge Advisory</h2>
+          <p style="color:var(--tv-ink-55);font-size:13px;margin-bottom:22px">Single sign-on is enforced for this organisation. Demo credentials are pre-filled.</p>
+          <div class="field" style="margin-bottom:12px">
+            <label for="tv-email">Work email</label>
+            <input class="input" id="tv-email" type="email" value="{{ loginEmail }}" onChange="{{ noop }}">
+          </div>
+          <div class="field" style="margin-bottom:8px">
+            <label for="tv-pass">Password</label>
+            <input class="input" id="tv-pass" type="password" value="••••••••••••" onChange="{{ noop }}">
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+            <label class="radio"><input type="checkbox" checked onChange="{{ noop }}"><span class="dot"></span>Keep me signed in</label>
+            <a href="#" onClick="{{ prevent }}" style="font-size:13px">Reset password</a>
+          </div>
+          <button class="btn btn-primary" style="width:100%;justify-content:flex-start" onClick="{{ signIn }}">Sign in with Northbridge SSO</button>
+          <div class="hr"></div>
+          <div style="display:flex;gap:8px;align-items:flex-start;color:var(--tv-ink-55);font-size:12px">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex:none;margin-top:1px"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"></path></svg>
+            <span>Session is bound to your device. Elevated actions in Finance and HR require step-up verification.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ showApp }}" hint-placeholder-val="{{ true }}">
+    <div style="display:flex;flex-direction:column;height:100%;min-height:0">
+
+      <header style="display:flex;align-items:center;gap:14px;padding:0 16px;height:54px;flex:none;border-bottom:2px solid var(--tv-rule);background:var(--tv-panel)">
+        <button class="btn btn-icon" aria-label="Toggle navigation" onClick="{{ toggleSidebar }}" style="flex:none">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"></path></svg>
+        </button>
+        <button onClick="{{ goHome }}" style="display:flex;align-items:center;gap:10px;background:none;border:0;padding:0;cursor:pointer;color:inherit;flex:none">
+          <div style="width:26px;height:26px;background:var(--tv-accent);color:var(--tv-on-accent);display:grid;place-items:center;font-weight:800;font-size:12px">TV</div>
+          <span style="font-weight:800;font-size:16px;letter-spacing:-.01em">TechVault</span>
+        </button>
+        <div style="width:1px;height:24px;background:var(--tv-hair);flex:none"></div>
+        <button onClick="{{ openPalette }}" aria-label="Global search" style="flex:1;min-width:0;display:flex;align-items:center;gap:9px;height:34px;padding:0 10px;background:var(--tv-surface);border:1px solid var(--tv-hair);color:var(--tv-ink-55);cursor:pointer;font:inherit;font-size:13px;text-align:left;max-width:520px">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex:none"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+          <span style="flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">Search customers, documents, projects, invoices, ideas…</span>
+          <kbd style="font:inherit;font-size:10px;letter-spacing:.06em;border:1px solid var(--tv-hair);padding:1px 5px;color:var(--tv-ink-55)">CTRL K</kbd>
+        </button>
+        <div style="flex:1"></div>
+        <button class="btn btn-primary" onClick="{{ toggleQuick }}" style="flex:none">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"></path></svg>
+          Create
+        </button>
+        <button class="btn btn-secondary" onClick="{{ toggleAI }}" style="flex:none;border-color:var(--tv-accent-ink);color:var(--tv-accent-ink)">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l1.9 4.8L18.7 9.7 13.9 11.6 12 16.4 10.1 11.6 5.3 9.7 10.1 7.8z"></path><path d="M18 17l.9 2.1L21 20l-2.1.9L18 23l-.9-2.1L15 20l2.1-.9z"></path></svg>
+          TechVault AI
+        </button>
+        <button class="btn btn-icon" aria-label="My tasks" onClick="{{ goWorkspace }}" style="flex:none;position:relative">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18"></rect><path d="m8 12 3 3 5-6"></path></svg>
+          <span style="position:absolute;top:3px;right:1px;min-width:14px;height:14px;background:var(--tv-ink);color:var(--tv-bg);font-size:10px;font-weight:800;display:grid;place-items:center;padding:0 3px">7</span>
+        </button>
+        <button class="btn btn-icon" aria-label="Notifications" onClick="{{ toggleNotif }}" style="flex:none;position:relative">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 9a6 6 0 1 0-12 0c0 6-2 7-2 7h16s-2-1-2-7"></path><path d="M10.3 20a2 2 0 0 0 3.4 0"></path></svg>
+          <span style="position:absolute;top:3px;right:1px;min-width:14px;height:14px;background:var(--tv-ink);color:var(--tv-bg);font-size:10px;font-weight:800;display:grid;place-items:center;padding:0 3px">{{ unreadCount }}</span>
+        </button>
+        <button class="btn btn-icon" aria-label="Mobile preview" onClick="{{ toggleMobile }}" style="flex:none">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="2" width="12" height="20"></rect><path d="M11 19h2"></path></svg>
+        </button>
+        <button class="btn btn-icon" aria-label="Toggle dark mode" onClick="{{ toggleTheme }}" style="flex:none">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="{{ themeIcon }}"></path></svg>
+        </button>
+        <div style="width:1px;height:24px;background:var(--tv-hair);flex:none"></div>
+        <button onClick="{{ goProfile }}" style="display:flex;align-items:center;gap:9px;background:none;border:0;cursor:pointer;color:inherit;padding:0;flex:none;text-align:left">
+          <div style="width:30px;height:30px;background:var(--tv-ink);color:var(--tv-bg);display:grid;place-items:center;font-weight:800;font-size:11px">IS</div>
+          <div style="line-height:1.2">
+            <div style="font-weight:800;font-size:12px">Ingrid Solberg</div>
+            <div style="font-size:10.5px;color:var(--tv-ink-55);letter-spacing:.04em;text-transform:uppercase">CFO · Group</div>
+          </div>
+        </button>
+      </header>
+
+      <div style="flex:1;display:flex;min-height:0">
+
+        <nav aria-label="Primary" style="width:{{ sidebarWidth }};flex:none;border-right:2px solid var(--tv-rule);background:var(--tv-panel);display:flex;flex-direction:column;overflow:hidden;transition:width .18s ease">
+          <div style="flex:1;overflow-y:auto;overflow-x:hidden;padding:10px 0">
+            <sc-for list="{{ navItems }}" as="item" hint-placeholder-count="8">
+              <div>
+                <button onClick="{{ item.onClick }}" aria-current="{{ item.current }}" title="{{ item.label }}" style="{{ item.style }}">
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="{{ item.icon }}"></path></svg>
+                  <span style="{{ item.labelStyle }}">{{ item.label }}</span>
+                  <span style="{{ item.badgeStyle }}">{{ item.badge }}</span>
+                </button>
+                <sc-if value="{{ item.showSubs }}" hint-placeholder-val="{{ false }}">
+                  <div style="padding:2px 0 8px 0">
+                    <sc-for list="{{ item.subs }}" as="sub" hint-placeholder-count="4">
+                      <button onClick="{{ sub.onClick }}" style="{{ sub.style }}">{{ sub.label }}</button>
+                    </sc-for>
+                  </div>
+                </sc-if>
+              </div>
+            </sc-for>
+
+            <sc-if value="{{ sidebarOpen }}" hint-placeholder-val="{{ true }}">
+              <div>
+                <div style="height:1px;background:var(--tv-hair);margin:10px 14px"></div>
+                <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--tv-ink-40);padding:6px 16px">Favourites</div>
+                <sc-for list="{{ favourites }}" as="fav" hint-placeholder-count="3">
+                  <button onClick="{{ fav.onClick }}" style="display:flex;align-items:center;gap:9px;width:100%;background:none;border:0;padding:6px 16px;font:inherit;font-size:12.5px;color:var(--tv-ink-70);cursor:pointer;text-align:left">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--tv-accent)" stroke-width="2" style="flex:none"><path d="m12 3 2.9 5.9 6.5.9-4.7 4.6 1.1 6.5L12 17.8 6.2 20.9l1.1-6.5L2.6 9.8l6.5-.9z"></path></svg>
+                    <span style="overflow:hidden;white-space:nowrap;text-overflow:ellipsis">{{ fav.label }}</span>
+                  </button>
+                </sc-for>
+                <div style="height:1px;background:var(--tv-hair);margin:10px 14px"></div>
+                <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--tv-ink-40);padding:6px 16px">Recent</div>
+                <sc-for list="{{ recents }}" as="rec" hint-placeholder-count="3">
+                  <button onClick="{{ rec.onClick }}" style="display:block;width:100%;background:none;border:0;padding:5px 16px;font:inherit;font-size:12.5px;color:var(--tv-ink-55);cursor:pointer;text-align:left;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">{{ rec.label }}</button>
+                </sc-for>
+              </div>
+            </sc-if>
+          </div>
+          <div style="flex:none;border-top:1px solid var(--tv-hair);padding:10px 16px;font-size:10.5px;color:var(--tv-ink-40);letter-spacing:.04em;overflow:hidden;white-space:nowrap">TechVault 4.2 · Northbridge</div>
+        </nav>
+
+        <main style="flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden">
+
+          <div style="flex:none;padding:14px 24px 0;background:var(--tv-bg)">
+            <div style="display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--tv-ink-55);margin-bottom:8px;flex-wrap:wrap">
+              <sc-for list="{{ crumbs }}" as="c" hint-placeholder-count="2">
+                <span style="display:flex;align-items:center;gap:7px">
+                  <button onClick="{{ c.onClick }}" style="{{ c.style }}">{{ c.label }}</button>
+                  <span style="{{ c.sepStyle }}">/</span>
+                </span>
+              </sc-for>
+            </div>
+          </div>
+
+          <div style="flex:1;min-height:0;overflow-y:auto">
+
+            <sc-if value="{{ onHome }}" hint-placeholder-val="{{ true }}">
+              <div style="animation:tv-fade .2s ease">
+                <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:16px;padding:0 24px 14px;flex-wrap:wrap">
+                  <div>
+                    <h1 style="font-size:34px;margin:0 0 3px">Executive Overview</h1>
+                    <div style="font-size:12.5px;color:var(--tv-ink-55)">Group consolidated · FY2026 Q3 · updated 07:12 CET</div>
+                  </div>
+                  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                    <div class="seg">
+                      <label class="seg-opt"><input type="radio" name="tv-period" onChange="{{ noop }}">QTD</label>
+                      <label class="seg-opt"><input type="radio" name="tv-period" checked onChange="{{ noop }}">YTD</label>
+                      <label class="seg-opt"><input type="radio" name="tv-period" onChange="{{ noop }}">12M</label>
+                    </div>
+                    <button class="btn btn-secondary" onClick="{{ toggleEdit }}">{{ editLabel }}</button>
+                    <button class="btn btn-secondary" onClick="{{ exportToast }}">Export</button>
+                  </div>
+                </div>
+
+                <sc-if value="{{ editLayout }}" hint-placeholder-val="{{ false }}">
+                  <div style="margin:0 24px 14px;border:1px solid var(--tv-accent);background:var(--tv-accent-tint);padding:12px 14px;animation:tv-rise .2s ease">
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+                      <div>
+                        <div style="font-weight:800;font-size:13px;color:var(--tv-accent-ink)">Layout editing is on</div>
+                        <div style="font-size:12px;color:var(--tv-accent-ink);opacity:.85">Reorder, resize or remove widgets. Layouts are saved per user and per role.</div>
+                      </div>
+                      <div style="display:flex;gap:6px;flex-wrap:wrap">
+                        <sc-for list="{{ addableWidgets }}" as="aw" hint-placeholder-count="2">
+                          <button onClick="{{ aw.onClick }}" style="background:var(--tv-panel);border:1px solid var(--tv-accent);color:var(--tv-accent-ink);font:inherit;font-size:12px;font-weight:800;padding:5px 9px;cursor:pointer">+ {{ aw.title }}</button>
+                        </sc-for>
+                      </div>
+                    </div>
+                  </div>
+                </sc-if>
+
+                <div style="display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:1px;background:var(--tv-hair);border-top:1px solid var(--tv-hair);border-bottom:1px solid var(--tv-hair)">
+                  <sc-for list="{{ widgets }}" as="w" hint-placeholder-count="4">
+                    <section style="{{ w.style }}">
+                      <div style="display:flex;align-items:center;gap:10px;padding:12px 16px 10px">
+                        <div style="flex:1;min-width:0">
+                          <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--tv-accent-ink)">{{ w.kicker }}</div>
+                          <h3 style="font-size:16px;margin:2px 0 0">{{ w.title }}</h3>
+                        </div>
+                        <sc-if value="{{ w.editing }}" hint-placeholder-val="{{ false }}">
+                          <div style="display:flex;gap:4px">
+                            <button onClick="{{ w.onUp }}" aria-label="Move up" style="width:24px;height:24px;border:1px solid var(--tv-hair);background:none;color:inherit;cursor:pointer;font:inherit;font-size:11px">↑</button>
+                            <button onClick="{{ w.onDown }}" aria-label="Move down" style="width:24px;height:24px;border:1px solid var(--tv-hair);background:none;color:inherit;cursor:pointer;font:inherit;font-size:11px">↓</button>
+                            <button onClick="{{ w.onResize }}" aria-label="Change width" style="width:24px;height:24px;border:1px solid var(--tv-hair);background:none;color:inherit;cursor:pointer;font:inherit;font-size:11px">⇔</button>
+                            <button onClick="{{ w.onRemove }}" aria-label="Remove widget" style="width:24px;height:24px;border:1px solid var(--tv-accent);background:none;color:var(--tv-accent-ink);cursor:pointer;font:inherit;font-size:11px">✕</button>
+                          </div>
+                        </sc-if>
+                        <sc-if value="{{ w.hasLink }}" hint-placeholder-val="{{ true }}">
+                          <button class="btn btn-ghost" onClick="{{ w.onOpen }}" style="font-size:12px">{{ w.linkLabel }} →</button>
+                        </sc-if>
+                      </div>
+
+                      <sc-if value="{{ w.isKpis }}" hint-placeholder-val="{{ false }}">
+                        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1px;background:var(--tv-hair);border-top:1px solid var(--tv-hair)">
+                          <sc-for list="{{ kpis }}" as="k" hint-placeholder-count="6">
+                            <button onClick="{{ k.onClick }}" style="background:var(--tv-panel);border:0;padding:14px 16px 16px;text-align:left;cursor:pointer;font:inherit;color:inherit;display:flex;flex-direction:column;gap:6px">
+                              <div style="font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--tv-ink-55)">{{ k.label }}</div>
+                              <div style="font-size:29px;font-weight:800;line-height:1;letter-spacing:-.02em">{{ k.value }}</div>
+                              <div style="display:flex;align-items:center;gap:6px">
+                                <span style="{{ k.deltaStyle }}">{{ k.delta }}</span>
+                                <span style="font-size:11px;color:var(--tv-ink-40)">{{ k.note }}</span>
+                              </div>
+                              <div style="display:flex;align-items:flex-end;gap:2px;height:22px;margin-top:2px">
+                                <sc-for list="{{ k.spark }}" as="s" hint-placeholder-count="8">
+                                  <div style="{{ s.style }}"></div>
+                                </sc-for>
+                              </div>
+                            </button>
+                          </sc-for>
+                        </div>
+                      </sc-if>
+
+                      <sc-if value="{{ w.isRevenue }}" hint-placeholder-val="{{ false }}">
+                        <div style="padding:4px 16px 16px;border-top:1px solid var(--tv-hair)">
+                          <div style="display:flex;gap:24px;padding:12px 0 14px;flex-wrap:wrap">
+                            <div><div style="font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--tv-ink-55)">Recognised</div><div style="font-size:22px;font-weight:800">€184.2M</div></div>
+                            <div><div style="font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--tv-ink-55)">Plan</div><div style="font-size:22px;font-weight:800;color:var(--tv-ink-55)">€176.0M</div></div>
+                            <div><div style="font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--tv-ink-55)">Variance</div><div style="font-size:22px;font-weight:800;color:var(--tv-pos)">+4.7%</div></div>
+                            <div><div style="font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--tv-ink-55)">Billable utilisation</div><div style="font-size:22px;font-weight:800">78.4%</div></div>
+                          </div>
+                          <div style="display:flex;align-items:flex-end;gap:6px;height:170px;border-bottom:2px solid var(--tv-rule);padding-bottom:0">
+                            <sc-for list="{{ revenueBars }}" as="b" hint-placeholder-count="9">
+                              <div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;height:100%;position:relative">
+                                <div style="{{ b.planStyle }}"></div>
+                                <div style="{{ b.style }}" title="{{ b.tip }}"></div>
+                              </div>
+                            </sc-for>
+                          </div>
+                          <div style="display:flex;gap:6px;margin-top:6px">
+                            <sc-for list="{{ revenueBars }}" as="b" hint-placeholder-count="9">
+                              <div style="flex:1;font-size:10.5px;color:var(--tv-ink-55);text-align:center">{{ b.label }}</div>
+                            </sc-for>
+                          </div>
+                          <div style="display:flex;gap:18px;margin-top:12px;font-size:11px;color:var(--tv-ink-55)">
+                            <span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;background:var(--tv-ink);display:block"></span>Recognised revenue</span>
+                            <span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border:1px solid var(--tv-mute);display:block"></span>Plan</span>
+                            <span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;background:var(--tv-accent);display:block"></span>Current month</span>
+                          </div>
+                        </div>
+                      </sc-if>
+
+                      <sc-if value="{{ w.isPipeline }}" hint-placeholder-val="{{ false }}">
+                        <div style="padding:12px 16px 16px;border-top:1px solid var(--tv-hair)">
+                          <div style="font-size:29px;font-weight:800;letter-spacing:-.02em">€96.4M</div>
+                          <div style="font-size:11.5px;color:var(--tv-ink-55);margin-bottom:14px">Weighted €41.7M · 214 open opportunities</div>
+                          <sc-for list="{{ pipelineStages }}" as="p" hint-placeholder-count="6">
+                            <button onClick="{{ p.onClick }}" style="display:block;width:100%;background:none;border:0;border-top:1px solid var(--tv-hair);padding:9px 0;cursor:pointer;font:inherit;color:inherit;text-align:left">
+                              <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:5px">
+                                <span style="font-weight:800">{{ p.label }}</span>
+                                <span>{{ p.value }}</span>
+                              </div>
+                              <div style="height:8px;background:var(--tv-surface)"><div style="{{ p.style }}"></div></div>
+                            </button>
+                          </sc-for>
+                        </div>
+                      </sc-if>
+
+                      <sc-if value="{{ w.isApprovals }}" hint-placeholder-val="{{ false }}">
+                        <div style="border-top:1px solid var(--tv-hair)">
+                          <sc-for list="{{ approvals }}" as="a" hint-placeholder-count="4">
+                            <div style="padding:12px 16px;border-bottom:1px solid var(--tv-hair);display:flex;gap:12px;align-items:flex-start;animation:tv-fade .2s ease">
+                              <div style="{{ a.slaStyle }}">{{ a.sla }}</div>
+                              <div style="flex:1;min-width:0">
+                                <div style="display:flex;align-items:center;gap:8px;margin-bottom:2px;flex-wrap:wrap">
+                                  <span class="tag tag-neutral">{{ a.module }}</span>
+                                  <span style="font-size:11px;color:var(--tv-ink-40)">{{ a.ref }}</span>
+                                </div>
+                                <button onClick="{{ a.onOpen }}" style="background:none;border:0;padding:0;font:inherit;font-weight:800;font-size:13.5px;color:inherit;cursor:pointer;text-align:left;display:block">{{ a.title }}</button>
+                                <div style="font-size:12px;color:var(--tv-ink-55)">{{ a.meta }}</div>
+                              </div>
+                              <div style="display:flex;gap:6px;flex:none">
+                                <button class="btn btn-primary" style="padding:6px 11px;font-size:13px" onClick="{{ a.onApprove }}">Approve</button>
+                                <button class="btn btn-secondary" style="padding:6px 11px;font-size:13px" onClick="{{ a.onReject }}">Reject</button>
+                              </div>
+                            </div>
+                          </sc-for>
+                          <sc-if value="{{ approvalsEmpty }}" hint-placeholder-val="{{ false }}">
+                            <div style="padding:34px 16px;text-align:left">
+                              <div style="font-weight:800;font-size:15px;margin-bottom:4px">Your approval queue is clear</div>
+                              <div style="font-size:12.5px;color:var(--tv-ink-55);max-width:46ch;margin-bottom:12px">Items land here when a workflow step names you as approver — contract sign-off, invoices above €250k, and innovation business cases.</div>
+                              <button class="btn btn-secondary" onClick="{{ goWorkflow }}">Open Workflow Center</button>
+                            </div>
+                          </sc-if>
+                        </div>
+                      </sc-if>
+
+                      <sc-if value="{{ w.isProjects }}" hint-placeholder-val="{{ false }}">
+                        <div style="border-top:1px solid var(--tv-hair);overflow-x:auto">
+                          <table class="table">
+                            <thead><tr><th>Engagement</th><th>Client</th><th>Health</th><th style="text-align:right">Budget</th><th style="text-align:right">Burn</th><th>Partner</th></tr></thead>
+                            <tbody>
+                              <sc-for list="{{ projectHealth }}" as="pr" hint-placeholder-count="5">
+                                <tr>
+                                  <td><button onClick="{{ pr.onOpen }}" style="background:none;border:0;padding:0;font:inherit;font-weight:800;color:inherit;cursor:pointer;text-align:left">{{ pr.name }}</button></td>
+                                  <td style="color:var(--tv-ink-55)">{{ pr.client }}</td>
+                                  <td><span style="{{ pr.healthStyle }}">{{ pr.health }}</span></td>
+                                  <td style="text-align:right;font-variant-numeric:tabular-nums">{{ pr.budget }}</td>
+                                  <td style="text-align:right;font-variant-numeric:tabular-nums">{{ pr.burn }}</td>
+                                  <td style="color:var(--tv-ink-55)">{{ pr.partner }}</td>
+                                </tr>
+                              </sc-for>
+                            </tbody>
+                          </table>
+                        </div>
+                      </sc-if>
+
+                      <sc-if value="{{ w.isAlerts }}" hint-placeholder-val="{{ false }}">
+                        <div style="border-top:1px solid var(--tv-hair)">
+                          <sc-for list="{{ alerts }}" as="al" hint-placeholder-count="4">
+                            <button onClick="{{ al.onClick }}" style="display:flex;gap:10px;width:100%;text-align:left;background:none;border:0;border-bottom:1px solid var(--tv-hair);padding:11px 16px;cursor:pointer;font:inherit;color:inherit">
+                              <span style="{{ al.dotStyle }}"></span>
+                              <span style="flex:1;min-width:0">
+                                <span style="display:block;font-weight:800;font-size:13px">{{ al.title }}</span>
+                                <span style="display:block;font-size:12px;color:var(--tv-ink-55)">{{ al.body }}</span>
+                              </span>
+                            </button>
+                          </sc-for>
+                        </div>
+                      </sc-if>
+
+                      <sc-if value="{{ w.isInnovation }}" hint-placeholder-val="{{ false }}">
+                        <div style="border-top:1px solid var(--tv-hair);padding:12px 16px 16px">
+                          <div style="display:flex;gap:20px;margin-bottom:14px">
+                            <div><div style="font-size:26px;font-weight:800">312</div><div style="font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--tv-ink-55)">Ideas</div></div>
+                            <div><div style="font-size:26px;font-weight:800">62</div><div style="font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--tv-ink-55)">In review</div></div>
+                            <div><div style="font-size:26px;font-weight:800;color:var(--tv-accent-ink)">18</div><div style="font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--tv-ink-55)">To projects</div></div>
+                          </div>
+                          <sc-for list="{{ topIdeas }}" as="ti" hint-placeholder-count="3">
+                            <button onClick="{{ ti.onClick }}" style="display:flex;gap:10px;align-items:baseline;width:100%;text-align:left;background:none;border:0;border-top:1px solid var(--tv-hair);padding:9px 0;cursor:pointer;font:inherit;color:inherit">
+                              <span style="font-size:11px;color:var(--tv-ink-40);width:18px;flex:none">{{ ti.rank }}</span>
+                              <span style="flex:1;min-width:0"><span style="display:block;font-weight:800;font-size:13px">{{ ti.title }}</span><span style="display:block;font-size:11.5px;color:var(--tv-ink-55)">{{ ti.author }}</span></span>
+                              <span style="font-size:12px;font-weight:800;color:var(--tv-accent-ink)">{{ ti.votes }}</span>
+                            </button>
+                          </sc-for>
+                        </div>
+                      </sc-if>
+
+                      <sc-if value="{{ w.isActivity }}" hint-placeholder-val="{{ false }}">
+                        <div style="border-top:1px solid var(--tv-hair);padding:14px 16px 16px">
+                          <sc-for list="{{ activity }}" as="ac" hint-placeholder-count="5">
+                            <div style="display:flex;gap:12px;padding-bottom:14px">
+                              <div style="flex:none;display:flex;flex-direction:column;align-items:center">
+                                <span style="width:8px;height:8px;background:var(--tv-accent);display:block;margin-top:5px"></span>
+                                <span style="flex:1;width:1px;background:var(--tv-hair);margin-top:4px"></span>
+                              </div>
+                              <div style="flex:1;min-width:0">
+                                <div style="font-size:13px"><strong style="font-weight:800">{{ ac.who }}</strong> {{ ac.what }}</div>
+                                <button onClick="{{ ac.onClick }}" style="background:none;border:0;padding:0;font:inherit;font-size:12.5px;color:var(--tv-accent-ink);cursor:pointer;text-align:left">{{ ac.target }}</button>
+                                <div style="font-size:11px;color:var(--tv-ink-40)">{{ ac.when }} · {{ ac.module }}</div>
+                              </div>
+                            </div>
+                          </sc-for>
+                        </div>
+                      </sc-if>
+
+                      <sc-if value="{{ w.isDocflow }}" hint-placeholder-val="{{ false }}">
+                        <div style="border-top:1px solid var(--tv-hair);padding:12px 16px 16px">
+                          <div style="font-size:29px;font-weight:800">41,308</div>
+                          <div style="font-size:11.5px;color:var(--tv-ink-55);margin-bottom:14px">Documents processed this year · 96.2% auto-classified</div>
+                          <sc-for list="{{ docflow }}" as="df" hint-placeholder-count="4">
+                            <div style="border-top:1px solid var(--tv-hair);padding:9px 0">
+                              <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:5px"><span style="font-weight:800">{{ df.label }}</span><span>{{ df.value }}</span></div>
+                              <div style="height:6px;background:var(--tv-surface)"><div style="{{ df.style }}"></div></div>
+                            </div>
+                          </sc-for>
+                        </div>
+                      </sc-if>
+                    </section>
+                  </sc-for>
+                </div>
+                <div style="height:40px"></div>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ onWorkspace }}" hint-placeholder-val="{{ false }}">
+              <div style="animation:tv-fade .2s ease">
+                <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:16px;padding:0 24px 12px;flex-wrap:wrap">
+                  <div>
+                    <h1 style="font-size:34px;margin:0 0 3px">My Workspace</h1>
+                    <div style="font-size:12.5px;color:var(--tv-ink-55)">7 items need you today · 2 breach SLA within 4 hours</div>
+                  </div>
+                  <button class="btn btn-secondary" onClick="{{ exportToast }}">Digest settings</button>
+                </div>
+                <div style="display:flex;gap:0;padding:0 24px;border-bottom:2px solid var(--tv-rule);overflow-x:auto">
+                  <sc-for list="{{ wsTabs }}" as="t" hint-placeholder-count="5">
+                    <button onClick="{{ t.onClick }}" style="{{ t.style }}">{{ t.label }}<span style="{{ t.countStyle }}">{{ t.count }}</span></button>
+                  </sc-for>
+                </div>
+                <div style="padding:0 0 40px">
+                  <sc-if value="{{ wsIsTasks }}" hint-placeholder-val="{{ true }}">
+                    <div>
+                      <sc-for list="{{ taskGroups }}" as="g" hint-placeholder-count="3">
+                        <div>
+                          <div style="display:flex;align-items:center;gap:10px;padding:16px 24px 8px">
+                            <span style="{{ g.dotStyle }}"></span>
+                            <h3 style="font-size:15px;margin:0">{{ g.label }}</h3>
+                            <span style="font-size:11.5px;color:var(--tv-ink-40)">{{ g.count }}</span>
+                          </div>
+                          <sc-for list="{{ g.tasks }}" as="tk" hint-placeholder-count="3">
+                            <div style="display:flex;gap:12px;align-items:center;padding:11px 24px;border-top:1px solid var(--tv-hair);background:var(--tv-panel)">
+                              <button onClick="{{ tk.onDone }}" aria-label="Complete task" style="{{ tk.boxStyle }}">{{ tk.mark }}</button>
+                              <div style="flex:1;min-width:0">
+                                <div style="{{ tk.titleStyle }}">{{ tk.title }}</div>
+                                <div style="font-size:11.5px;color:var(--tv-ink-55)">{{ tk.meta }}</div>
+                              </div>
+                              <span class="tag tag-neutral" style="flex:none">{{ tk.module }}</span>
+                              <button class="btn btn-ghost" onClick="{{ tk.onOpen }}" style="font-size:12px;flex:none">Open →</button>
+                            </div>
+                          </sc-for>
+                        </div>
+                      </sc-for>
+                    </div>
+                  </sc-if>
+                  <sc-if value="{{ wsIsApprovals }}" hint-placeholder-val="{{ false }}">
+                    <div style="overflow-x:auto;background:var(--tv-panel)">
+                      <table class="table">
+                        <thead><tr><th>Reference</th><th>Subject</th><th>Module</th><th>Requested by</th><th>SLA</th><th style="text-align:right">Amount</th><th></th></tr></thead>
+                        <tbody>
+                          <sc-for list="{{ approvalRows }}" as="ar" hint-placeholder-count="6">
+                            <tr>
+                              <td style="font-variant-numeric:tabular-nums;color:var(--tv-ink-55)">{{ ar.ref }}</td>
+                              <td style="font-weight:800">{{ ar.subject }}</td>
+                              <td><span class="tag tag-neutral">{{ ar.module }}</span></td>
+                              <td style="color:var(--tv-ink-55)">{{ ar.by }}</td>
+                              <td><span style="{{ ar.slaStyle }}">{{ ar.sla }}</span></td>
+                              <td style="text-align:right;font-variant-numeric:tabular-nums">{{ ar.amount }}</td>
+                              <td style="text-align:right"><button class="btn btn-ghost" onClick="{{ ar.onOpen }}" style="font-size:12px">Review →</button></td>
+                            </tr>
+                          </sc-for>
+                        </tbody>
+                      </table>
+                    </div>
+                  </sc-if>
+                  <sc-if value="{{ wsIsDocs }}" hint-placeholder-val="{{ false }}">
+                    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:1px;background:var(--tv-hair);border-top:1px solid var(--tv-hair)">
+                      <sc-for list="{{ myDocs }}" as="d" hint-placeholder-count="6">
+                        <button onClick="{{ d.onOpen }}" style="background:var(--tv-panel);border:0;padding:14px 16px;text-align:left;cursor:pointer;font:inherit;color:inherit;display:flex;flex-direction:column;gap:6px;min-height:132px">
+                          <div style="display:flex;align-items:center;gap:8px">
+                            <span style="{{ d.extStyle }}">{{ d.ext }}</span>
+                            <span style="font-size:11px;color:var(--tv-ink-40)">{{ d.version }}</span>
+                            <span style="{{ d.secStyle }}">{{ d.security }}</span>
+                          </div>
+                          <div style="font-weight:800;font-size:13.5px;line-height:1.25">{{ d.name }}</div>
+                          <div style="font-size:11.5px;color:var(--tv-ink-55);flex:1">{{ d.client }}</div>
+                          <div style="font-size:11px;color:var(--tv-ink-40)">{{ d.when }} · {{ d.size }}</div>
+                        </button>
+                      </sc-for>
+                    </div>
+                  </sc-if>
+                  <sc-if value="{{ wsIsActivities }}" hint-placeholder-val="{{ false }}">
+                    <div style="padding:16px 24px;background:var(--tv-panel);border-top:1px solid var(--tv-hair)">
+                      <sc-for list="{{ myActivities }}" as="ma" hint-placeholder-count="5">
+                        <div style="display:flex;gap:14px;padding:12px 0;border-bottom:1px solid var(--tv-hair)">
+                          <div style="width:96px;flex:none;font-size:11.5px;color:var(--tv-ink-55);font-variant-numeric:tabular-nums">{{ ma.when }}</div>
+                          <div style="flex:1;min-width:0">
+                            <div style="font-weight:800;font-size:13.5px">{{ ma.title }}</div>
+                            <div style="font-size:12px;color:var(--tv-ink-55)">{{ ma.meta }}</div>
+                          </div>
+                          <span class="tag tag-neutral" style="flex:none">{{ ma.module }}</span>
+                        </div>
+                      </sc-for>
+                    </div>
+                  </sc-if>
+                  <sc-if value="{{ wsIsIdeas }}" hint-placeholder-val="{{ false }}">
+                    <div style="padding:16px 24px">
+                      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px">
+                        <sc-for list="{{ myIdeas }}" as="mi" hint-placeholder-count="3">
+                          <div style="background:var(--tv-panel);border:1px solid var(--tv-hair);padding:14px 16px;display:flex;flex-direction:column;gap:8px">
+                            <div style="display:flex;justify-content:space-between;align-items:center"><span style="{{ mi.statusStyle }}">{{ mi.status }}</span><span style="font-size:11px;color:var(--tv-ink-40)">{{ mi.ref }}</span></div>
+                            <div style="font-weight:800;font-size:14px;line-height:1.25">{{ mi.title }}</div>
+                            <div style="font-size:12px;color:var(--tv-ink-55);flex:1">{{ mi.summary }}</div>
+                            <div style="display:flex;align-items:center;gap:12px;font-size:11.5px;color:var(--tv-ink-55)"><span>▲ {{ mi.votes }}</span><span>{{ mi.comments }} comments</span></div>
+                            <button class="btn btn-secondary" onClick="{{ mi.onOpen }}" style="justify-content:flex-start">Open idea</button>
+                          </div>
+                        </sc-for>
+                      </div>
+                    </div>
+                  </sc-if>
+                </div>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ onKnowledge }}" hint-placeholder-val="{{ false }}">
+              <div style="padding:0 24px 40px;animation:tv-fade .2s ease">
+                <h1 style="font-size:34px;margin:0 0 3px">Knowledge</h1>
+                <div style="font-size:12.5px;color:var(--tv-ink-55);margin-bottom:20px">Methods, precedents and engagement learnings, indexed across ECM and Think Tank</div>
+                <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1px;background:var(--tv-hair);border:1px solid var(--tv-hair)">
+                  <sc-for list="{{ knowledge }}" as="kn" hint-placeholder-count="6">
+                    <button onClick="{{ kn.onClick }}" style="background:var(--tv-panel);border:0;padding:18px;text-align:left;cursor:pointer;font:inherit;color:inherit;display:flex;flex-direction:column;gap:7px;min-height:150px">
+                      <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--tv-accent-ink)">{{ kn.kicker }}</div>
+                      <div style="font-weight:800;font-size:16px;line-height:1.2">{{ kn.title }}</div>
+                      <div style="font-size:12px;color:var(--tv-ink-55);flex:1">{{ kn.body }}</div>
+                      <div style="font-size:11px;color:var(--tv-ink-40)">{{ kn.meta }}</div>
+                    </button>
+                  </sc-for>
+                </div>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ onCRM }}" hint-placeholder-val="{{ false }}">
+              <dc-import name="TechVault_CRM" sub="{{ sub }}" entity="{{ entity }}" navigate="{{ navigate }}" toast="{{ toast }}" hint-size="100%,600px"></dc-import>
+            </sc-if>
+            <sc-if value="{{ onERP }}" hint-placeholder-val="{{ false }}">
+              <dc-import name="TechVault_ERP" sub="{{ sub }}" entity="{{ entity }}" navigate="{{ navigate }}" toast="{{ toast }}" hint-size="100%,600px"></dc-import>
+            </sc-if>
+            <sc-if value="{{ onECM }}" hint-placeholder-val="{{ false }}">
+              <dc-import name="TechVault_ECM" sub="{{ sub }}" entity="{{ entity }}" navigate="{{ navigate }}" toast="{{ toast }}" hint-size="100%,600px"></dc-import>
+            </sc-if>
+            <sc-if value="{{ onHR }}" hint-placeholder-val="{{ false }}">
+              <dc-import name="TechVault_HR" sub="{{ sub }}" entity="{{ entity }}" navigate="{{ navigate }}" toast="{{ toast }}" hint-size="100%,600px"></dc-import>
+            </sc-if>
+            <sc-if value="{{ onThink }}" hint-placeholder-val="{{ false }}">
+              <dc-import name="TechVault_ThinkTank" sub="{{ sub }}" entity="{{ entity }}" navigate="{{ navigate }}" toast="{{ toast }}" hint-size="100%,600px"></dc-import>
+            </sc-if>
+            <sc-if value="{{ onBI }}" hint-placeholder-val="{{ false }}">
+              <dc-import name="TechVault_BI" sub="{{ sub }}" entity="{{ entity }}" navigate="{{ navigate }}" toast="{{ toast }}" hint-size="100%,600px"></dc-import>
+            </sc-if>
+            <sc-if value="{{ onWorkflow }}" hint-placeholder-val="{{ false }}">
+              <dc-import name="TechVault_Workflow" sub="{{ sub }}" entity="{{ entity }}" navigate="{{ navigate }}" toast="{{ toast }}" hint-size="100%,600px"></dc-import>
+            </sc-if>
+            <sc-if value="{{ onAdmin }}" hint-placeholder-val="{{ false }}">
+              <dc-import name="TechVault_Admin" sub="{{ sub }}" entity="{{ entity }}" navigate="{{ navigate }}" toast="{{ toast }}" hint-size="100%,600px"></dc-import>
+            </sc-if>
+            <sc-if value="{{ onProjects }}" hint-placeholder-val="{{ false }}">
+              <dc-import name="TechVault_ERP" sub="Projects" entity="{{ entity }}" navigate="{{ navigate }}" toast="{{ toast }}" hint-size="100%,600px"></dc-import>
+            </sc-if>
+
+          </div>
+        </main>
+
+        <sc-if value="{{ aiOpen }}" hint-placeholder-val="{{ false }}">
+          <aside aria-label="TechVault AI" style="width:392px;flex:none;border-left:2px solid var(--tv-rule);background:var(--tv-panel);display:flex;flex-direction:column;animation:tv-slide-right .2s ease">
+            <div style="flex:none;padding:12px 14px;border-bottom:1px solid var(--tv-hair);display:flex;align-items:center;gap:10px">
+              <div style="width:26px;height:26px;background:var(--tv-accent);color:var(--tv-on-accent);display:grid;place-items:center;flex:none">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l1.9 4.8L18.7 9.7 13.9 11.6 12 16.4 10.1 11.6 5.3 9.7 10.1 7.8z"></path></svg>
+              </div>
+              <div style="flex:1;min-width:0">
+                <div style="font-weight:800;font-size:13.5px">TechVault AI</div>
+                <div style="font-size:11px;color:var(--tv-ink-55)">Scoped to your permissions · CFO, Group</div>
+              </div>
+              <button class="btn btn-icon" aria-label="Expand to full screen" onClick="{{ aiFull }}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H3v5M16 21h5v-5M21 8V3h-5M3 16v5h5"></path></svg></button>
+              <button class="btn btn-icon" aria-label="Close assistant" onClick="{{ toggleAI }}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"></path></svg></button>
+            </div>
+            <div style="flex:1;overflow-y:auto;padding:14px">
+              <sc-for list="{{ aiMessages }}" as="m" hint-placeholder-count="2">
+                <div style="{{ m.wrapStyle }}">
+                  <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--tv-ink-40);margin-bottom:5px">{{ m.who }}</div>
+                  <div style="{{ m.bodyStyle }}">{{ m.text }}</div>
+                  <sc-if value="{{ m.hasRows }}" hint-placeholder-val="{{ false }}">
+                    <div style="margin-top:8px;border:1px solid var(--tv-hair)">
+                      <sc-for list="{{ m.rows }}" as="r" hint-placeholder-count="3">
+                        <button onClick="{{ r.onClick }}" style="display:flex;width:100%;gap:10px;align-items:baseline;background:var(--tv-panel);border:0;border-bottom:1px solid var(--tv-hair);padding:8px 10px;cursor:pointer;font:inherit;text-align:left;color:inherit">
+                          <span style="flex:1;min-width:0;font-size:12.5px;font-weight:800">{{ r.label }}</span>
+                          <span style="font-size:12px;color:var(--tv-ink-55);font-variant-numeric:tabular-nums">{{ r.value }}</span>
+                        </button>
+                      </sc-for>
+                    </div>
+                  </sc-if>
+                  <sc-if value="{{ m.hasSources }}" hint-placeholder-val="{{ false }}">
+                    <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:8px">
+                      <sc-for list="{{ m.sources }}" as="s" hint-placeholder-count="2">
+                        <button onClick="{{ s.onClick }}" style="font:inherit;font-size:10.5px;border:1px solid var(--tv-hair);background:none;color:var(--tv-ink-55);padding:2px 7px;cursor:pointer">{{ s.label }}</button>
+                      </sc-for>
+                    </div>
+                  </sc-if>
+                  <sc-if value="{{ m.hasAction }}" hint-placeholder-val="{{ false }}">
+                    <button class="btn btn-primary" style="margin-top:10px;justify-content:flex-start" onClick="{{ m.onAction }}">{{ m.actionLabel }}</button>
+                  </sc-if>
+                </div>
+              </sc-for>
+              <sc-if value="{{ aiThinking }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--tv-ink-55)">
+                  <span style="width:12px;height:12px;border:2px solid var(--tv-hair);border-top-color:var(--tv-accent-ink);border-radius:50%;animation:tv-spin .7s linear infinite;display:block"></span>
+                  Querying CRM, ERP and ECM within your permissions…
+                </div>
+              </sc-if>
+            </div>
+            <div style="flex:none;border-top:1px solid var(--tv-hair);padding:12px 14px">
+              <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px">
+                <sc-for list="{{ aiPrompts }}" as="p" hint-placeholder-count="3">
+                  <button onClick="{{ p.onClick }}" style="font:inherit;font-size:11.5px;line-height:1.35;border:1px solid var(--tv-hair);background:none;color:var(--tv-ink-70);padding:4px 8px;cursor:pointer;text-align:left;flex:0 1 auto;max-width:100%">{{ p.label }}</button>
+                </sc-for>
+              </div>
+              <form onSubmit="{{ aiSubmit }}" style="display:flex;gap:8px">
+                <input class="input" placeholder="Ask across the ecosystem…" value="{{ aiInput }}" onChange="{{ aiChange }}" aria-label="Ask TechVault AI">
+                <button class="btn btn-primary" type="submit" style="flex:none">Ask</button>
+              </form>
+            </div>
+          </aside>
+        </sc-if>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ paletteOpen }}" hint-placeholder-val="{{ false }}">
+    <div style="position:fixed;inset:0;background:color-mix(in srgb, #2d2b2b 46%, transparent);display:flex;justify-content:center;padding:80px 20px;z-index:60;animation:tv-fade .12s ease" onClick="{{ closePalette }}">
+      <div onClick="{{ stop }}" style="width:min(760px,100%);max-height:100%;background:var(--tv-panel);border:2px solid var(--tv-rule);box-shadow:var(--shadow-lg);display:flex;flex-direction:column;animation:tv-rise .16s ease">
+        <div style="flex:none;display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:2px solid var(--tv-rule)">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--tv-accent)" stroke-width="2" style="flex:none"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+          <input autofocus class="input" style="border:0;background:none;font-size:16px;padding:0" placeholder="Search the ecosystem or type a command" value="{{ query }}" onChange="{{ queryChange }}" aria-label="Global search">
+          <kbd style="font:inherit;font-size:10px;border:1px solid var(--tv-hair);padding:1px 5px;color:var(--tv-ink-40);flex:none">ESC</kbd>
+        </div>
+        <div style="flex:none;display:flex;gap:0;border-bottom:1px solid var(--tv-hair);overflow-x:auto">
+          <sc-for list="{{ searchFilters }}" as="f" hint-placeholder-count="5">
+            <button onClick="{{ f.onClick }}" style="{{ f.style }}">{{ f.label }}</button>
+          </sc-for>
+        </div>
+        <div style="flex:1;overflow-y:auto">
+          <sc-for list="{{ searchGroups }}" as="g" hint-placeholder-count="3">
+            <div>
+              <div style="display:flex;align-items:center;gap:8px;padding:10px 14px 5px;background:var(--tv-surface)">
+                <span style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--tv-ink-55)">{{ g.label }}</span>
+                <span style="font-size:10.5px;color:var(--tv-ink-40)">{{ g.count }}</span>
+              </div>
+              <sc-for list="{{ g.items }}" as="r" hint-placeholder-count="3">
+                <button onClick="{{ r.onClick }}" style="display:flex;gap:12px;align-items:center;width:100%;background:none;border:0;border-bottom:1px solid var(--tv-hair);padding:10px 14px;cursor:pointer;font:inherit;color:inherit;text-align:left">
+                  <span style="width:26px;height:26px;flex:none;border:1px solid var(--tv-hair);display:grid;place-items:center;font-size:10px;font-weight:800;color:var(--tv-ink-55)">{{ r.badge }}</span>
+                  <span style="flex:1;min-width:0"><span style="display:block;font-weight:800;font-size:13.5px">{{ r.title }}</span><span style="display:block;font-size:12px;color:var(--tv-ink-55)">{{ r.meta }}</span></span>
+                  <span style="font-size:11px;color:var(--tv-ink-40);flex:none">{{ r.hint }}</span>
+                </button>
+              </sc-for>
+            </div>
+          </sc-for>
+          <sc-if value="{{ searchEmpty }}" hint-placeholder-val="{{ false }}">
+            <div style="padding:34px 18px">
+              <div style="font-weight:800;font-size:16px;margin-bottom:5px">No matches for “{{ query }}”</div>
+              <div style="font-size:13px;color:var(--tv-ink-55);max-width:52ch;margin-bottom:14px">Global search covers customers, contacts, opportunities, documents, invoices, projects, employees, ideas and knowledge articles you are entitled to see. Records outside your permissions are never returned.</div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <button class="btn btn-secondary" onClick="{{ clearQuery }}">Clear search</button>
+                <button class="btn btn-primary" onClick="{{ askAIFromSearch }}">Ask TechVault AI instead</button>
+              </div>
+            </div>
+          </sc-if>
+        </div>
+        <div style="flex:none;border-top:1px solid var(--tv-hair);padding:8px 14px;display:flex;gap:16px;font-size:11px;color:var(--tv-ink-40);flex-wrap:wrap">
+          <span>↑↓ navigate</span><span>↵ open</span><span>Tab filter entity type</span><span>Ctrl K toggle</span>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ quickOpen }}" hint-placeholder-val="{{ false }}">
+    <div style="position:fixed;inset:0;z-index:55" onClick="{{ closeQuick }}">
+      <div onClick="{{ stop }}" style="position:absolute;top:58px;right:330px;width:250px;background:var(--tv-panel);border:2px solid var(--tv-rule);box-shadow:var(--shadow-lg);animation:tv-rise .14s ease">
+        <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--tv-ink-55);padding:10px 12px 6px">Quick create</div>
+        <sc-for list="{{ quickItems }}" as="q" hint-placeholder-count="6">
+          <button onClick="{{ q.onClick }}" style="display:flex;align-items:center;gap:10px;width:100%;background:none;border:0;border-top:1px solid var(--tv-hair);padding:9px 12px;cursor:pointer;font:inherit;font-size:13px;color:inherit;text-align:left">
+            <span style="width:18px;flex:none;color:var(--tv-accent-ink);font-weight:800">+</span>
+            <span style="flex:1;min-width:0">{{ q.label }}</span>
+            <span style="font-size:10.5px;color:var(--tv-ink-40)">{{ q.key }}</span>
+          </button>
+        </sc-for>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ notifOpen }}" hint-placeholder-val="{{ false }}">
+    <div style="position:fixed;inset:0;background:color-mix(in srgb, #2d2b2b 32%, transparent);z-index:58;animation:tv-fade .12s ease" onClick="{{ toggleNotif }}">
+      <aside onClick="{{ stop }}" aria-label="Notifications" style="position:absolute;top:0;right:0;bottom:0;width:min(420px,100%);background:var(--tv-panel);border-left:2px solid var(--tv-rule);display:flex;flex-direction:column;animation:tv-slide-right .18s ease">
+        <div style="flex:none;display:flex;align-items:center;gap:10px;padding:14px;border-bottom:2px solid var(--tv-rule)">
+          <h3 style="font-size:18px;margin:0;flex:1">Notifications</h3>
+          <button class="btn btn-ghost" onClick="{{ markAllRead }}" style="font-size:12px">Mark all read</button>
+          <button class="btn btn-icon" aria-label="Close" onClick="{{ toggleNotif }}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"></path></svg></button>
+        </div>
+        <div style="flex:1;overflow-y:auto">
+          <sc-for list="{{ notifGroups }}" as="g" hint-placeholder-count="3">
+            <div>
+              <div style="display:flex;align-items:center;gap:8px;padding:10px 14px 6px;background:var(--tv-surface)">
+                <span style="{{ g.dotStyle }}"></span>
+                <span style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--tv-ink-55)">{{ g.label }}</span>
+                <span style="font-size:10.5px;color:var(--tv-ink-40)">{{ g.count }}</span>
+              </div>
+              <sc-for list="{{ g.items }}" as="n" hint-placeholder-count="3">
+                <div style="{{ n.wrapStyle }}">
+                  <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px">
+                    <span class="tag tag-neutral">{{ n.module }}</span>
+                    <span style="font-size:11px;color:var(--tv-ink-40)">{{ n.time }}</span>
+                    <span style="{{ n.unreadStyle }}"></span>
+                  </div>
+                  <button onClick="{{ n.onOpen }}" style="background:none;border:0;padding:0;font:inherit;font-weight:800;font-size:13.5px;color:inherit;cursor:pointer;text-align:left;display:block">{{ n.title }}</button>
+                  <div style="font-size:12px;color:var(--tv-ink-55);margin-bottom:7px">{{ n.body }}</div>
+                  <div style="display:flex;gap:10px">
+                    <button class="btn btn-ghost" onClick="{{ n.onOpen }}" style="font-size:11.5px">Open record</button>
+                    <button class="btn btn-ghost" onClick="{{ n.onDismiss }}" style="font-size:11.5px;color:var(--tv-ink-55)">Dismiss</button>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+          </sc-for>
+          <sc-if value="{{ notifEmpty }}" hint-placeholder-val="{{ false }}">
+            <div style="padding:34px 16px">
+              <div style="font-weight:800;font-size:15px;margin-bottom:4px">Nothing outstanding</div>
+              <div style="font-size:12.5px;color:var(--tv-ink-55);max-width:44ch">Alerts from CRM, ERP, ECM, HR, Think Tank and Workflow arrive here. Choose which events reach you in notification preferences.</div>
+            </div>
+          </sc-if>
+        </div>
+        <div style="flex:none;border-top:1px solid var(--tv-hair);padding:12px 14px">
+          <button class="btn btn-secondary btn-block" onClick="{{ goNotifPrefs }}">Notification preferences</button>
+        </div>
+      </aside>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ mobileOpen }}" hint-placeholder-val="{{ false }}">
+    <div style="position:fixed;inset:0;background:color-mix(in srgb, #2d2b2b 55%, transparent);z-index:62;display:grid;place-items:center;padding:24px;animation:tv-fade .14s ease" onClick="{{ toggleMobile }}">
+      <div onClick="{{ stop }}" style="display:flex;gap:24px;align-items:center">
+        <div style="max-width:260px;color:#f3f2f2">
+          <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;opacity:.7;margin-bottom:6px">Responsive</div>
+          <h3 style="font-size:22px;margin:0 0 8px;color:#f3f2f2">TechVault on mobile</h3>
+          <p style="font-size:12.5px;opacity:.8;margin:0">Approvals, tasks, documents and idea submission carry over to the phone. Dense tables become stacked records; the command bar becomes a full-screen search.</p>
+        </div>
+        <div style="width:392px;height:min(800px,88vh);background:var(--tv-ink);padding:10px;box-shadow:var(--shadow-lg)">
+          <div style="width:100%;height:100%;background:var(--tv-bg);overflow:hidden">
+            <dc-import name="TechVault_Mobile" navigate="{{ navigate }}" toast="{{ toast }}" hint-size="100%,100%"></dc-import>
+          </div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <div style="position:fixed;bottom:18px;left:50%;transform:translateX(-50%);z-index:70;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none">
+    <sc-for list="{{ toasts }}" as="t" hint-placeholder-count="0">
+      <div style="background:var(--tv-ink);color:var(--tv-bg);padding:10px 14px;font-size:13px;box-shadow:var(--shadow-md);display:flex;align-items:center;gap:10px;animation:tv-rise .18s ease">
+        <span style="width:7px;height:7px;background:var(--tv-accent);display:block;flex:none"></span>
+        {{ t.text }}
+      </div>
+    </sc-for>
+  </div>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:900}}">
+const ICONS = {
+  home: 'm3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z',
+  grid: 'M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z',
+  users: 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8M22 21v-2a4 4 0 0 0-3-3.9',
+  building: 'M3 21h18M5 21V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v16M9 7h2M9 11h2M9 15h2M15 21V9h2a2 2 0 0 1 2 2v10',
+  files: 'M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7zM14 2v5h6M8 13h8M8 17h5',
+  hr: 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8M16 11l2 2 4-4',
+  bulb: 'M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7V18h8v-3.3A7 7 0 0 0 12 2',
+  chart: 'M3 3v18h18M7 15v3M12 9v9M17 5v13',
+  folder: 'M4 20h16a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1h-8l-2-3H4a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1M8 11v5M12 11v3M16 11v6',
+  flow: 'M6 3v12M18 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6M6 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6M15 6H9a3 3 0 0 0-3 3v3',
+  book: 'M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z',
+  sliders: 'M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6',
+  sun: 'M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0',
+  moon: 'M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8'
+};
+
+const NAV = [
+  { id: 'home', label: 'Home', icon: ICONS.home },
+  { id: 'workspace', label: 'My Workspace', icon: ICONS.grid, badge: '7' },
+  { id: 'crm', label: 'CRM', icon: ICONS.users, subs: ['Dashboard', 'Customers', 'Contacts', 'Leads', 'Opportunities', 'Activities'] },
+  { id: 'erp', label: 'ERP', icon: ICONS.building, subs: ['Finance', 'Procurement', 'Vendors', 'Inventory', 'Projects'] },
+  { id: 'ecm', label: 'ECM', icon: ICONS.files, subs: ['Repository', 'Document Viewer', 'OCR Processing', 'Classification', 'Retention'] },
+  { id: 'hr', label: 'HR', icon: ICONS.hr, subs: ['Employees', 'Attendance', 'Leave', 'Payroll', 'Performance'] },
+  { id: 'think', label: 'Think Tank', icon: ICONS.bulb, subs: ['Ideas', 'Innovation Pipeline', 'Reviews', 'Leaderboard'], badge: '12' },
+  { id: 'bi', label: 'BI & Analytics', icon: ICONS.chart },
+  { id: 'projects', label: 'Projects', icon: ICONS.folder },
+  { id: 'workflow', label: 'Workflows', icon: ICONS.flow, badge: '5' },
+  { id: 'knowledge', label: 'Knowledge', icon: ICONS.book },
+  { id: 'admin', label: 'Administration', icon: ICONS.sliders, subs: ['Users', 'Roles', 'Permissions', 'Audit Logs', 'Security', 'AI Configuration'] }
+];
+
+const WIDGET_DEFS = {
+  kpis: { title: 'Group performance', kicker: 'Key indicators', span: 12 },
+  revenue: { title: 'Revenue against plan', kicker: 'Finance', span: 8, link: 'Finance', to: ['erp', 'Finance'] },
+  pipeline: { title: 'Sales pipeline', kicker: 'CRM', span: 4, link: 'Pipeline', to: ['crm', 'Opportunities'] },
+  approvals: { title: 'Awaiting your approval', kicker: 'Workflow', span: 5, link: 'All approvals', to: ['workflow', 'My approvals'] },
+  projects: { title: 'Engagement health', kicker: 'Delivery', span: 7, link: 'Portfolio', to: ['erp', 'Projects'] },
+  alerts: { title: 'Requires attention', kicker: 'Signals', span: 4 },
+  innovation: { title: 'Innovation activity', kicker: 'Think Tank', span: 4, link: 'Think Tank', to: ['think', 'Ideas'] },
+  activity: { title: 'Recent ecosystem activity', kicker: 'Audit', span: 4 },
+  docflow: { title: 'Document processing', kicker: 'ECM', span: 4, link: 'Repository', to: ['ecm', 'Repository'] }
+};
+
+const SEARCH_INDEX = [
+  { type: 'Customers', badge: 'CU', title: 'Meridian Federal Bank', meta: 'Financial services · €24.8M lifetime · Owner Tomas Reinhardt', to: ['crm', 'Customers', 'meridian'] },
+  { type: 'Customers', badge: 'CU', title: 'Corvus Telecom Group', meta: 'Telecommunications · €18.2M lifetime · Owner Adaeze Okafor', to: ['crm', 'Customers', 'corvus'] },
+  { type: 'Customers', badge: 'CU', title: 'Halden Energy Nordics', meta: 'Utilities · €11.4M lifetime · Owner Marek Dvořák', to: ['crm', 'Customers', 'halden'] },
+  { type: 'Contacts', badge: 'CT', title: 'Elise Brenner — Group CIO, Meridian Federal Bank', meta: 'Primary economic buyer · last contact 3 days ago', to: ['crm', 'Customers', 'meridian'] },
+  { type: 'Contacts', badge: 'CT', title: 'Rafael Duarte — Head of Procurement, Corvus Telecom', meta: 'Influencer · 2 open opportunities', to: ['crm', 'Customers', 'corvus'] },
+  { type: 'Opportunities', badge: 'OP', title: 'Meridian — Core Banking Migration Phase 2', meta: '€8.4M · Proposal · close 30 Nov 2026 · 65%', to: ['crm', 'Opportunities', 'opp-1'] },
+  { type: 'Opportunities', badge: 'OP', title: 'Corvus — Spectrum Advisory Retainer', meta: '€2.1M · Negotiation · close 14 Oct 2026 · 80%', to: ['crm', 'Opportunities', 'opp-2'] },
+  { type: 'Documents', badge: 'DO', title: 'Meridian MSA 2026 — executed.pdf', meta: 'Contract · v4.2 · Confidential · signed 12 Feb 2026', to: ['ecm', 'Document Viewer', 'doc-1'] },
+  { type: 'Documents', badge: 'DO', title: 'Meridian Phase 2 Statement of Work.docx', meta: 'Proposal · v1.7 · in Legal review', to: ['ecm', 'Document Viewer', 'doc-2'] },
+  { type: 'Documents', badge: 'DO', title: 'Corvus vendor due-diligence pack.zip', meta: 'Procurement · OCR complete · 41 pages', to: ['ecm', 'Repository'] },
+  { type: 'Projects', badge: 'PJ', title: 'Meridian Core Banking Migration', meta: 'Delivery · €6.2M budget · 74% burn · amber', to: ['erp', 'Projects', 'proj-1'] },
+  { type: 'Projects', badge: 'PJ', title: 'Verity Claims Automation', meta: 'Delivery · €3.1M budget · 38% burn · green', to: ['erp', 'Projects', 'proj-2'] },
+  { type: 'Invoices', badge: 'IN', title: 'INV-2026-04417 — Meridian Federal Bank', meta: '€1,240,000 · 18 days overdue · dunning stage 2', to: ['erp', 'Finance', 'inv-1'] },
+  { type: 'Invoices', badge: 'IN', title: 'INV-2026-04502 — Corvus Telecom Group', meta: '€486,500 · due in 9 days', to: ['erp', 'Finance'] },
+  { type: 'Employees', badge: 'EM', title: 'Adaeze Okafor — Principal, Financial Services', meta: 'Frankfurt · 11 years · 4 engagements', to: ['hr', 'Employees', 'emp-1'] },
+  { type: 'Employees', badge: 'EM', title: 'Marek Dvořák — Senior Manager, Energy', meta: 'Prague · leave request pending', to: ['hr', 'Employees', 'emp-2'] },
+  { type: 'Ideas', badge: 'ID', title: 'Regulatory-change radar for banking clients', meta: 'Think Tank · Under business assessment · 148 votes', to: ['think', 'Ideas', 'idea-1'] },
+  { type: 'Ideas', badge: 'ID', title: 'Reusable ESG assurance toolkit', meta: 'Think Tank · Approved · converted to project', to: ['think', 'Ideas', 'idea-2'] },
+  { type: 'Knowledge', badge: 'KB', title: 'Core banking migration — reference method', meta: '34 engagements · last revised June 2026', to: ['knowledge', ''] },
+  { type: 'Knowledge', badge: 'KB', title: 'Pricing a fixed-fee regulatory remediation', meta: 'Commercial playbook · 12 precedents', to: ['knowledge', ''] }
+];
+
+const AI_REPLIES = [
+  {
+    match: ['overdue', 'invoice'],
+    text: 'Six invoices are overdue, totalling €3.42M. Meridian Federal Bank carries 36% of the exposure and has already passed dunning stage 2.',
+    rows: [
+      { label: 'INV-2026-04417 · Meridian Federal Bank', value: '€1,240,000 · 18d', to: ['erp', 'Finance', 'inv-1'] },
+      { label: 'INV-2026-04388 · Halden Energy Nordics', value: '€742,000 · 11d', to: ['erp', 'Finance'] },
+      { label: 'INV-2026-04301 · Blackfen Municipal Authority', value: '€610,500 · 27d', to: ['erp', 'Finance'] }
+    ],
+    sources: ['ERP · Accounts receivable', 'CRM · Account owners'],
+    action: { label: 'Draft dunning letters for all six', toast: 'Six dunning letters drafted and queued for your review' }
+  },
+  {
+    match: ['summarise', 'summarize', 'document', 'meridian'],
+    text: 'Meridian Federal Bank: three documents changed in the last 7 days. The Phase 2 Statement of Work moved to Legal review with two open redlines on liability caps; the executed MSA is unchanged; a new security questionnaire arrived from their CISO office and was auto-classified as Confidential.',
+    rows: [
+      { label: 'Meridian Phase 2 Statement of Work.docx', value: 'v1.7 · Legal', to: ['ecm', 'Document Viewer', 'doc-2'] },
+      { label: 'Meridian MSA 2026 — executed.pdf', value: 'v4.2 · signed', to: ['ecm', 'Document Viewer', 'doc-1'] }
+    ],
+    sources: ['ECM · 3 documents', 'Workflow · Legal review'],
+    action: { label: 'Open customer 360', to: ['crm', 'Customers', 'meridian'] }
+  },
+  {
+    match: ['opportunit', 'pipeline', 'stalled', 'sales'],
+    text: 'Nine opportunities worth €22.6M have had no activity for 21 days or more. Four are in Proposal with a close date inside this quarter, which is the commercial risk worth acting on.',
+    rows: [
+      { label: 'Meridian — Core Banking Migration Ph.2', value: '€8.4M · 24d idle', to: ['crm', 'Opportunities', 'opp-1'] },
+      { label: 'Ostara — Network Optimisation Study', value: '€3.9M · 31d idle', to: ['crm', 'Opportunities'] },
+      { label: 'Quillon — Claims Target Operating Model', value: '€2.7M · 22d idle', to: ['crm', 'Opportunities'] }
+    ],
+    sources: ['CRM · Opportunities', 'CRM · Activities'],
+    action: { label: 'Create follow-up tasks for owners', toast: 'Nine follow-up tasks assigned to opportunity owners' }
+  },
+  {
+    match: ['leave', 'employee', 'hr', 'absence'],
+    text: 'Fourteen employees have leave requests outstanding beyond the 3-day approval SLA. Eleven sit with managers in the Energy practice, where Marek Dvořák is on client site this week.',
+    rows: [
+      { label: 'Energy practice — 11 requests', value: 'SLA breached', to: ['hr', 'Leave'] },
+      { label: 'Financial Services — 2 requests', value: 'Due today', to: ['hr', 'Leave'] }
+    ],
+    sources: ['HRIS · Leave', 'HRIS · Org structure'],
+    action: { label: 'Escalate to practice leadership', toast: 'Escalation sent to two practice leaders' }
+  },
+  {
+    match: ['idea', 'innovation', 'project'],
+    text: 'The regulatory-change radar idea has cleared technical and business assessment with an estimated €4.2M three-year contribution. Finance assessment is the only remaining gate before management approval.',
+    rows: [
+      { label: 'Regulatory-change radar for banking clients', value: '148 votes', to: ['think', 'Ideas', 'idea-1'] }
+    ],
+    sources: ['Think Tank · Assessments', 'ERP · Project templates'],
+    action: { label: 'Convert approved idea to project', toast: 'Project PRJ-2026-118 created from idea IDEA-2026-041' }
+  }
+];
+
+const FALLBACK_REPLY = {
+  text: 'I searched CRM, ERP, ECM, HRIS and Think Tank within your permissions and found nothing specific enough to answer that. Try naming a client, a module or a period — for example “Meridian exposure this quarter”.',
+  sources: ['Permission scope · CFO, Group']
+};
+
+class Component extends DCLogic {
+  state = {
+    authed: false,
+    screen: 'home',
+    sub: '',
+    entity: null,
+    theme: 'light',
+    sidebarOpen: true,
+    palette: false,
+    quick: false,
+    notif: false,
+    ai: false,
+    aiThinking: false,
+    aiInput: '',
+    aiMsgs: [{ role: 'ai', text: 'Good morning Ingrid. Revenue is 4.7% ahead of plan, but €3.42M of receivables are overdue and two engagements moved to amber this week.', sources: ['ERP', 'Delivery'] }],
+    mobile: false,
+    editLayout: false,
+    widgets: ['kpis', 'revenue', 'pipeline', 'approvals', 'projects', 'alerts', 'innovation', 'activity'],
+    wsTab: 'Tasks',
+    query: '',
+    searchFilter: 'All',
+    toasts: [],
+    doneTasks: [],
+    approvals: [
+      { id: 'a1', module: 'ERP', ref: 'INV-2026-04502', title: 'Supplier invoice — Lindqvist Legal Partners', meta: '€486,500 · exceeds delegated authority · requested by Priya Raghunathan', sla: '4h', urgent: true, to: ['erp', 'Finance'] },
+      { id: 'a2', module: 'CRM', ref: 'OPP-2026-0881', title: 'Discount approval — Corvus Spectrum Retainer', meta: '14% off rate card · €2.1M · requested by Adaeze Okafor', sla: '1d', urgent: false, to: ['crm', 'Opportunities', 'opp-2'] },
+      { id: 'a3', module: 'Think Tank', ref: 'IDEA-2026-041', title: 'Business case — Regulatory-change radar', meta: '€4.2M three-year contribution · Finance gate', sla: '2d', urgent: false, to: ['think', 'Ideas', 'idea-1'] },
+      { id: 'a4', module: 'ECM', ref: 'DOC-88214', title: 'Retention override — Meridian audit file', meta: 'Extend retention to 10 years · requested by Legal', sla: '3d', urgent: false, to: ['ecm', 'Document Viewer', 'doc-1'] }
+    ],
+    notifications: [
+      { id: 'n1', group: 'Urgent', module: 'ERP', title: 'Meridian invoice 18 days overdue', body: 'INV-2026-04417 · €1,240,000 · dunning stage 2 reached', time: '07:04', read: false, to: ['erp', 'Finance', 'inv-1'] },
+      { id: 'n2', group: 'Urgent', module: 'Workflow', title: 'Approval SLA breaches in 4 hours', body: 'Supplier invoice — Lindqvist Legal Partners awaits your decision', time: '06:50', read: false, to: ['workflow', 'My approvals'] },
+      { id: 'n3', group: 'Today', module: 'ECM', title: 'Phase 2 SOW moved to Legal review', body: 'Two redlines on liability caps from Meridian counsel', time: '08:22', read: false, to: ['ecm', 'Document Viewer', 'doc-2'] },
+      { id: 'n4', group: 'Today', module: 'Think Tank', title: 'Regulatory-change radar cleared business assessment', body: 'Awaiting your finance gate decision', time: '09:10', read: false, to: ['think', 'Ideas', 'idea-1'] },
+      { id: 'n5', group: 'Today', module: 'HR', title: '14 leave requests past SLA', body: 'Energy practice accounts for 11 of them', time: '09:41', read: true, to: ['hr', 'Leave'] },
+      { id: 'n6', group: 'Earlier', module: 'CRM', title: 'Corvus retainer moved to Negotiation', body: 'Adaeze Okafor updated the opportunity to 80%', time: 'Wed', read: true, to: ['crm', 'Opportunities', 'opp-2'] },
+      { id: 'n7', group: 'Earlier', module: 'System', title: 'Quarterly access review opens Monday', body: '412 role assignments require certification', time: 'Tue', read: true, to: ['admin', 'Permissions'] }
+    ]
+  };
+
+  componentDidMount() {
+    this._key = (e) => {
+      const k = e.key ? e.key.toLowerCase() : '';
+      if ((e.metaKey || e.ctrlKey) && k === 'k') {
+        e.preventDefault();
+        this.setState((s) => ({ palette: !s.palette, quick: false }));
+      } else if (k === 'escape') {
+        this.setState({ palette: false, quick: false, notif: false, mobile: false });
+      }
+    };
+    window.addEventListener('keydown', this._key);
+  }
+
+  componentWillUnmount() { window.removeEventListener('keydown', this._key); }
+
+  toast = (text) => {
+    const id = 't' + Date.now() + Math.random();
+    this.setState((s) => ({ toasts: [...s.toasts, { id, text }] }));
+    setTimeout(() => this.setState((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })), 3200);
+  };
+
+  navigate = (screen, sub, entity) => {
+    this.setState({ screen: screen, sub: sub || '', entity: entity || null, palette: false, quick: false, notif: false, mobile: false });
+  };
+
+  go = (to) => () => this.navigate(to[0], to[1], to[2]);
+
+  moveWidget(id, dir) {
+    this.setState((s) => {
+      const w = [...s.widgets];
+      const i = w.indexOf(id);
+      const j = i + dir;
+      if (i < 0 || j < 0 || j >= w.length) return null;
+      w[i] = w[j]; w[j] = id;
+      return { widgets: w };
+    });
+  }
+
+  resizeWidget(id) {
+    this._spans = this._spans || {};
+    const cur = this._spans[id] !== undefined ? this._spans[id] : WIDGET_DEFS[id].span;
+    const order = [4, 5, 6, 7, 8, 12];
+    const next = order[(order.indexOf(cur) + 1) % order.length] || 6;
+    this._spans[id] = next;
+    this.forceUpdate();
+  }
+
+  askAI(text) {
+    const q = text.toLowerCase();
+    this.setState((s) => ({ ai: true, aiThinking: true, aiInput: '', aiMsgs: [...s.aiMsgs, { role: 'you', text: text }] }));
+    setTimeout(() => {
+      const hit = AI_REPLIES.find((r) => r.match.some((m) => q.indexOf(m) >= 0)) || FALLBACK_REPLY;
+      this.setState((s) => ({ aiThinking: false, aiMsgs: [...s.aiMsgs, Object.assign({ role: 'ai' }, hit)] }));
+    }, 900);
+  }
+
+  // ── style helpers ───────────────────────────────────────────────────────
+  tagStyle(kind) {
+    const map = {
+      pos: ['var(--tv-pos-tint)', 'var(--tv-pos)'],
+      warn: ['var(--tv-warn-tint)', 'var(--tv-warn)'],
+      neg: ['var(--tv-neg-tint)', 'var(--tv-neg)'],
+      neutral: ['var(--tv-surface)', 'var(--tv-ink-70)']
+    };
+    const c = map[kind] || map.neutral;
+    return 'display:inline-flex;align-items:center;font-size:11px;font-weight:800;letter-spacing:.04em;padding:2px 7px;background:' + c[0] + ';color:' + c[1];
+  }
+
+  renderVals() {
+    const s = this.state;
+    const go = this.go;
+
+    const navItems = NAV.map((n) => {
+      const active = s.screen === n.id;
+      return {
+        label: n.label,
+        icon: n.icon,
+        current: active ? 'page' : undefined,
+        badge: s.sidebarOpen ? (n.badge || '') : '',
+        badgeStyle: n.badge && s.sidebarOpen
+          ? 'font-size:10px;font-weight:800;background:var(--tv-ink);color:var(--tv-bg);padding:1px 5px;flex:none'
+          : 'display:none',
+        style: 'display:flex;align-items:center;gap:11px;width:100%;background:' + (active ? 'var(--tv-surface)' : 'none') +
+          ';border:0;border-left:3px solid ' + (active ? 'var(--tv-accent)' : 'transparent') +
+          ';padding:8px 14px 8px 13px;font:inherit;font-size:13.5px;font-weight:' + (active ? '800' : '400') +
+          ';color:' + (active ? 'var(--tv-ink)' : 'var(--tv-ink-70)') + ';cursor:pointer;text-align:left;white-space:nowrap',
+        labelStyle: s.sidebarOpen ? 'flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis' : 'display:none',
+        showSubs: !!(active && n.subs && s.sidebarOpen),
+        subs: (n.subs || []).map((sub) => ({
+          label: sub,
+          onClick: () => this.navigate(n.id, sub),
+          style: 'display:block;width:100%;background:none;border:0;border-left:3px solid ' + (s.sub === sub ? 'var(--tv-accent)' : 'transparent') +
+            ';padding:5px 14px 5px 44px;font:inherit;font-size:12.5px;font-weight:' + (s.sub === sub ? '800' : '400') +
+            ';color:' + (s.sub === sub ? 'var(--tv-ink)' : 'var(--tv-ink-55)') + ';cursor:pointer;text-align:left'
+        })),
+        onClick: () => this.navigate(n.id, n.subs ? n.subs[0] : '')
+      };
+    });
+
+    const crumbTrail = [{ label: 'TechVault', to: ['home', ''] }];
+    const cur = NAV.find((n) => n.id === s.screen);
+    if (cur && s.screen !== 'home') crumbTrail.push({ label: cur.label, to: [s.screen, cur.subs ? cur.subs[0] : ''] });
+    if (s.sub) crumbTrail.push({ label: s.sub, to: [s.screen, s.sub] });
+    if (s.entity) crumbTrail.push({ label: 'Record ' + s.entity, to: [s.screen, s.sub, s.entity] });
+    const crumbs = crumbTrail.map((c, i) => ({
+      label: c.label,
+      onClick: go(c.to),
+      style: 'background:none;border:0;padding:0;font:inherit;font-size:11.5px;cursor:pointer;color:' +
+        (i === crumbTrail.length - 1 ? 'var(--tv-ink)' : 'var(--tv-ink-55)') + ';font-weight:' + (i === crumbTrail.length - 1 ? '800' : '400'),
+      sepStyle: i === crumbTrail.length - 1 ? 'display:none' : 'color:var(--tv-ink-40)'
+    }));
+
+    const spans = this._spans || {};
+    const widgets = s.widgets.map((id) => {
+      const d = WIDGET_DEFS[id];
+      const span = spans[id] !== undefined ? spans[id] : d.span;
+      return {
+        title: d.title,
+        kicker: d.kicker,
+        editing: s.editLayout,
+        hasLink: !!d.link && !s.editLayout,
+        linkLabel: d.link,
+        onOpen: d.to ? go(d.to) : this.noop,
+        style: 'grid-column:span ' + span + ';background:var(--tv-panel);min-width:0;display:flex;flex-direction:column;animation:tv-fade .2s ease',
+        onUp: () => this.moveWidget(id, -1),
+        onDown: () => this.moveWidget(id, 1),
+        onResize: () => this.resizeWidget(id),
+        onRemove: () => this.setState((st) => ({ widgets: st.widgets.filter((x) => x !== id) })),
+        isKpis: id === 'kpis',
+        isRevenue: id === 'revenue',
+        isPipeline: id === 'pipeline',
+        isApprovals: id === 'approvals',
+        isProjects: id === 'projects',
+        isAlerts: id === 'alerts',
+        isInnovation: id === 'innovation',
+        isActivity: id === 'activity',
+        isDocflow: id === 'docflow'
+      };
+    });
+
+    const spark = (vals, accent) => vals.map((v) => ({
+      style: 'flex:1;min-width:2px;height:' + v + '%;background:' + (accent ? 'var(--tv-accent)' : 'var(--tv-mute)') + ';transform-origin:bottom;animation:tv-bar .4s ease'
+    }));
+
+    const kpis = [
+      { label: 'Revenue YTD', value: '€184.2M', delta: '+4.7%', up: true, note: 'vs plan', spark: spark([40, 52, 48, 61, 58, 70, 76, 88]), to: ['erp', 'Finance'] },
+      { label: 'Weighted pipeline', value: '€41.7M', delta: '+9.2%', up: true, note: 'QoQ', spark: spark([30, 44, 40, 55, 62, 58, 71, 80]), to: ['crm', 'Opportunities'] },
+      { label: 'Receivables overdue', value: '€3.42M', delta: '+18.4%', up: false, note: '6 invoices', spark: spark([22, 30, 28, 41, 46, 52, 66, 92], true), to: ['erp', 'Finance'] },
+      { label: 'Active engagements', value: '148', delta: '+6', up: true, note: '11 amber, 2 red', spark: spark([58, 60, 64, 62, 70, 72, 78, 84]), to: ['erp', 'Projects'] },
+      { label: 'Billable headcount', value: '2,417', delta: '78.4%', up: true, note: 'utilisation', spark: spark([64, 66, 70, 68, 74, 76, 78, 79]), to: ['hr', 'Employees'] },
+      { label: 'Ideas to projects', value: '18', delta: '+4', up: true, note: 'this quarter', spark: spark([18, 26, 30, 38, 44, 52, 58, 66]), to: ['think', 'Innovation Pipeline'] }
+    ].map((k) => ({
+      label: k.label,
+      value: k.value,
+      delta: k.delta,
+      note: k.note,
+      spark: k.spark,
+      deltaStyle: 'font-size:12px;font-weight:800;color:' + (k.up ? 'var(--tv-pos)' : 'var(--tv-neg)'),
+      onClick: go(k.to)
+    }));
+
+    const rev = [
+      ['Jan', 62, 58], ['Feb', 70, 64], ['Mar', 74, 70], ['Apr', 68, 72], ['May', 80, 74],
+      ['Jun', 86, 78], ['Jul', 76, 80], ['Aug', 88, 82], ['Sep', 94, 86]
+    ];
+    const revenueBars = rev.map((r, i) => ({
+      label: r[0],
+      tip: r[0] + ' — €' + (r[1] * 0.24).toFixed(1) + 'M recognised',
+      planStyle: 'position:absolute;left:0;right:0;bottom:' + r[2] + '%;height:2px;background:var(--tv-mute)',
+      style: 'height:' + r[1] + '%;background:' + (i === rev.length - 1 ? 'var(--tv-accent)' : 'var(--tv-ink)') + ';transform-origin:bottom;animation:tv-bar .45s ease'
+    }));
+
+    const pipelineStages = [
+      ['Qualification', '€28.4M', 100], ['Discovery', '€22.1M', 78], ['Proposal', '€19.6M', 69],
+      ['Negotiation', '€14.2M', 50], ['Verbal commit', '€8.1M', 29], ['Closing', '€4.0M', 14]
+    ].map((p, i) => ({
+      label: p[0], value: p[1],
+      style: 'height:100%;width:' + p[2] + '%;background:' + (i > 2 ? 'var(--tv-accent)' : 'var(--tv-ink)'),
+      onClick: () => this.navigate('crm', 'Opportunities')
+    }));
+
+    const approvals = s.approvals.map((a) => ({
+      module: a.module, ref: a.ref, title: a.title, meta: a.meta, sla: a.sla,
+      slaStyle: 'flex:none;width:34px;height:34px;display:grid;place-items:center;font-size:12px;font-weight:800;border:' +
+        (a.urgent ? '2px solid var(--tv-accent)' : '1px solid var(--tv-hair)') + ';background:' +
+        (a.urgent ? 'var(--tv-neg-tint)' : 'var(--tv-surface)') + ';color:' + (a.urgent ? 'var(--tv-neg)' : 'var(--tv-ink-55)'),
+      onOpen: go(a.to),
+      onApprove: () => { this.setState((st) => ({ approvals: st.approvals.filter((x) => x.id !== a.id) })); this.toast('Approved ' + a.ref + ' · workflow advanced'); },
+      onReject: () => { this.setState((st) => ({ approvals: st.approvals.filter((x) => x.id !== a.id) })); this.toast('Rejected ' + a.ref + ' · returned to requester'); }
+    }));
+
+    const projectHealth = [
+      ['Meridian Core Banking Migration', 'Meridian Federal Bank', 'Amber', 'warn', '€6.2M', '74%', 'A. Okafor', ['erp', 'Projects', 'proj-1']],
+      ['Corvus 5G Spectrum Advisory', 'Corvus Telecom Group', 'Green', 'pos', '€2.4M', '41%', 'T. Reinhardt', ['erp', 'Projects']],
+      ['Halden Grid Resilience Audit', 'Halden Energy Nordics', 'Green', 'pos', '€1.8M', '52%', 'M. Dvořák', ['erp', 'Projects']],
+      ['Verity Claims Automation', 'Verity Health Systems', 'Green', 'pos', '€3.1M', '38%', 'P. Raghunathan', ['erp', 'Projects', 'proj-2']],
+      ['Blackfen Procurement Reform', 'Blackfen Municipal Authority', 'Red', 'neg', '€2.9M', '91%', 'L. Fischbach', ['erp', 'Projects']]
+    ].map((p) => ({
+      name: p[0], client: p[1], health: p[2], budget: p[4], burn: p[5], partner: p[6],
+      healthStyle: this.tagStyle(p[3]), onOpen: go(p[7])
+    }));
+
+    const alerts = [
+      ['Blackfen engagement at 91% burn', 'Forecast overrun €260k · change request not yet raised', 'neg', ['erp', 'Projects']],
+      ['Meridian receivable past dunning stage 2', '€1.24M · account owner notified twice', 'neg', ['erp', 'Finance', 'inv-1']],
+      ['Two liability redlines block Phase 2 SOW', 'Legal review open 6 days · close date 30 Nov', 'warn', ['ecm', 'Document Viewer', 'doc-2']],
+      ['412 role assignments await certification', 'Quarterly access review opens Monday', 'warn', ['admin', 'Permissions']]
+    ].map((a) => ({
+      title: a[0], body: a[1], onClick: go(a[3]),
+      dotStyle: 'width:4px;flex:none;background:' + (a[2] === 'neg' ? 'var(--tv-accent)' : 'var(--tv-mute)') + ';display:block'
+    }));
+
+    const topIdeas = [
+      ['01', 'Regulatory-change radar for banking clients', 'Adaeze Okafor · Financial Services', '148', ['think', 'Ideas', 'idea-1']],
+      ['02', 'Reusable ESG assurance toolkit', 'Camille Béranger · Sustainability', '121', ['think', 'Ideas', 'idea-2']],
+      ['03', 'Engagement staffing simulator', 'Hiroshi Tanabe · Delivery Excellence', '96', ['think', 'Ideas']]
+    ].map((t) => ({ rank: t[0], title: t[1], author: t[2], votes: t[3], onClick: go(t[4]) }));
+
+    const activity = [
+      ['Tomas Reinhardt', 'advanced opportunity', 'Meridian — Core Banking Migration Phase 2', '12 min ago', 'CRM', ['crm', 'Opportunities', 'opp-1']],
+      ['Legal Operations', 'returned document with redlines', 'Meridian Phase 2 Statement of Work.docx', '46 min ago', 'ECM', ['ecm', 'Document Viewer', 'doc-2']],
+      ['Camille Béranger', 'submitted innovation idea', 'Client carbon-baseline accelerator', '2 h ago', 'Think Tank', ['think', 'Ideas']],
+      ['Priya Raghunathan', 'raised change request on', 'Blackfen Procurement Reform', '3 h ago', 'ERP', ['erp', 'Projects']],
+      ['System', 'auto-classified 214 documents', 'Corvus vendor due-diligence pack', '5 h ago', 'ECM', ['ecm', 'Repository']]
+    ].map((a) => ({ who: a[0], what: a[1], target: a[2], when: a[3], module: a[4], onClick: go(a[5]) }));
+
+    const docflow = [
+      ['Captured', '3,914', 100], ['OCR complete', '3,802', 97], ['Auto-classified', '3,662', 94], ['Awaiting review', '112', 3]
+    ].map((d) => ({ label: d[0], value: d[1], style: 'height:100%;width:' + d[2] + '%;background:var(--tv-ink)' }));
+
+    const addable = Object.keys(WIDGET_DEFS).filter((k) => s.widgets.indexOf(k) < 0)
+      .map((k) => ({ title: WIDGET_DEFS[k].title, onClick: () => this.setState((st) => ({ widgets: [...st.widgets, k] })) }));
+
+    // ── workspace ─────────────────────────────────────────────────────────
+    const wsTabs = [['Tasks', '14'], ['Approvals', '6'], ['Documents', '9'], ['Activities', '12'], ['Ideas', '3']].map((t) => ({
+      label: t[0], count: t[1],
+      countStyle: 'font-size:10.5px;font-weight:800;margin-left:7px;color:' + (s.wsTab === t[0] ? 'var(--tv-accent)' : 'var(--tv-ink-40)'),
+      style: 'background:none;border:0;border-bottom:2px solid ' + (s.wsTab === t[0] ? 'var(--tv-accent)' : 'transparent') +
+        ';margin-bottom:-2px;padding:10px 16px 9px;font:inherit;font-size:13.5px;font-weight:' + (s.wsTab === t[0] ? '800' : '400') +
+        ';color:' + (s.wsTab === t[0] ? 'var(--tv-ink)' : 'var(--tv-ink-55)') + ';cursor:pointer;white-space:nowrap',
+      onClick: () => this.setState({ wsTab: t[0] })
+    }));
+
+    const mkTask = (id, title, meta, module, to) => {
+      const done = s.doneTasks.indexOf(id) >= 0;
+      return {
+        title: title, meta: meta, module: module, mark: done ? '✓' : '',
+        titleStyle: 'font-weight:800;font-size:13.5px;' + (done ? 'text-decoration:line-through;color:var(--tv-ink-40)' : ''),
+        boxStyle: 'width:19px;height:19px;flex:none;border:1.5px solid ' + (done ? 'var(--tv-accent)' : 'var(--tv-ink-40)') +
+          ';background:' + (done ? 'var(--tv-accent)' : 'none') + ';color:var(--tv-on-accent);cursor:pointer;font:inherit;font-size:11px;line-height:1;display:grid;place-items:center',
+        onDone: () => this.setState((st) => ({ doneTasks: done ? st.doneTasks.filter((x) => x !== id) : [...st.doneTasks, id] })),
+        onOpen: go(to)
+      };
+    };
+
+    const taskGroups = [
+      { label: 'Overdue', count: '2 items', kind: 'neg', tasks: [
+        mkTask('t1', 'Sign off Meridian Phase 2 pricing floor', 'Due 2 days ago · Tomas Reinhardt waiting', 'CRM', ['crm', 'Opportunities', 'opp-1']),
+        mkTask('t2', 'Confirm Blackfen overrun treatment', 'Due yesterday · change request CR-2026-0214', 'ERP', ['erp', 'Projects'])
+      ] },
+      { label: 'Due today', count: '3 items', kind: 'warn', tasks: [
+        mkTask('t3', 'Approve Lindqvist Legal supplier invoice', '€486,500 · SLA 4 hours', 'Workflow', ['workflow', 'My approvals']),
+        mkTask('t4', 'Review Q3 receivables narrative for board pack', 'Draft prepared by Group Finance', 'BI', ['bi', '']),
+        mkTask('t5', 'Decide finance gate on regulatory-change radar', '€4.2M contribution estimate', 'Think Tank', ['think', 'Ideas', 'idea-1'])
+      ] },
+      { label: 'Upcoming', count: '9 items', kind: 'neutral', tasks: [
+        mkTask('t6', 'Quarterly access certification — Finance roles', 'Opens Monday · 412 assignments', 'Admin', ['admin', 'Permissions']),
+        mkTask('t7', 'Prepare Corvus renewal commercial position', 'Retainer expires 31 Jan 2027', 'CRM', ['crm', 'Customers', 'corvus']),
+        mkTask('t8', 'Review Energy practice utilisation plan', 'Marek Dvořák · 3 open leave escalations', 'HR', ['hr', 'Employees', 'emp-2'])
+      ] }
+    ].map((g) => ({
+      label: g.label, count: g.count, tasks: g.tasks,
+      dotStyle: 'width:9px;height:9px;display:block;background:' + (g.kind === 'neg' ? 'var(--tv-accent)' : g.kind === 'warn' ? 'var(--tv-warn)' : 'var(--tv-ink-40)')
+    }));
+
+    const approvalRows = [
+      ['WF-2026-11842', 'Supplier invoice — Lindqvist Legal Partners', 'ERP', 'Priya Raghunathan', '4h', 'neg', '€486,500', ['erp', 'Finance']],
+      ['WF-2026-11840', 'Discount approval — Corvus Spectrum Retainer', 'CRM', 'Adaeze Okafor', '1d', 'warn', '€2,100,000', ['crm', 'Opportunities', 'opp-2']],
+      ['WF-2026-11833', 'Business case — Regulatory-change radar', 'Think Tank', 'Adaeze Okafor', '2d', 'neutral', '€4,200,000', ['think', 'Ideas', 'idea-1']],
+      ['WF-2026-11827', 'Retention override — Meridian audit file', 'ECM', 'Legal Operations', '3d', 'neutral', '—', ['ecm', 'Document Viewer', 'doc-1']],
+      ['WF-2026-11819', 'Capital request — Prague office fit-out', 'ERP', 'Facilities', '4d', 'neutral', '€310,000', ['erp', 'Finance']],
+      ['WF-2026-11802', 'Secondment approval — Hiroshi Tanabe', 'HR', 'Delivery Excellence', '5d', 'neutral', '—', ['hr', 'Employees']]
+    ].map((r) => ({
+      ref: r[0], subject: r[1], module: r[2], by: r[3], sla: r[4], amount: r[6],
+      slaStyle: this.tagStyle(r[5]), onOpen: go(r[7])
+    }));
+
+    const myDocs = [
+      ['PDF', 'Meridian MSA 2026 — executed.pdf', 'Meridian Federal Bank', 'v4.2', 'Confidential', '2 days ago', '4.2 MB', ['ecm', 'Document Viewer', 'doc-1']],
+      ['DOCX', 'Meridian Phase 2 Statement of Work.docx', 'Meridian Federal Bank', 'v1.7', 'Restricted', '4 h ago', '820 KB', ['ecm', 'Document Viewer', 'doc-2']],
+      ['XLSX', 'Group receivables ageing — Sep 2026.xlsx', 'Group Finance', 'v2.0', 'Internal', 'Yesterday', '1.1 MB', ['ecm', 'Repository']],
+      ['PDF', 'Corvus spectrum advisory proposal.pdf', 'Corvus Telecom Group', 'v3.1', 'Restricted', '3 days ago', '6.8 MB', ['ecm', 'Repository']],
+      ['PDF', 'Board pack — Q3 FY2026 (draft).pdf', 'Group Board', 'v0.6', 'Confidential', '6 h ago', '12.4 MB', ['ecm', 'Repository']],
+      ['DOCX', 'Blackfen change request CR-2026-0214.docx', 'Blackfen Municipal Authority', 'v1.2', 'Internal', 'Today', '340 KB', ['ecm', 'Repository']]
+    ].map((d) => ({
+      ext: d[0], name: d[1], client: d[2], version: d[3], security: d[4], when: d[5], size: d[6],
+      extStyle: 'font-size:9.5px;font-weight:800;letter-spacing:.06em;background:var(--tv-ink);color:var(--tv-bg);padding:2px 5px',
+      secStyle: this.tagStyle(d[4] === 'Confidential' ? 'neg' : d[4] === 'Restricted' ? 'warn' : 'neutral'),
+      onOpen: go(d[7])
+    }));
+
+    const myActivities = [
+      ['Today 09:41', 'Call — Elise Brenner, Group CIO', 'Meridian Federal Bank · phase 2 governance', 'CRM'],
+      ['Today 08:15', 'Approved workflow step', 'WF-2026-11798 · Verity change order', 'Workflow'],
+      ['Yesterday 17:20', 'Commented on idea', 'Reusable ESG assurance toolkit', 'Think Tank'],
+      ['Yesterday 14:05', 'Reviewed engagement forecast', 'Blackfen Procurement Reform', 'ERP'],
+      ['Wed 11:30', 'Board pack section drafted', 'Q3 receivables narrative', 'BI']
+    ].map((a) => ({ when: a[0], title: a[1], meta: a[2], module: a[3] }));
+
+    const myIdeas = [
+      ['IDEA-2026-041', 'Regulatory-change radar for banking clients', 'A monitored feed of regulatory change mapped to client obligations, priced as a subscription alongside advisory work.', 'Under business assessment', 'warn', '148', '31', ['think', 'Ideas', 'idea-1']],
+      ['IDEA-2026-018', 'Reusable ESG assurance toolkit', 'Standardised evidence templates and testing scripts to cut ESG assurance setup from six weeks to ten days.', 'Converted to project', 'pos', '121', '24', ['think', 'Ideas', 'idea-2']],
+      ['IDEA-2026-052', 'Engagement staffing simulator', 'Model staffing scenarios against pipeline probability before a proposal is signed.', 'Submitted', 'neutral', '96', '12', ['think', 'Ideas']]
+    ].map((i) => ({
+      ref: i[0], title: i[1], summary: i[2], status: i[3], votes: i[5], comments: i[6],
+      statusStyle: this.tagStyle(i[4]), onOpen: go(i[7])
+    }));
+
+    const knowledge = [
+      ['Method', 'Core banking migration reference method', 'Seven-phase method with regulator engagement checkpoints, drawn from 34 engagements across five markets.', '34 engagements · revised June 2026'],
+      ['Playbook', 'Pricing a fixed-fee regulatory remediation', 'How to structure fixed-fee remediation work when scope depends on regulator findings.', '12 precedents · Commercial'],
+      ['Precedent', 'Liability cap positions accepted by banks', 'Negotiated caps, carve-outs and the arguments that carried them.', 'Legal Operations · 41 contracts'],
+      ['Learning', 'Why Blackfen overran — post-review', 'Procurement reform scope crept through three unpriced change requests. Controls now mandatory.', 'Delivery Excellence · Sep 2026'],
+      ['Asset', 'ESG assurance evidence templates', 'Fifteen templates and testing scripts produced from an approved Think Tank idea.', 'From IDEA-2026-018'],
+      ['Method', 'Claims automation target operating model', 'Reference TOM, role definitions and benefit baselining approach for insurers.', '9 engagements · Insurance']
+    ].map((k) => ({ kicker: k[0], title: k[1], body: k[2], meta: k[3], onClick: () => this.toast('Knowledge articles open in the ECM viewer') }));
+
+    // ── global search ─────────────────────────────────────────────────────
+    const q = s.query.trim().toLowerCase();
+    const filtered = SEARCH_INDEX.filter((r) => {
+      const inFilter = s.searchFilter === 'All' || r.type === s.searchFilter;
+      const match = !q || (r.title + ' ' + r.meta + ' ' + r.type).toLowerCase().indexOf(q) >= 0;
+      return inFilter && match;
+    });
+    const types = [];
+    filtered.forEach((r) => { if (types.indexOf(r.type) < 0) types.push(r.type); });
+    const searchGroups = types.map((t) => {
+      const items = filtered.filter((r) => r.type === t);
+      return {
+        label: t, count: items.length + (items.length === 1 ? ' result' : ' results'),
+        items: items.map((r) => ({ badge: r.badge, title: r.title, meta: r.meta, hint: r.to[0].toUpperCase(), onClick: go(r.to) }))
+      };
+    });
+    const searchFilters = ['All', 'Customers', 'Contacts', 'Opportunities', 'Documents', 'Projects', 'Invoices', 'Employees', 'Ideas', 'Knowledge'].map((f) => ({
+      label: f,
+      onClick: () => this.setState({ searchFilter: f }),
+      style: 'background:' + (s.searchFilter === f ? 'var(--tv-ink)' : 'none') + ';color:' + (s.searchFilter === f ? 'var(--tv-bg)' : 'var(--tv-ink-55)') +
+        ';border:0;padding:7px 12px;font:inherit;font-size:12px;font-weight:' + (s.searchFilter === f ? '800' : '400') + ';cursor:pointer;white-space:nowrap'
+    }));
+
+    const aiMessages = s.aiMsgs.map((m) => ({
+      who: m.role === 'you' ? 'Ingrid Solberg' : 'TechVault AI',
+      text: m.text,
+      wrapStyle: 'margin-bottom:16px;padding-left:' + (m.role === 'you' ? '0' : '10px') + ';border-left:' + (m.role === 'you' ? '0' : '2px solid var(--tv-accent)'),
+      bodyStyle: 'font-size:13px;line-height:1.5;color:' + (m.role === 'you' ? 'var(--tv-ink-70)' : 'var(--tv-ink)') + ';font-weight:' + (m.role === 'you' ? '400' : '400'),
+      hasRows: !!(m.rows && m.rows.length),
+      rows: (m.rows || []).map((r) => ({ label: r.label, value: r.value, onClick: go(r.to) })),
+      hasSources: !!(m.sources && m.sources.length),
+      sources: (m.sources || []).map((x) => ({ label: x, onClick: () => this.toast('Source records are listed with their permission scope') })),
+      hasAction: !!m.action,
+      actionLabel: m.action ? m.action.label : '',
+      onAction: m.action ? (m.action.to ? go(m.action.to) : () => this.toast(m.action.toast)) : this.noop
+    }));
+
+    const aiPrompts = ['Which invoices are overdue?', 'Summarise the latest Meridian documents', 'Show stalled opportunities', 'Who has outstanding leave requests?', 'Create a project from the approved idea']
+      .map((p) => ({ label: p, onClick: () => this.askAI(p) }));
+
+    const quickItems = [
+      ['Customer', 'C', ['crm', 'Customers']], ['Contact', 'K', ['crm', 'Contacts']], ['Lead', 'L', ['crm', 'Leads']],
+      ['Opportunity', 'O', ['crm', 'Opportunities']], ['Document', 'D', ['ecm', 'Repository']], ['Project', 'P', ['erp', 'Projects']],
+      ['Employee', 'E', ['hr', 'Employees']], ['Idea', 'I', ['think', 'Ideas']], ['Task', 'T', ['workspace', '']], ['Workflow', 'W', ['workflow', '']]
+    ].map((q2) => ({
+      label: q2[0], key: 'Alt ' + q2[1],
+      onClick: () => { this.navigate(q2[2][0], q2[2][1]); this.toast('New ' + q2[0].toLowerCase() + ' draft opened'); }
+    }));
+
+    const notifGroups = ['Urgent', 'Today', 'Earlier'].map((g) => {
+      const items = s.notifications.filter((n) => n.group === g);
+      return {
+        label: g, count: items.length ? items.length + ' items' : '',
+        dotStyle: 'width:8px;height:8px;display:block;background:' + (g === 'Urgent' ? 'var(--tv-accent)' : 'var(--tv-ink-40)'),
+        items: items.map((n) => ({
+          module: n.module, title: n.title, body: n.body, time: n.time,
+          wrapStyle: 'padding:12px 14px;border-bottom:1px solid var(--tv-hair);background:' + (n.read ? 'var(--tv-panel)' : 'var(--tv-surface)'),
+          unreadStyle: n.read ? 'display:none' : 'width:6px;height:6px;background:var(--tv-accent);display:block',
+          onOpen: () => { this.setState((st) => ({ notifications: st.notifications.map((x) => x.id === n.id ? Object.assign({}, x, { read: true }) : x) })); this.navigate(n.to[0], n.to[1], n.to[2]); },
+          onDismiss: () => this.setState((st) => ({ notifications: st.notifications.filter((x) => x.id !== n.id) }))
+        }))
+      };
+    }).filter((g) => g.items.length);
+
+    return {
+      theme: s.theme,
+      themeIcon: s.theme === 'dark' ? ICONS.sun : ICONS.moon,
+      showLogin: !s.authed,
+      showApp: s.authed,
+      loginEmail: 'ingrid.solberg@northbridge-advisory.eu',
+      signIn: () => this.setState({ authed: true }),
+      noop: this.noop,
+      prevent: (e) => e.preventDefault(),
+      stop: (e) => e.stopPropagation(),
+      navigate: this.navigate,
+      toast: this.toast,
+      toasts: s.toasts,
+
+      sidebarOpen: s.sidebarOpen,
+      sidebarWidth: s.sidebarOpen ? '232px' : '52px',
+      toggleSidebar: () => this.setState((st) => ({ sidebarOpen: !st.sidebarOpen })),
+      toggleTheme: () => this.setState((st) => ({ theme: st.theme === 'dark' ? 'light' : 'dark' })),
+      navItems: navItems,
+      favourites: [
+        { label: 'Meridian Federal Bank', onClick: go(['crm', 'Customers', 'meridian']) },
+        { label: 'Group receivables ageing', onClick: go(['erp', 'Finance']) },
+        { label: 'Innovation Pipeline', onClick: go(['think', 'Innovation Pipeline']) }
+      ],
+      recents: [
+        { label: 'INV-2026-04417 · Meridian', onClick: go(['erp', 'Finance', 'inv-1']) },
+        { label: 'Phase 2 Statement of Work', onClick: go(['ecm', 'Document Viewer', 'doc-2']) },
+        { label: 'Adaeze Okafor · Employee 360', onClick: go(['hr', 'Employees', 'emp-1']) },
+        { label: 'Audit log · 12 Sep 2026', onClick: go(['admin', 'Audit Logs']) }
+      ],
+      crumbs: crumbs,
+      goHome: go(['home', '']),
+      goWorkspace: go(['workspace', '']),
+      goWorkflow: go(['workflow', 'My approvals']),
+      goProfile: () => { this.navigate('hr', 'Employees', 'emp-self'); },
+      goNotifPrefs: go(['admin', 'Notification Settings']),
+
+      onHome: s.screen === 'home',
+      onWorkspace: s.screen === 'workspace',
+      onKnowledge: s.screen === 'knowledge',
+      onCRM: s.screen === 'crm',
+      onERP: s.screen === 'erp',
+      onECM: s.screen === 'ecm',
+      onHR: s.screen === 'hr',
+      onThink: s.screen === 'think',
+      onBI: s.screen === 'bi',
+      onWorkflow: s.screen === 'workflow',
+      onAdmin: s.screen === 'admin',
+      onProjects: s.screen === 'projects',
+      sub: s.sub,
+      entity: s.entity,
+
+      widgets: widgets,
+      editLayout: s.editLayout,
+      editLabel: s.editLayout ? 'Done editing' : 'Edit layout',
+      toggleEdit: () => this.setState((st) => ({ editLayout: !st.editLayout })),
+      addableWidgets: addable,
+      exportToast: () => this.toast('Export queued · you will be notified when the file is ready'),
+      kpis: kpis,
+      revenueBars: revenueBars,
+      pipelineStages: pipelineStages,
+      approvals: approvals,
+      approvalsEmpty: s.approvals.length === 0,
+      projectHealth: projectHealth,
+      alerts: alerts,
+      topIdeas: topIdeas,
+      activity: activity,
+      docflow: docflow,
+
+      wsTabs: wsTabs,
+      wsIsTasks: s.wsTab === 'Tasks',
+      wsIsApprovals: s.wsTab === 'Approvals',
+      wsIsDocs: s.wsTab === 'Documents',
+      wsIsActivities: s.wsTab === 'Activities',
+      wsIsIdeas: s.wsTab === 'Ideas',
+      taskGroups: taskGroups,
+      approvalRows: approvalRows,
+      myDocs: myDocs,
+      myActivities: myActivities,
+      myIdeas: myIdeas,
+      knowledge: knowledge,
+
+      paletteOpen: s.palette,
+      openPalette: () => this.setState({ palette: true }),
+      closePalette: () => this.setState({ palette: false }),
+      query: s.query,
+      queryChange: (e) => this.setState({ query: e.target.value }),
+      clearQuery: () => this.setState({ query: '' }),
+      askAIFromSearch: () => { this.setState({ palette: false }); this.askAI(s.query); },
+      searchFilters: searchFilters,
+      searchGroups: searchGroups,
+      searchEmpty: searchGroups.length === 0,
+      unreadCount: String(s.notifications.filter((n) => !n.read).length),
+
+      quickOpen: s.quick,
+      toggleQuick: () => this.setState((st) => ({ quick: !st.quick })),
+      closeQuick: () => this.setState({ quick: false }),
+      quickItems: quickItems,
+
+      notifOpen: s.notif,
+      toggleNotif: () => this.setState((st) => ({ notif: !st.notif })),
+      notifGroups: notifGroups,
+      notifEmpty: notifGroups.length === 0,
+      markAllRead: () => this.setState((st) => ({ notifications: st.notifications.map((n) => Object.assign({}, n, { read: true })) })),
+
+      aiOpen: s.ai,
+      toggleAI: () => this.setState((st) => ({ ai: !st.ai })),
+      aiFull: () => { this.toast('Assistant expanded — full-screen AI workspace'); },
+      aiMessages: aiMessages,
+      aiThinking: s.aiThinking,
+      aiPrompts: aiPrompts,
+      aiInput: s.aiInput,
+      aiChange: (e) => this.setState({ aiInput: e.target.value }),
+      aiSubmit: (e) => { e.preventDefault(); const v = s.aiInput.trim(); if (v) this.askAI(v); },
+
+      mobileOpen: s.mobile,
+      toggleMobile: () => this.setState((st) => ({ mobile: !st.mobile }))
+    };
+  }
+
+  noop = () => {};
+}
+
+</script>
+</body>
+</html>

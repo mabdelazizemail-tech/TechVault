@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/modernist-36bd29c9-a0f6-40d6-82f9-3de3249645b6/styles.css">
+<script src="_ds/modernist-36bd29c9-a0f6-40d6-82f9-3de3249645b6/_ds_bundle.js"></script>
+<link rel="stylesheet" href="tv-tokens.css">
+</helmet>
+
+<div style="font-family:'Archivo',system-ui,sans-serif;color:var(--tv-ink);animation:tv-fade .2s ease">
+
+  <sc-if value="{{ isViewer }}" hint-placeholder-val="{{ false }}">
+    <div>
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:0 24px 12px;flex-wrap:wrap">
+        <div style="min-width:0">
+          <div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:3px">
+            <h1 style="font-size:26px;margin:0">{{ doc.name }}</h1>
+            <span style="{{ doc.secStyle }}">{{ doc.security }}</span>
+            <span class="tag tag-neutral">{{ doc.version }}</span>
+          </div>
+          <div style="font-size:12.5px;color:var(--tv-ink-55)">{{ doc.meta }}</div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-secondary" onClick="{{ onDownload }}">Download</button>
+          <button class="btn btn-secondary" onClick="{{ onShare }}">Share</button>
+          <button class="btn btn-primary" onClick="{{ onApprove }}">{{ doc.primaryAction }}</button>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:minmax(0,1.55fr) minmax(360px,0.95fr);gap:1px;background:var(--tv-hair);border-top:2px solid var(--tv-rule)">
+        <section style="background:var(--tv-surface);min-width:0;display:flex;flex-direction:column">
+          <div style="display:flex;align-items:center;gap:8px;padding:8px 14px;background:var(--tv-panel);border-bottom:1px solid var(--tv-hair);flex-wrap:wrap">
+            <button class="btn btn-secondary" style="padding:4px 9px;font-size:12px" onClick="{{ onPrevPage }}">‹</button>
+            <span style="font-size:12px;color:var(--tv-ink-55)">Page {{ page }} of {{ doc.pages }}</span>
+            <button class="btn btn-secondary" style="padding:4px 9px;font-size:12px" onClick="{{ onNextPage }}">›</button>
+            <div style="width:1px;height:20px;background:var(--tv-hair)"></div>
+            <button class="btn btn-secondary" style="padding:4px 9px;font-size:12px" onClick="{{ onZoom }}">{{ zoomLabel }}</button>
+            <button class="btn btn-secondary" style="padding:4px 9px;font-size:12px" onClick="{{ toggleOcr }}">{{ ocrLabel }}</button>
+            <div style="flex:1"></div>
+            <span style="font-size:11px;color:var(--tv-ink-40)">Watermarked · viewing logged to audit trail</span>
+          </div>
+          <div style="flex:1;padding:26px;display:flex;justify-content:center;overflow:auto">
+            <div style="width:100%;max-width:600px;background:var(--tv-panel);box-shadow:var(--shadow-md);padding:44px 46px;position:relative;min-height:640px">
+              <div style="position:absolute;inset:0;display:grid;place-items:center;pointer-events:none">
+                <span style="font-size:52px;font-weight:800;color:var(--tv-ink);opacity:.05;transform:rotate(-28deg);white-space:nowrap">NORTHBRIDGE · I. SOLBERG</span>
+              </div>
+              <div style="font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--tv-ink-55);margin-bottom:20px">{{ doc.docKicker }}</div>
+              <div style="font-size:23px;font-weight:800;line-height:1.15;margin-bottom:18px">{{ doc.docTitle }}</div>
+              <div style="height:2px;background:var(--tv-rule);margin-bottom:18px"></div>
+              <sc-for list="{{ doc.body }}" as="p" hint-placeholder-count="5">
+                <div style="{{ p.style }}">{{ p.text }}</div>
+              </sc-for>
+              <sc-if value="{{ ocrOn }}" hint-placeholder-val="{{ false }}">
+                <div style="margin-top:20px;border:1px solid var(--tv-accent);padding:10px 12px">
+                  <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--tv-accent-ink);font-weight:800;margin-bottom:5px">OCR text layer · 99.2% confidence</div>
+                  <div style="font-size:11.5px;line-height:1.6;color:var(--tv-ink-70);font-family:ui-monospace,monospace">{{ doc.ocrSample }}</div>
+                </div>
+              </sc-if>
+            </div>
+          </div>
+        </section>
+
+        <aside style="background:var(--tv-panel);min-width:0;display:flex;flex-direction:column">
+          <div style="display:flex;border-bottom:2px solid var(--tv-rule);overflow-x:auto">
+            <sc-for list="{{ viewerTabs }}" as="t" hint-placeholder-count="5">
+              <button onClick="{{ t.onClick }}" style="{{ t.style }}">{{ t.label }}</button>
+            </sc-for>
+          </div>
+          <div style="flex:1;overflow-y:auto;padding:16px 18px 24px">
+            <sc-if value="{{ tabMetadata }}" hint-placeholder-val="{{ true }}">
+              <div>
+                <div style="border:1px solid var(--tv-accent);background:var(--tv-accent-tint);padding:11px 13px;margin-bottom:16px">
+                  <div style="display:flex;align-items:center;gap:7px;margin-bottom:4px">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--tv-accent-ink)" stroke-width="2"><path d="M12 3l1.9 4.8L18.7 9.7 13.9 11.6 12 16.4 10.1 11.6 5.3 9.7 10.1 7.8z"></path></svg>
+                    <span style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--tv-accent-ink);font-weight:800">AI-extracted metadata</span>
+                  </div>
+                  <div style="font-size:12px;color:var(--tv-accent-ink);line-height:1.5;margin-bottom:8px">Classified as {{ doc.aiClass }} at {{ doc.aiConfidence }} confidence. Parties, term dates and liability caps were read from the document text.</div>
+                  <div style="display:flex;gap:7px">
+                    <button class="btn btn-primary" style="padding:4px 9px;font-size:12px" onClick="{{ onAcceptAI }}">Accept all</button>
+                    <button class="btn btn-secondary" style="padding:4px 9px;font-size:12px;border-color:var(--tv-accent-ink);color:var(--tv-accent-ink)" onClick="{{ onReviewAI }}">Review field by field</button>
+                  </div>
+                </div>
+                <sc-for list="{{ doc.metadata }}" as="m" hint-placeholder-count="8">
+                  <div style="display:flex;gap:12px;border-top:1px solid var(--tv-hair);padding:8px 0">
+                    <div style="width:118px;flex:none;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--tv-ink-55);padding-top:2px">{{ m.label }}</div>
+                    <div style="flex:1;min-width:0">
+                      <div style="font-size:13px;font-weight:800">{{ m.value }}</div>
+                      <div style="{{ m.sourceStyle }}">{{ m.source }}</div>
+                    </div>
+                  </div>
+                </sc-for>
+                <button class="btn btn-secondary btn-block" onClick="{{ onEditMeta }}">Edit metadata</button>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ tabWorkflow }}" hint-placeholder-val="{{ false }}">
+              <div>
+                <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--tv-ink-55);margin-bottom:12px">Approval workflow · {{ doc.workflowName }}</div>
+                <sc-for list="{{ doc.workflow }}" as="w" hint-placeholder-count="5">
+                  <div style="display:flex;gap:12px">
+                    <div style="flex:none;display:flex;flex-direction:column;align-items:center;width:16px">
+                      <span style="{{ w.dotStyle }}"></span>
+                      <span style="{{ w.lineStyle }}"></span>
+                    </div>
+                    <div style="flex:1;min-width:0;padding-bottom:16px">
+                      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                        <span style="font-weight:800;font-size:13px">{{ w.step }}</span>
+                        <span style="{{ w.statusStyle }}">{{ w.status }}</span>
+                      </div>
+                      <div style="font-size:12px;color:var(--tv-ink-55)">{{ w.who }}</div>
+                      <div style="font-size:11px;color:var(--tv-ink-40)">{{ w.when }}</div>
+                      <div style="{{ w.commentStyle }}">{{ w.comment }}</div>
+                    </div>
+                  </div>
+                </sc-for>
+                <div style="height:1px;background:var(--tv-hair);margin:4px 0 14px"></div>
+                <div class="field" style="margin-bottom:10px">
+                  <label for="ecm-comment">Decision comment</label>
+                  <textarea class="input" id="ecm-comment" placeholder="Recorded against the workflow step and the audit trail" onChange="{{ noop }}"></textarea>
+                </div>
+                <div style="display:flex;gap:8px">
+                  <button class="btn btn-primary" onClick="{{ onApprove }}">Approve step</button>
+                  <button class="btn btn-secondary" onClick="{{ onReject }}">Return to author</button>
+                </div>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ tabVersions }}" hint-placeholder-val="{{ false }}">
+              <div>
+                <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--tv-ink-55);margin-bottom:10px">Version history</div>
+                <sc-for list="{{ doc.versions }}" as="v" hint-placeholder-count="5">
+                  <div style="display:flex;gap:12px;border-top:1px solid var(--tv-hair);padding:10px 0">
+                    <span style="{{ v.badgeStyle }}">{{ v.version }}</span>
+                    <div style="flex:1;min-width:0">
+                      <div style="font-size:13px;font-weight:800">{{ v.title }}</div>
+                      <div style="font-size:11.5px;color:var(--tv-ink-55)">{{ v.who }} · {{ v.when }}</div>
+                    </div>
+                    <button class="btn btn-ghost" style="font-size:11.5px;flex:none" onClick="{{ v.onCompare }}">Compare</button>
+                  </div>
+                </sc-for>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ tabRelated }}" hint-placeholder-val="{{ false }}">
+              <div>
+                <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--tv-ink-55);margin-bottom:4px">Related records</div>
+                <p style="font-size:12px;color:var(--tv-ink-55);margin-bottom:12px">This document is linked to business objects in other modules. Links are maintained by the workflow, not by hand.</p>
+                <sc-for list="{{ doc.related }}" as="r" hint-placeholder-count="5">
+                  <button onClick="{{ r.onClick }}" style="display:flex;align-items:center;gap:11px;width:100%;background:none;border:0;border-top:1px solid var(--tv-hair);padding:10px 0;cursor:pointer;font:inherit;color:inherit;text-align:left">
+                    <span style="width:30px;height:30px;flex:none;border:1px solid var(--tv-hair);display:grid;place-items:center;font-size:10px;font-weight:800;color:var(--tv-ink-55)">{{ r.badge }}</span>
+                    <span style="flex:1;min-width:0">
+                      <span style="display:block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--tv-ink-55)">{{ r.module }}</span>
+                      <span style="display:block;font-weight:800;font-size:13px">{{ r.label }}</span>
+                    </span>
+                    <span style="color:var(--tv-accent-ink);font-weight:800;flex:none">→</span>
+                  </button>
+                </sc-for>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ tabAudit }}" hint-placeholder-val="{{ false }}">
+              <div>
+                <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--tv-ink-55);margin-bottom:10px">Audit trail · immutable</div>
+                <sc-for list="{{ doc.audit }}" as="a" hint-placeholder-count="6">
+                  <div style="border-top:1px solid var(--tv-hair);padding:9px 0">
+                    <div style="display:flex;justify-content:space-between;gap:10px">
+                      <span style="font-size:12.5px;font-weight:800">{{ a.action }}</span>
+                      <span style="font-size:11px;color:var(--tv-ink-40);flex:none">{{ a.when }}</span>
+                    </div>
+                    <div style="font-size:11.5px;color:var(--tv-ink-55)">{{ a.who }} · {{ a.ip }}</div>
+                  </div>
+                </sc-for>
+                <button class="btn btn-secondary btn-block" onClick="{{ onFullAudit }}">Open full audit log</button>
+              </div>
+            </sc-if>
+          </div>
+        </aside>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isRepo }}" hint-placeholder-val="{{ true }}">
+    <div>
+      <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:16px;padding:0 24px 12px;flex-wrap:wrap">
+        <div>
+          <h1 style="font-size:34px;margin:0 0 3px">{{ repoTitle }}</h1>
+          <div style="font-size:12.5px;color:var(--tv-ink-55)">{{ repoMeta }}</div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-secondary" onClick="{{ onScan }}">Scan / capture</button>
+          <button class="btn btn-primary" onClick="{{ onUpload }}">Upload documents</button>
+        </div>
+      </div>
+
+      <sc-if value="{{ isProcessing }}" hint-placeholder-val="{{ false }}">
+        <div style="border-top:1px solid var(--tv-hair);background:var(--tv-panel);padding:16px 24px 24px">
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1px;background:var(--tv-hair);border:1px solid var(--tv-hair);margin-bottom:20px">
+            <sc-for list="{{ ocrStats }}" as="o" hint-placeholder-count="4">
+              <div style="background:var(--tv-panel);padding:12px 14px">
+                <div style="font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--tv-ink-55)">{{ o.label }}</div>
+                <div style="font-size:24px;font-weight:800">{{ o.value }}</div>
+                <div style="font-size:11px;color:var(--tv-ink-40)">{{ o.note }}</div>
+              </div>
+            </sc-for>
+          </div>
+          <h3 style="font-size:16px;margin:0 0 10px">Processing queue</h3>
+          <table class="table">
+            <thead><tr><th>Batch</th><th>Source</th><th>Pages</th><th>Stage</th><th>Confidence</th><th></th></tr></thead>
+            <tbody>
+              <sc-for list="{{ ocrQueue }}" as="b" hint-placeholder-count="5">
+                <tr>
+                  <td style="font-weight:800">{{ b.batch }}</td>
+                  <td style="color:var(--tv-ink-55)">{{ b.source }}</td>
+                  <td style="font-variant-numeric:tabular-nums">{{ b.pages }}</td>
+                  <td><span style="{{ b.stageStyle }}">{{ b.stage }}</span></td>
+                  <td>{{ b.confidence }}</td>
+                  <td style="text-align:right"><button class="btn btn-ghost" style="font-size:12px" onClick="{{ b.onOpen }}">{{ b.action }} →</button></td>
+                </tr>
+              </sc-for>
+            </tbody>
+          </table>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isBrowser }}" hint-placeholder-val="{{ true }}">
+        <div style="display:grid;grid-template-columns:236px minmax(0,1fr);gap:1px;background:var(--tv-hair);border-top:2px solid var(--tv-rule)">
+          <aside style="background:var(--tv-panel);padding:12px 0 24px;min-width:0">
+            <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--tv-ink-55);padding:0 14px 8px">Repository</div>
+            <sc-for list="{{ tree }}" as="n" hint-placeholder-count="8">
+              <button onClick="{{ n.onClick }}" style="{{ n.style }}">
+                <span style="{{ n.caretStyle }}">{{ n.caret }}</span>
+                <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ n.label }}</span>
+                <span style="font-size:10.5px;color:var(--tv-ink-40);flex:none">{{ n.count }}</span>
+              </button>
+            </sc-for>
+            <div style="height:1px;background:var(--tv-hair);margin:12px 14px"></div>
+            <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--tv-ink-55);padding:0 14px 8px">Filter by tag</div>
+            <div style="display:flex;flex-wrap:wrap;gap:5px;padding:0 14px">
+              <sc-for list="{{ tags }}" as="t" hint-placeholder-count="6">
+                <button onClick="{{ t.onClick }}" style="{{ t.style }}">{{ t.label }}</button>
+              </sc-for>
+            </div>
+          </aside>
+
+          <section style="background:var(--tv-panel);min-width:0">
+            <div style="display:flex;align-items:center;gap:10px;padding:10px 18px;border-bottom:1px solid var(--tv-hair);flex-wrap:wrap">
+              <div style="display:flex;align-items:center;gap:7px;background:var(--tv-surface);border:1px solid var(--tv-hair);padding:0 9px;height:32px;flex:1;min-width:200px;max-width:300px">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--tv-ink-40)" stroke-width="2" style="flex:none"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+                <input value="{{ query }}" onChange="{{ onQuery }}" placeholder="Search documents and full text" aria-label="Search documents" style="flex:1;min-width:0;border:0;background:none;font:inherit;font-size:13px;color:inherit;outline:none">
+              </div>
+              <div class="seg">
+                <label class="seg-opt"><input type="radio" name="ecm-layout" checked="{{ gridChecked }}" onChange="{{ onGrid }}">Grid</label>
+                <label class="seg-opt"><input type="radio" name="ecm-layout" checked="{{ listChecked }}" onChange="{{ onList }}">List</label>
+              </div>
+              <div style="flex:1"></div>
+              <span style="font-size:11.5px;color:var(--tv-ink-55)">{{ docCount }}</span>
+              <button class="btn btn-secondary" style="padding:5px 10px;font-size:12px" onClick="{{ onFilters }}">Filters</button>
+              <button class="btn btn-secondary" style="padding:5px 10px;font-size:12px" onClick="{{ onSaveView }}">Save view</button>
+            </div>
+
+            <div style="padding:14px 18px 6px;font-size:11.5px;color:var(--tv-ink-55);display:flex;align-items:center;gap:7px;flex-wrap:wrap">
+              <span style="font-weight:800;color:var(--tv-ink)">{{ folderLabel }}</span>
+              <span style="color:var(--tv-ink-40)">·</span>
+              <span>{{ folderNote }}</span>
+            </div>
+
+            <sc-if value="{{ gridMode }}" hint-placeholder-val="{{ true }}">
+              <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(226px,1fr));gap:1px;background:var(--tv-hair);border-top:1px solid var(--tv-hair)">
+                <sc-for list="{{ docs }}" as="d" hint-placeholder-count="8">
+                  <button onClick="{{ d.onOpen }}" style="background:var(--tv-panel);border:0;padding:14px 15px;text-align:left;cursor:pointer;font:inherit;color:inherit;display:flex;flex-direction:column;gap:7px;min-height:168px">
+                    <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap">
+                      <span style="font-size:9.5px;font-weight:800;letter-spacing:.06em;background:var(--tv-ink);color:var(--tv-bg);padding:2px 5px">{{ d.ext }}</span>
+                      <span style="{{ d.secStyle }}">{{ d.security }}</span>
+                    </div>
+                    <div style="font-weight:800;font-size:13.5px;line-height:1.25">{{ d.name }}</div>
+                    <div style="font-size:11.5px;color:var(--tv-ink-55);flex:1">{{ d.client }}</div>
+                    <div style="display:flex;flex-wrap:wrap;gap:4px">
+                      <sc-for list="{{ d.tags }}" as="tg" hint-placeholder-count="2">
+                        <span style="font-size:10px;border:1px solid var(--tv-hair);padding:1px 5px;color:var(--tv-ink-55)">{{ tg.label }}</span>
+                      </sc-for>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--tv-ink-40);border-top:1px solid var(--tv-hair);padding-top:7px">
+                      <span>{{ d.version }} · {{ d.when }}</span>
+                      <span>{{ d.size }}</span>
+                    </div>
+                  </button>
+                </sc-for>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ listMode }}" hint-placeholder-val="{{ false }}">
+              <div style="overflow-x:auto;border-top:1px solid var(--tv-hair)">
+                <table class="table" style="min-width:820px">
+                  <thead><tr><th>Document</th><th>Type</th><th>Client</th><th>Version</th><th>Security</th><th>Modified</th><th>Size</th></tr></thead>
+                  <tbody>
+                    <sc-for list="{{ docs }}" as="d" hint-placeholder-count="8">
+                      <tr>
+                        <td><button onClick="{{ d.onOpen }}" style="background:none;border:0;padding:0;font:inherit;font-weight:800;color:inherit;cursor:pointer;text-align:left">{{ d.name }}</button></td>
+                        <td style="color:var(--tv-ink-55)">{{ d.type }}</td>
+                        <td style="color:var(--tv-ink-55)">{{ d.client }}</td>
+                        <td>{{ d.version }}</td>
+                        <td><span style="{{ d.secStyle }}">{{ d.security }}</span></td>
+                        <td style="color:var(--tv-ink-55)">{{ d.when }}</td>
+                        <td style="font-variant-numeric:tabular-nums">{{ d.size }}</td>
+                      </tr>
+                    </sc-for>
+                  </tbody>
+                </table>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ docsEmpty }}" hint-placeholder-val="{{ false }}">
+              <div style="padding:44px 20px;max-width:62ch;border-top:1px solid var(--tv-hair)">
+                <div style="font-weight:800;font-size:17px;margin-bottom:5px">Nothing filed here yet</div>
+                <div style="font-size:13px;color:var(--tv-ink-55);margin-bottom:16px">This folder holds documents for the selected client and category. Documents arrive by upload, by scanner capture, or automatically when a workflow files a deliverable. Auto-classification will tag and route them on arrival.</div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap">
+                  <button class="btn btn-primary" onClick="{{ onUpload }}">Upload documents</button>
+                  <button class="btn btn-secondary" onClick="{{ onScan }}">Capture from scanner</button>
+                  <button class="btn btn-secondary" onClick="{{ onClearFilters }}">Clear filters</button>
+                </div>
+              </div>
+            </sc-if>
+          </section>
+        </div>
+      </sc-if>
+      <div style="height:40px"></div>
+    </div>
+  </sc-if>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1180,&quot;height&quot;:820},&quot;sub&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Repository&quot;,&quot;Document Viewer&quot;,&quot;OCR Processing&quot;,&quot;Classification&quot;,&quot;Retention&quot;],&quot;default&quot;:&quot;Repository&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;entity&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;navigate&quot;:{&quot;editor&quot;:null,&quot;tsType&quot;:&quot;(screen: string, sub?: string, entity?: string) =&gt; void&quot;},&quot;toast&quot;:{&quot;editor&quot;:null,&quot;tsType&quot;:&quot;(text: string) =&gt; void&quot;}}">
+const DOCS = [
+  ['PDF', 'Contract', 'Meridian MSA 2026 — executed.pdf', 'Meridian Federal Bank', 'v4.2', 'Confidential', '12 Feb 2026', '4.2 MB', ['Contract', 'Signed', 'Banking'], 'doc-1'],
+  ['DOCX', 'Proposal', 'Meridian Phase 2 Statement of Work.docx', 'Meridian Federal Bank', 'v1.7', 'Restricted', '4 h ago', '820 KB', ['SOW', 'Legal review'], 'doc-2'],
+  ['XLSX', 'Assurance', 'Meridian security questionnaire 2026.xlsx', 'Meridian Federal Bank', 'v1.0', 'Confidential', 'Yesterday', '1.4 MB', ['Security', 'Client request'], 'doc-3'],
+  ['PDF', 'Proposal', 'Corvus spectrum advisory proposal.pdf', 'Corvus Telecom Group', 'v3.1', 'Restricted', '3 days ago', '6.8 MB', ['Proposal', 'Telecom'], 'doc-4'],
+  ['ZIP', 'Procurement', 'Corvus vendor due-diligence pack.zip', 'Corvus Telecom Group', 'v1.0', 'Internal', '5 h ago', '38.2 MB', ['OCR complete', 'Procurement'], 'doc-5'],
+  ['PDF', 'Deliverable', 'Halden grid resilience findings.pdf', 'Halden Energy Nordics', 'v2.3', 'Restricted', '2 days ago', '11.6 MB', ['Deliverable', 'Energy'], 'doc-6'],
+  ['DOCX', 'Change control', 'Blackfen change request CR-2026-0214.docx', 'Blackfen Municipal Authority', 'v1.2', 'Internal', 'Today', '340 KB', ['Change request'], 'doc-7'],
+  ['PDF', 'Board', 'Board pack — Q3 FY2026 (draft).pdf', 'Group Board', 'v0.6', 'Confidential', '6 h ago', '12.4 MB', ['Board', 'Draft'], 'doc-8'],
+  ['XLSX', 'Finance', 'Group receivables ageing — Sep 2026.xlsx', 'Group Finance', 'v2.0', 'Internal', 'Yesterday', '1.1 MB', ['Receivables'], 'doc-9'],
+  ['PDF', 'Deliverable', 'Verity claims automation blueprint.pdf', 'Verity Health Systems', 'v1.4', 'Restricted', '1 week ago', '8.9 MB', ['Blueprint', 'Insurance'], 'doc-10'],
+  ['PDF', 'Contract', 'Quillon engagement letter 2026.pdf', 'Quillon Insurance', 'v1.0', 'Confidential', '2 weeks ago', '2.2 MB', ['Contract', 'Signed'], 'doc-11'],
+  ['PPTX', 'Deliverable', 'Ostara network study — steering deck.pptx', 'Ostara Logistics', 'v5.0', 'Internal', '4 days ago', '24.1 MB', ['Steering'], 'doc-12']
+];
+
+const TREE = [
+  ['Clients', 0, '1,284', true],
+  ['Meridian Federal Bank', 1, '148', false],
+  ['Corvus Telecom Group', 1, '96', false],
+  ['Halden Energy Nordics', 1, '71', false],
+  ['Blackfen Municipal Authority', 1, '54', false],
+  ['Contracts & legal', 0, '412', false],
+  ['Finance', 0, '2,908', false],
+  ['Board & governance', 0, '188', false],
+  ['HR records', 0, 'Restricted', false],
+  ['Retention holds', 0, '37', false]
+];
+
+const DOC_DETAIL = {
+  'doc-2': {
+    name: 'Meridian Phase 2 Statement of Work.docx',
+    security: 'Restricted', secKind: 'warn', version: 'v1.7', pages: 34,
+    meta: 'Proposal · Meridian Federal Bank · owner Tomas Reinhardt · in Legal review since 6 Sep 2026',
+    primaryAction: 'Approve step',
+    docKicker: 'Statement of work · Northbridge Advisory Group',
+    docTitle: 'Core Banking Migration — Phase 2 Delivery',
+    body: [
+      ['1. Scope of services', 'h'],
+      ['Northbridge Advisory Group will deliver migration of the retail deposits and payments ledgers to the target core platform, including data migration assurance, dual-run reconciliation and regulator reporting support across the period 1 January 2027 to 31 March 2028.', 'p'],
+      ['2. Commercial terms', 'h'],
+      ['Fees of €8,400,000 are payable against the milestone schedule in Annex B. Rate card increases are capped at the Harmonised Index of Consumer Prices for the euro area, applied annually.', 'p'],
+      ['3. Liability', 'h'],
+      ['Aggregate liability is limited to fees paid in the twelve months preceding the claim. The Client has proposed an uncapped carve-out for data protection breaches, which remains under negotiation.', 'p'],
+      ['4. Governance', 'h'],
+      ['A joint steering committee will meet monthly. The Client CIO and the Northbridge relationship partner are standing members.', 'p']
+    ],
+    ocrSample: 'AGGREGATE LIABILITY ... LIMITED TO FEES PAID IN THE TWELVE (12) MONTHS PRECEDING THE CLAIM ... CARVE-OUT PROPOSED: DATA PROTECTION BREACHES (UNCAPPED) [CLAUSE 11.4]',
+    aiClass: 'Statement of Work — banking delivery', aiConfidence: '97.4%',
+    metadata: [
+      ['Document type', 'Statement of work', 'AI extracted · accepted'],
+      ['Client', 'Meridian Federal Bank', 'Linked from CRM'],
+      ['Opportunity', 'OPP-2026-0874 · Phase 2', 'Linked from CRM'],
+      ['Contract value', '€8,400,000', 'AI extracted · 98% confidence'],
+      ['Term', '1 Jan 2027 – 31 Mar 2028', 'AI extracted · 96% confidence'],
+      ['Liability cap', '12 months of fees', 'AI extracted · contested'],
+      ['Governing law', 'Federal Republic of Germany', 'AI extracted · 99% confidence'],
+      ['Retention class', 'Contract — 10 years after term', 'Policy applied automatically'],
+      ['Owner', 'Tomas Reinhardt', 'From CRM account team'],
+      ['Classification', 'Restricted', 'Policy: client commercial terms']
+    ],
+    workflowName: 'Client contract review · WF-2026-11761',
+    workflow: [
+      ['Author submitted', 'Complete', 'pos', 'Tomas Reinhardt · Relationship partner', '6 Sep 2026 09:14', ''],
+      ['Commercial review', 'Complete', 'pos', 'Adaeze Okafor · Principal', '6 Sep 2026 16:40', 'Pricing floor confirmed at €8.1M.'],
+      ['Legal review', 'In progress', 'warn', 'Legal Operations · Anja Pedersen', 'Open 6 days · SLA 8 days', 'Two clauses contested: 11.4 data protection carve-out, 11.2 aggregate cap.'],
+      ['Finance approval', 'Waiting', 'neutral', 'Ingrid Solberg · CFO', 'Not started', ''],
+      ['Client signature', 'Waiting', 'neutral', 'Meridian Federal Bank', 'Not started', '']
+    ],
+    versions: [
+      ['v1.7', 'Liability language revised after client redlines', 'Anja Pedersen', '4 h ago', true],
+      ['v1.6', 'Milestone schedule updated in Annex B', 'Tomas Reinhardt', '2 days ago', false],
+      ['v1.4', 'Commercial review comments applied', 'Adaeze Okafor', '6 Sep 2026', false],
+      ['v1.0', 'First draft from Phase 1 closure template', 'Tomas Reinhardt', '2 Sep 2026', false]
+    ],
+    related: [
+      ['CU', 'CRM · Customer', 'Meridian Federal Bank', ['crm', 'Customers', 'meridian']],
+      ['OP', 'CRM · Opportunity', 'Core Banking Migration Phase 2', ['crm', 'Opportunities']],
+      ['PJ', 'ERP · Engagement', 'Meridian Core Banking Migration', ['erp', 'Projects', 'proj-1']],
+      ['WF', 'Workflow · Instance', 'WF-2026-11761 · Legal review', ['workflow', 'Workflow instances']],
+      ['IN', 'ERP · Invoice', 'INV-2026-04417 · overdue', ['erp', 'Finance', 'inv-1']]
+    ],
+    audit: [
+      ['Version 1.7 uploaded', 'Anja Pedersen · Legal Operations', '10.42.8.19 · managed laptop', '4 h ago'],
+      ['Document viewed', 'Ingrid Solberg · CFO', '10.42.1.4 · managed laptop', '12 min ago'],
+      ['Workflow step started — Legal review', 'System · workflow engine', '—', '6 days ago'],
+      ['Classification changed to Restricted', 'System · auto-classification', '—', '6 days ago'],
+      ['Shared with Meridian counsel (view only)', 'Tomas Reinhardt · Partner', '10.42.3.88 · managed laptop', '5 days ago'],
+      ['Document created', 'Tomas Reinhardt · Partner', '10.42.3.88 · managed laptop', '2 Sep 2026']
+    ]
+  }
+};
+
+const DOC1 = {
+  name: 'Meridian MSA 2026 — executed.pdf',
+  security: 'Confidential', secKind: 'neg', version: 'v4.2', pages: 62,
+  meta: 'Contract · Meridian Federal Bank · executed 12 Feb 2026 · retention until 31 Dec 2038',
+  primaryAction: 'Open contract record',
+  docKicker: 'Master services agreement',
+  docTitle: 'Meridian Federal Bank and Northbridge Advisory Group',
+  body: [
+    ['Parties', 'h'],
+    ['This Master Services Agreement is made between Meridian Federal Bank, a credit institution established in Frankfurt am Main, and Northbridge Advisory Group SE.', 'p'],
+    ['Term', 'h'],
+    ['The agreement commences 1 January 2026 and continues until 31 December 2028 unless terminated in accordance with clause 14.', 'p'],
+    ['Framework', 'h'],
+    ['Individual engagements are contracted under statements of work referencing this agreement. No minimum volume is committed.', 'p']
+  ],
+  ocrSample: 'MASTER SERVICES AGREEMENT ... COMMENCEMENT DATE 01 JANUARY 2026 ... EXPIRY 31 DECEMBER 2028 ... EXECUTED BY AUTHORISED SIGNATORIES',
+  aiClass: 'Master services agreement', aiConfidence: '99.1%',
+  metadata: [
+    ['Document type', 'Master services agreement', 'AI extracted · accepted'],
+    ['Client', 'Meridian Federal Bank', 'Linked from CRM'],
+    ['Term', '1 Jan 2026 – 31 Dec 2028', 'AI extracted · 99% confidence'],
+    ['Signatories', 'E. Brenner / I. Solberg', 'AI extracted · 97% confidence'],
+    ['Payment terms', 'Net 45', 'AI extracted · 99% confidence'],
+    ['Retention class', 'Contract — 10 years after term', 'Policy applied automatically'],
+    ['Classification', 'Confidential', 'Policy: executed contracts']
+  ],
+  workflowName: 'Contract execution · closed',
+  workflow: [
+    ['Drafted', 'Complete', 'pos', 'Legal Operations', '14 Nov 2025', ''],
+    ['Client negotiation', 'Complete', 'pos', 'Tomas Reinhardt', '8 Jan 2026', ''],
+    ['Finance approval', 'Complete', 'pos', 'Ingrid Solberg · CFO', '2 Feb 2026', 'Approved with net 45 terms.'],
+    ['Executed', 'Complete', 'pos', 'Both parties', '12 Feb 2026', '']
+  ],
+  versions: [
+    ['v4.2', 'Executed copy with signature pages', 'Legal Operations', '12 Feb 2026', true],
+    ['v4.0', 'Final negotiated text', 'Anja Pedersen', '6 Feb 2026', false],
+    ['v3.1', 'Client redlines incorporated', 'Anja Pedersen', '22 Jan 2026', false]
+  ],
+  related: [
+    ['CU', 'CRM · Customer', 'Meridian Federal Bank', ['crm', 'Customers', 'meridian']],
+    ['PJ', 'ERP · Engagement', 'Meridian Core Banking Migration', ['erp', 'Projects', 'proj-1']],
+    ['DO', 'ECM · Child document', 'Phase 2 Statement of Work', ['ecm', 'Document Viewer', 'doc-2']],
+    ['AU', 'Admin · Retention hold', 'Extend to 10 years — pending', ['admin', 'Audit Logs']]
+  ],
+  audit: [
+    ['Document viewed', 'Ingrid Solberg · CFO', '10.42.1.4 · managed laptop', '2 min ago'],
+    ['Retention override requested', 'Legal Operations', '10.42.9.2 · managed laptop', '2 days ago'],
+    ['Executed copy filed', 'Legal Operations', '10.42.9.2 · managed laptop', '12 Feb 2026'],
+    ['Approval recorded', 'Ingrid Solberg · CFO', '10.42.1.4 · managed laptop', '2 Feb 2026']
+  ]
+};
+
+class Component extends DCLogic {
+  state = { tab: 'Metadata', page: 12, zoom: 1, ocr: false, query: '', folder: 'Meridian Federal Bank', tag: null, layout: 'grid' };
+
+  nav = (screen, sub, entity) => { const f = this.props.navigate; if (f) f(screen, sub, entity); };
+  toast = (t) => { const f = this.props.toast; if (f) f(t); };
+  go = (to) => () => this.nav(to[0], to[1], to[2]);
+
+  tagStyle(kind) {
+    const map = { pos: ['var(--tv-pos-tint)', 'var(--tv-pos)'], warn: ['var(--tv-warn-tint)', 'var(--tv-warn)'], neg: ['var(--tv-neg-tint)', 'var(--tv-neg)'], neutral: ['var(--tv-surface)', 'var(--tv-ink-70)'] };
+    const c = map[kind] || map.neutral;
+    return 'display:inline-flex;align-items:center;font-size:11px;font-weight:800;letter-spacing:.04em;padding:2px 7px;background:' + c[0] + ';color:' + c[1];
+  }
+
+  secKind(sec) { return sec === 'Confidential' ? 'neg' : sec === 'Restricted' ? 'warn' : 'neutral'; }
+
+  renderVals() {
+    const s = this.state;
+    const sub = this.props.sub || 'Repository';
+    const entity = this.props.entity;
+    const isViewer = sub === 'Document Viewer' || !!entity;
+    const isProcessing = sub === 'OCR Processing' || sub === 'Classification';
+    const d = (entity && DOC_DETAIL[entity]) || (entity === 'doc-1' ? DOC1 : null) || DOC_DETAIL['doc-2'];
+
+    const viewerTabs = ['Metadata', 'Workflow', 'Versions', 'Related', 'Audit'].map((t) => ({
+      label: t,
+      onClick: () => this.setState({ tab: t }),
+      style: 'background:none;border:0;border-bottom:2px solid ' + (s.tab === t ? 'var(--tv-accent)' : 'transparent') +
+        ';margin-bottom:-2px;padding:10px 13px 9px;font:inherit;font-size:12.5px;font-weight:' + (s.tab === t ? '800' : '400') +
+        ';color:' + (s.tab === t ? 'var(--tv-ink)' : 'var(--tv-ink-55)') + ';cursor:pointer;white-space:nowrap'
+    }));
+
+    const q = s.query.trim().toLowerCase();
+    let docs = DOCS.filter((x) => {
+      const inFolder = s.folder === 'Clients' || x[3] === s.folder || (s.folder === 'Contracts & legal' && x[1] === 'Contract') ||
+        (s.folder === 'Finance' && x[1] === 'Finance') || (s.folder === 'Board & governance' && x[1] === 'Board') || (s.folder === 'Retention holds' && x[5] === 'Confidential');
+      const inTag = !s.tag || x[8].indexOf(s.tag) >= 0;
+      const inQ = !q || (x[2] + ' ' + x[3] + ' ' + x[1]).toLowerCase().indexOf(q) >= 0;
+      return inFolder && inTag && inQ;
+    });
+    if (s.folder === 'HR records') docs = [];
+
+    return {
+      noop: () => {},
+      isViewer: isViewer,
+      isRepo: !isViewer,
+      isProcessing: isProcessing,
+      isBrowser: !isProcessing,
+
+      doc: {
+        name: d.name, security: d.security, version: d.version, meta: d.meta, pages: d.pages,
+        secStyle: this.tagStyle(d.secKind), primaryAction: d.primaryAction,
+        docKicker: d.docKicker, docTitle: d.docTitle, ocrSample: d.ocrSample,
+        aiClass: d.aiClass, aiConfidence: d.aiConfidence,
+        body: d.body.map((b) => ({
+          text: b[0],
+          style: b[1] === 'h'
+            ? 'font-weight:800;font-size:13px;letter-spacing:.02em;margin:14px 0 5px'
+            : 'font-size:12.5px;line-height:1.65;color:var(--tv-ink-70);margin-bottom:6px'
+        })),
+        metadata: d.metadata.map((m) => ({
+          label: m[0], value: m[1], source: m[2],
+          sourceStyle: 'font-size:11px;color:' + (m[2].indexOf('contested') >= 0 ? 'var(--tv-accent)' : 'var(--tv-ink-40)')
+        })),
+        workflowName: d.workflowName,
+        workflow: d.workflow.map((w, i) => ({
+          step: w[0], status: w[1], who: w[3], when: w[4], comment: w[5],
+          statusStyle: this.tagStyle(w[2]),
+          dotStyle: 'width:11px;height:11px;flex:none;margin-top:4px;background:' + (w[2] === 'pos' ? 'var(--tv-ink)' : w[2] === 'warn' ? 'var(--tv-accent)' : 'var(--tv-panel)') + ';border:2px solid ' + (w[2] === 'neutral' ? 'var(--tv-ink-40)' : 'transparent'),
+          lineStyle: i === d.workflow.length - 1 ? 'display:none' : 'flex:1;width:1px;background:var(--tv-hair);margin-top:3px',
+          commentStyle: w[5] ? 'font-size:12px;color:var(--tv-ink-70);border-left:2px solid var(--tv-hair);padding-left:9px;margin-top:6px' : 'display:none'
+        })),
+        versions: d.versions.map((v) => ({
+          version: v[0], title: v[1], who: v[2], when: v[3],
+          badgeStyle: 'flex:none;font-size:10.5px;font-weight:800;padding:3px 7px;height:22px;background:' + (v[4] ? 'var(--tv-accent)' : 'var(--tv-surface)') + ';color:' + (v[4] ? 'var(--tv-on-accent)' : 'var(--tv-ink-55)'),
+          onCompare: () => this.toast('Side-by-side comparison of ' + v[0] + ' and the current version')
+        })),
+        related: d.related.map((r) => ({ badge: r[0], module: r[1], label: r[2], onClick: this.go(r[3]) })),
+        audit: d.audit.map((a) => ({ action: a[0], who: a[1], ip: a[2], when: a[3] }))
+      },
+      viewerTabs: viewerTabs,
+      tabMetadata: s.tab === 'Metadata',
+      tabWorkflow: s.tab === 'Workflow',
+      tabVersions: s.tab === 'Versions',
+      tabRelated: s.tab === 'Related',
+      tabAudit: s.tab === 'Audit',
+      page: String(s.page),
+      onPrevPage: () => this.setState((st) => ({ page: Math.max(1, st.page - 1) })),
+      onNextPage: () => this.setState((st) => ({ page: Math.min(d.pages, st.page + 1) })),
+      zoomLabel: Math.round(s.zoom * 100) + '%',
+      onZoom: () => this.setState((st) => ({ zoom: st.zoom >= 1.5 ? 0.75 : st.zoom + 0.25 })),
+      ocrOn: s.ocr,
+      ocrLabel: s.ocr ? 'Hide OCR layer' : 'Show OCR layer',
+      toggleOcr: () => this.setState((st) => ({ ocr: !st.ocr })),
+      onDownload: () => this.toast('Download recorded in the audit trail · watermarked copy'),
+      onShare: () => this.toast('Share dialog: internal, client portal, or time-limited external link'),
+      onApprove: () => this.toast('Finance approval recorded · workflow advanced to Client signature'),
+      onReject: () => this.toast('Returned to author with your comment'),
+      onAcceptAI: () => this.toast('All AI-extracted fields accepted and written to metadata'),
+      onReviewAI: () => this.toast('Field-by-field review opens with source text highlighted'),
+      onEditMeta: () => this.toast('Metadata form opens with policy-controlled fields locked'),
+      onFullAudit: () => this.nav('admin', 'Audit Logs'),
+
+      repoTitle: isProcessing ? (sub === 'Classification' ? 'Classification' : 'OCR Processing') : 'Document Repository',
+      repoMeta: isProcessing ? 'Capture, recognition and auto-classification · last 24 hours'
+        : '6,942 documents · 1,284 client files · retention policies applied automatically',
+      onUpload: () => this.toast('Upload accepts drag-and-drop; classification runs on arrival'),
+      onScan: () => this.toast('Capture from the Frankfurt office scanner queue'),
+
+      ocrStats: [
+        ['Captured today', '3,914', 'pages across 42 batches'],
+        ['OCR complete', '3,802', '97.1% of captured pages'],
+        ['Auto-classified', '3,662', '96.2% above confidence floor'],
+        ['Awaiting review', '112', 'below 85% confidence']
+      ].map((o) => ({ label: o[0], value: o[1], note: o[2] })),
+      ocrQueue: [
+        ['BATCH-2026-0912-04', 'Frankfurt scanner', '1,204', 'Classifying', 'warn', '88.4%', 'Review'],
+        ['BATCH-2026-0912-03', 'Client portal upload', '486', 'Complete', 'pos', '99.1%', 'Open'],
+        ['BATCH-2026-0912-02', 'Email intake', '212', 'Complete', 'pos', '97.8%', 'Open'],
+        ['BATCH-2026-0912-01', 'Prague scanner', '1,880', 'Needs review', 'neg', '72.6%', 'Correct'],
+        ['BATCH-2026-0911-09', 'Corvus vendor pack', '132', 'Complete', 'pos', '98.2%', 'Open']
+      ].map((b) => ({
+        batch: b[0], source: b[1], pages: b[2], stage: b[3], confidence: b[5], action: b[6],
+        stageStyle: this.tagStyle(b[4]),
+        onOpen: () => this.toast(b[0] + ' opens in the correction workspace')
+      })),
+
+      tree: TREE.map((n) => ({
+        label: n[0], count: n[2], caret: n[1] === 0 ? (n[3] ? '▾' : '▸') : '',
+        caretStyle: 'width:12px;flex:none;font-size:9px;color:var(--tv-ink-40)',
+        onClick: () => this.setState({ folder: n[0], tag: null }),
+        style: 'display:flex;align-items:center;gap:7px;width:100%;background:' + (s.folder === n[0] ? 'var(--tv-surface)' : 'none') +
+          ';border:0;border-left:3px solid ' + (s.folder === n[0] ? 'var(--tv-accent)' : 'transparent') +
+          ';padding:6px 12px 6px ' + (9 + n[1] * 14) + 'px;font:inherit;font-size:12.5px;font-weight:' + (s.folder === n[0] ? '800' : '400') +
+          ';color:' + (s.folder === n[0] ? 'var(--tv-ink)' : 'var(--tv-ink-70)') + ';cursor:pointer;text-align:left'
+      })),
+      tags: ['Contract', 'Signed', 'SOW', 'Legal review', 'Deliverable', 'OCR complete', 'Board', 'Receivables'].map((t) => ({
+        label: t,
+        onClick: () => this.setState((st) => ({ tag: st.tag === t ? null : t })),
+        style: 'font:inherit;font-size:11px;border:1px solid ' + (s.tag === t ? 'var(--tv-accent)' : 'var(--tv-hair)') +
+          ';background:' + (s.tag === t ? 'var(--tv-accent)' : 'none') + ';color:' + (s.tag === t ? 'var(--tv-on-accent)' : 'var(--tv-ink-55)') +
+          ';padding:2px 7px;cursor:pointer'
+      })),
+      query: s.query,
+      onQuery: (e) => this.setState({ query: e.target.value }),
+      onFilters: () => this.toast('Filter by type, date, classification, retention class, author or metadata field'),
+      onSaveView: () => this.toast('View saved as “Meridian contracts” and pinned to your sidebar'),
+      onClearFilters: () => this.setState({ folder: 'Clients', tag: null, query: '' }),
+      folderLabel: s.folder,
+      folderNote: s.folder === 'HR records' ? 'You do not have access to the contents of this folder' : 'Retention and classification policies inherited from the folder',
+      docCount: docs.length + ' of ' + DOCS.length + ' documents',
+      gridMode: s.layout === 'grid',
+      listMode: s.layout === 'list',
+      gridChecked: s.layout === 'grid',
+      listChecked: s.layout === 'list',
+      onGrid: () => this.setState({ layout: 'grid' }),
+      onList: () => this.setState({ layout: 'list' }),
+      docsEmpty: docs.length === 0,
+      docs: docs.map((x) => ({
+        ext: x[0], type: x[1], name: x[2], client: x[3], version: x[4], security: x[5], when: x[6], size: x[7],
+        secStyle: this.tagStyle(this.secKind(x[5])),
+        tags: x[8].map((t) => ({ label: t })),
+        onOpen: () => this.nav('ecm', 'Document Viewer', x[9] === 'doc-1' ? 'doc-1' : 'doc-2')
+      }))
+    };
+  }
+}
+
+</script>
+</body>
+</html>

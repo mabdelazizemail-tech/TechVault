@@ -1,0 +1,80 @@
+/* TechVault — runtime theme layer on top of the Modernist tokens.
+   Only variables, resets and keyframes live here; all component styling is inline. */
+
+:root {
+  --tv-bg: #f3f2f2;
+  --tv-panel: #ffffff;
+  --tv-surface: #eae9e9;
+  --tv-surface-2: #e0dede;
+  --tv-ink: #201e1d;
+  --tv-ink-70: color-mix(in srgb, #201e1d 70%, transparent);
+  --tv-ink-55: color-mix(in srgb, #201e1d 74%, transparent);
+  --tv-ink-40: color-mix(in srgb, #201e1d 64%, transparent);
+  --tv-rule: color-mix(in srgb, #201e1d 40%, transparent);
+  --tv-hair: color-mix(in srgb, #201e1d 16%, transparent);
+  --tv-hover: color-mix(in srgb, #201e1d 6%, transparent);
+  --tv-mute: color-mix(in srgb, #201e1d 38%, transparent);
+  --tv-accent: #ec3013;
+  --tv-accent-ink: #ae1800;
+  --tv-accent-tint: #ffe0d9;
+  --tv-pos: #1d6b3f;
+  --tv-pos-tint: #dceee3;
+  --tv-warn: #8a5a00;
+  --tv-warn-tint: #f6e8c8;
+  --tv-neg: #ae1800;
+  --tv-neg-tint: #ffe0d9;
+  --tv-on-accent: #f3f2f2;
+}
+
+[data-tv-theme="dark"] {
+  --tv-bg: #161514;
+  --tv-panel: #1d1b1a;
+  --tv-surface: #232120;
+  --tv-surface-2: #2b2928;
+  --tv-ink: #f1efee;
+  --tv-ink-70: color-mix(in srgb, #f1efee 68%, transparent);
+  --tv-ink-55: color-mix(in srgb, #f1efee 76%, transparent);
+  --tv-ink-40: color-mix(in srgb, #f1efee 66%, transparent);
+  --tv-rule: color-mix(in srgb, #f1efee 34%, transparent);
+  --tv-hair: color-mix(in srgb, #f1efee 13%, transparent);
+  --tv-hover: color-mix(in srgb, #f1efee 8%, transparent);
+  --tv-mute: color-mix(in srgb, #f1efee 40%, transparent);
+  --tv-accent: #ff563c;
+  --tv-accent-ink: #ff9783;
+  --tv-accent-tint: #4d170e;
+  --tv-pos: #6fd39b;
+  --tv-pos-tint: #17301f;
+  --tv-warn: #e0b25f;
+  --tv-warn-tint: #332713;
+  --tv-neg: #ff9783;
+  --tv-neg-tint: #3d1409;
+  --tv-on-accent: #161514;
+
+  /* keep the Modernist component classes in step with the dark ground */
+  --color-bg: #161514;
+  --color-surface: #232120;
+  --color-text: #f1efee;
+  --color-accent: #ff563c;
+  --color-divider: color-mix(in srgb, #f1efee 34%, transparent);
+  --color-neutral-100: #2b2928;
+  --color-neutral-800: #e4e1e0;
+  --color-accent-100: #4d170e;
+  --color-accent-800: #ffc4b8;
+  --color-accent-2-100: #471d16;
+  --color-accent-2-800: #ffc4b9;
+}
+
+body { margin: 0; background: var(--tv-bg); color: var(--tv-ink); }
+.btn { white-space: nowrap; }
+.table th, .table td { white-space: nowrap; }
+a { color: var(--tv-accent); }
+a:hover { color: var(--tv-accent-ink); }
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-thumb { background: var(--tv-mute); }
+*::-webkit-scrollbar-track { background: transparent; }
+
+@keyframes tv-fade { from { opacity: 0 } to { opacity: 1 } }
+@keyframes tv-rise { from { opacity: 0; transform: translateY(6px) } to { opacity: 1; transform: none } }
+@keyframes tv-slide-right { from { transform: translateX(16px); opacity: 0 } to { transform: none; opacity: 1 } }
+@keyframes tv-bar { from { transform: scaleY(0) } to { transform: scaleY(1) } }
+@keyframes tv-spin { to { transform: rotate(360deg) } }

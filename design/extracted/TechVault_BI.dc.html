@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/modernist-36bd29c9-a0f6-40d6-82f9-3de3249645b6/styles.css">
+<script src="_ds/modernist-36bd29c9-a0f6-40d6-82f9-3de3249645b6/_ds_bundle.js"></script>
+<link rel="stylesheet" href="tv-tokens.css">
+</helmet>
+
+<div style="font-family:'Archivo',system-ui,sans-serif;color:var(--tv-ink);padding-bottom:48px;animation:tv-fade .2s ease">
+
+  <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:16px;padding:0 24px 12px;flex-wrap:wrap">
+    <div>
+      <h1 style="font-size:34px;margin:0 0 3px">BI &amp; Analytics</h1>
+      <div style="font-size:12.5px;color:var(--tv-ink-55)">{{ boardMeta }}</div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-secondary" onClick="{{ onRange }}">{{ rangeLabel }}</button>
+      <button class="btn btn-secondary" onClick="{{ onSave }}">Save report</button>
+      <button class="btn btn-primary" onClick="{{ onExport }}">Export</button>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:0;padding:0 24px;border-bottom:2px solid var(--tv-rule);background:var(--tv-panel);overflow-x:auto">
+    <sc-for list="{{ boards }}" as="b" hint-placeholder-count="7">
+      <button onClick="{{ b.onClick }}" style="{{ b.style }}">{{ b.label }}</button>
+    </sc-for>
+  </div>
+
+  <div style="display:flex;align-items:center;gap:9px;padding:10px 24px;background:var(--tv-panel);border-bottom:1px solid var(--tv-hair);flex-wrap:wrap">
+    <span style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--tv-ink-55)">Filters</span>
+    <sc-for list="{{ filters }}" as="f" hint-placeholder-count="4">
+      <button onClick="{{ f.onClick }}" style="{{ f.style }}">{{ f.label }}</button>
+    </sc-for>
+    <div style="flex:1"></div>
+    <sc-if value="{{ drilled }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;align-items:center;gap:8px;background:var(--tv-accent-tint);border:1px solid var(--tv-accent);padding:4px 10px">
+        <span style="font-size:12px;color:var(--tv-accent-ink);font-weight:800">Drilled into {{ drillLabel }}</span>
+        <button onClick="{{ onClearDrill }}" style="background:none;border:0;color:var(--tv-accent-ink);font:inherit;font-size:12px;cursor:pointer;text-decoration:underline">Clear</button>
+      </div>
+    </sc-if>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(176px,1fr));gap:1px;background:var(--tv-hair);border-bottom:1px solid var(--tv-hair)">
+    <sc-for list="{{ kpis }}" as="k" hint-placeholder-count="5">
+      <div style="background:var(--tv-panel);padding:14px 16px 16px">
+        <div style="font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--tv-ink-55)">{{ k.label }}</div>
+        <div style="font-size:26px;font-weight:800;line-height:1.1;letter-spacing:-.02em;margin-top:4px">{{ k.value }}</div>
+        <div style="font-size:12px"><span style="{{ k.deltaStyle }}">{{ k.delta }}</span> <span style="color:var(--tv-ink-40)">{{ k.note }}</span></div>
+      </div>
+    </sc-for>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:1px;background:var(--tv-hair);border-bottom:1px solid var(--tv-hair)">
+
+    <section style="grid-column:span 7;background:var(--tv-panel);padding:14px 18px 20px;min-width:0">
+      <div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:4px">
+        <div>
+          <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--tv-accent-ink)">Trend</div>
+          <h3 style="font-size:17px;margin:2px 0 0">{{ trendTitle }}</h3>
+        </div>
+        <span style="font-size:11.5px;color:var(--tv-ink-40)">Click a column to drill into the month</span>
+      </div>
+      <div style="display:flex;align-items:flex-end;gap:7px;height:210px;border-bottom:2px solid var(--tv-rule);margin-top:14px">
+        <sc-for list="{{ trend }}" as="t" hint-placeholder-count="12">
+          <button onClick="{{ t.onClick }}" aria-label="{{ t.tip }}" style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;height:100%;background:none;border:0;padding:0;cursor:pointer;position:relative">
+            <span style="{{ t.compareStyle }}"></span>
+            <span style="{{ t.style }}"></span>
+          </button>
+        </sc-for>
+      </div>
+      <div style="display:flex;gap:7px;margin-top:6px">
+        <sc-for list="{{ trend }}" as="t" hint-placeholder-count="12">
+          <div style="{{ t.labelStyle }}">{{ t.label }}</div>
+        </sc-for>
+      </div>
+      <div style="display:flex;gap:18px;margin-top:12px;font-size:11.5px;color:var(--tv-ink-55);flex-wrap:wrap">
+        <span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;background:var(--tv-ink);display:block"></span>{{ trendSeries }}</span>
+        <span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border:1px solid var(--tv-mute);display:block"></span>Prior year</span>
+        <span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;background:var(--tv-accent);display:block"></span>Selected</span>
+      </div>
+    </section>
+
+    <section style="grid-column:span 5;background:var(--tv-panel);padding:14px 18px 20px;min-width:0">
+      <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--tv-accent-ink)">Composition</div>
+      <h3 style="font-size:17px;margin:2px 0 14px">{{ compositionTitle }}</h3>
+      <sc-for list="{{ composition }}" as="c" hint-placeholder-count="6">
+        <button onClick="{{ c.onClick }}" style="display:block;width:100%;background:none;border:0;border-top:1px solid var(--tv-hair);padding:9px 0;cursor:pointer;font:inherit;color:inherit;text-align:left">
+          <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:5px">
+            <span style="font-weight:800">{{ c.label }}</span>
+            <span style="font-variant-numeric:tabular-nums">{{ c.value }} <span style="color:var(--tv-ink-40)">{{ c.share }}</span></span>
+          </div>
+          <div style="height:9px;background:var(--tv-surface)"><div style="{{ c.style }}"></div></div>
+        </button>
+      </sc-for>
+    </section>
+
+    <section style="grid-column:span 12;background:var(--tv-panel);padding:14px 18px 20px;min-width:0">
+      <div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap">
+        <div>
+          <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--tv-accent-ink)">Detail</div>
+          <h3 style="font-size:17px;margin:2px 0 0">{{ detailTitle }}</h3>
+        </div>
+        <span style="font-size:11.5px;color:var(--tv-ink-40)">{{ detailNote }}</span>
+      </div>
+      <div style="overflow-x:auto;margin-top:12px">
+        <table class="table" style="min-width:760px">
+          <thead><tr><sc-for list="{{ detailCols }}" as="c" hint-placeholder-count="6"><th style="{{ c.style }}">{{ c.label }}</th></sc-for></tr></thead>
+          <tbody>
+            <sc-for list="{{ detailRows }}" as="r" hint-placeholder-count="6">
+              <tr>
+                <sc-for list="{{ r.cells }}" as="cell" hint-placeholder-count="6">
+                  <td style="{{ cell.tdStyle }}">
+                    <sc-if value="{{ cell.isTag }}" hint-placeholder-val="{{ false }}"><span style="{{ cell.tagStyle }}">{{ cell.text }}</span></sc-if>
+                    <sc-if value="{{ cell.isLink }}" hint-placeholder-val="{{ false }}"><button onClick="{{ cell.onClick }}" style="background:none;border:0;padding:0;font:inherit;font-weight:800;color:inherit;cursor:pointer;text-align:left">{{ cell.text }}</button></sc-if>
+                    <sc-if value="{{ cell.isPlain }}" hint-placeholder-val="{{ true }}"><span>{{ cell.text }}</span></sc-if>
+                  </td>
+                </sc-for>
+              </tr>
+            </sc-for>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1180,&quot;height&quot;:900},&quot;sub&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;entity&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;navigate&quot;:{&quot;editor&quot;:null,&quot;tsType&quot;:&quot;(screen: string, sub?: string, entity?: string) =&gt; void&quot;},&quot;toast&quot;:{&quot;editor&quot;:null,&quot;tsType&quot;:&quot;(text: string) =&gt; void&quot;}}">
+const BOARDS = {
+  'Executive': {
+    meta: 'Group consolidated · FY2026 · all practices · refreshed 07:12 CET',
+    kpis: [['Revenue YTD', '€184.2M', '+4.7%', true, 'vs plan'], ['Operating profit', '€33.9M', '+14.1%', true, 'vs plan'],
+      ['Utilisation', '78.4%', '+0.6pp', true, 'target 78%'], ['Pipeline coverage', '2.4×', '-0.2×', false, 'next quarter'], ['Headcount', '2,417', '+118', true, 'net YTD']],
+    trendTitle: 'Revenue by month against prior year', trendSeries: 'FY2026 revenue',
+    trend: [['Jan', 62, 58], ['Feb', 70, 64], ['Mar', 74, 70], ['Apr', 68, 72], ['May', 80, 74], ['Jun', 86, 78], ['Jul', 76, 80], ['Aug', 88, 82], ['Sep', 94, 86]],
+    compositionTitle: 'Revenue by practice',
+    composition: [['Financial Services', '€68.4M', '37%', 100], ['Telecom & Media', '€31.2M', '17%', 46], ['Energy & Utilities', '€27.8M', '15%', 41],
+      ['Insurance', '€24.1M', '13%', 35], ['Public Sector', '€19.6M', '11%', 29], ['Sustainability', '€13.1M', '7%', 19]],
+    detailTitle: 'Practice performance', detailNote: 'Click a practice name to open its analytics board',
+    detailCols: ['Practice', 'Revenue', 'Plan', 'Variance', 'Margin', 'Utilisation', 'Health'],
+    detailRows: [
+      ['Financial Services', '€68.4M', '€64.0M', '+6.9%', '24.1%', '82%', 'Ahead', 'pos'],
+      ['Telecom & Media', '€31.2M', '€29.8M', '+4.7%', '21.4%', '79%', 'Ahead', 'pos'],
+      ['Energy & Utilities', '€27.8M', '€30.2M', '-7.9%', '17.2%', '74%', 'Behind', 'neg'],
+      ['Insurance', '€24.1M', '€23.0M', '+4.8%', '22.8%', '81%', 'Ahead', 'pos'],
+      ['Public Sector', '€19.6M', '€22.4M', '-12.5%', '12.6%', '71%', 'Behind', 'neg'],
+      ['Sustainability', '€13.1M', '€12.2M', '+7.4%', '19.8%', '77%', 'On plan', 'neutral']
+    ]
+  },
+  'Sales': {
+    meta: 'Commercial analytics · rolling 12 months · owner view Group',
+    kpis: [['Pipeline', '€96.4M', '+9.2%', true, 'weighted €41.7M'], ['Win rate', '34.2%', '-1.8pp', false, 'rolling 12m'],
+      ['Average deal', '€1.42M', '+6.1%', true, 'up from €1.34M'], ['Sales cycle', '118 d', '-9 d', true, 'median'], ['Coverage', '2.4×', '-0.2×', false, 'next quarter']],
+    trendTitle: 'Bookings by month against prior year', trendSeries: 'FY2026 bookings',
+    trend: [['Oct', 48, 52], ['Nov', 58, 54], ['Dec', 72, 66], ['Jan', 44, 48], ['Feb', 56, 50], ['Mar', 68, 62], ['Apr', 52, 58], ['May', 74, 64], ['Jun', 82, 70], ['Jul', 60, 66], ['Aug', 78, 68], ['Sep', 86, 72]],
+    compositionTitle: 'Pipeline by stage',
+    composition: [['Qualification', '€28.4M', '29%', 100], ['Discovery', '€22.1M', '23%', 78], ['Proposal', '€19.6M', '20%', 69],
+      ['Negotiation', '€14.2M', '15%', 50], ['Verbal commit', '€8.1M', '8%', 29], ['Closing', '€4.0M', '4%', 14]],
+    detailTitle: 'Largest open opportunities', detailNote: 'Weighted value uses stage probability',
+    detailCols: ['Opportunity', 'Customer', 'Stage', 'Value', 'Probability', 'Close', 'Risk'],
+    detailRows: [
+      ['Core Banking Migration Ph.2', 'Meridian Federal Bank', 'Proposal', '€8.4M', '65%', '30 Nov', 'Idle 24d', 'warn'],
+      ['Grid Resilience Programme', 'Halden Energy Nordics', 'Discovery', '€5.6M', '35%', '28 Feb', 'On track', 'pos'],
+      ['Network Optimisation Study', 'Ostara Logistics', 'Qualification', '€3.9M', '20%', '31 Mar', 'Idle 31d', 'warn'],
+      ['Claims Target Operating Model', 'Quillon Insurance', 'Proposal', '€2.7M', '50%', '12 Dec', 'Idle 22d', 'warn'],
+      ['Spectrum Advisory Retainer', 'Corvus Telecom Group', 'Negotiation', '€2.1M', '80%', '14 Oct', 'Discount', 'neg'],
+      ['Procurement Reform Wave 3', 'Blackfen Municipal Authority', 'Closing', '€1.9M', '90%', '26 Sep', 'Legal', 'warn']
+    ]
+  },
+  'Financial': {
+    meta: 'Finance analytics · FY2026 Q3 · reporting currency EUR',
+    kpis: [['Revenue YTD', '€184.2M', '+4.7%', true, 'vs plan'], ['Gross margin', '46.6%', '+1.3pp', true, 'vs plan'],
+      ['DSO', '52 d', '+4 d', false, 'target 45'], ['Cash', '€42.8M', '-3.1%', false, 'vs Q2'], ['Overdue AR', '€3.42M', '+18.4%', false, '6 invoices']],
+    trendTitle: 'Cash collections by month against prior year', trendSeries: 'FY2026 collections',
+    trend: [['Jan', 58, 60], ['Feb', 66, 62], ['Mar', 72, 68], ['Apr', 64, 70], ['May', 76, 72], ['Jun', 82, 76], ['Jul', 70, 78], ['Aug', 74, 80], ['Sep', 68, 82]],
+    compositionTitle: 'Receivables ageing',
+    composition: [['Current', '€15.18M', '82%', 100], ['1–30 days', '€1.23M', '7%', 18], ['31–60 days', '€1.35M', '7%', 20],
+      ['61–90 days', '€0.61M', '3%', 9], ['90+ days', '€0.23M', '1%', 4]],
+    detailTitle: 'Overdue invoices', detailNote: 'Drill through to the invoice record in ERP',
+    detailCols: ['Invoice', 'Customer', 'Amount', 'Days overdue', 'Dunning', 'Owner'],
+    detailRows: [
+      ['INV-2026-04417', 'Meridian Federal Bank', '€1,240,000', '18', 'Stage 2', 'Group Finance', 'neg'],
+      ['INV-2026-04388', 'Halden Energy Nordics', '€742,000', '11', 'Stage 1', 'Group Finance', 'warn'],
+      ['INV-2026-04301', 'Blackfen Municipal Authority', '€610,500', '27', 'Stage 2', 'Group Finance', 'neg'],
+      ['INV-2026-04266', 'Ostara Logistics', '€388,200', '9', 'Stage 1', 'Group Finance', 'warn'],
+      ['INV-2026-04199', 'Calderwood Rail', '€264,800', '41', 'Stage 3', 'Legal Operations', 'neg'],
+      ['INV-2026-04174', 'Norrsken Industrier', '€174,500', '6', 'Reminder', 'Group Finance', 'neutral']
+    ]
+  },
+  'HR': {
+    meta: 'People analytics · 2,417 employees · eleven offices',
+    kpis: [['Headcount', '2,417', '+118', true, 'net YTD'], ['Utilisation', '78.4%', '+0.6pp', true, 'target 78%'],
+      ['Attrition', '11.2%', '-1.4pp', true, 'rolling 12m'], ['Time to hire', '38 d', '-6 d', true, 'median'], ['Open roles', '84', '+12', false, 'across practices']],
+    trendTitle: 'Utilisation by month against prior year', trendSeries: 'FY2026 utilisation',
+    trend: [['Jan', 70, 68], ['Feb', 74, 70], ['Mar', 76, 72], ['Apr', 72, 74], ['May', 78, 74], ['Jun', 82, 76], ['Jul', 74, 78], ['Aug', 80, 78], ['Sep', 84, 80]],
+    compositionTitle: 'Headcount by practice',
+    composition: [['Financial Services', '712', '29%', 100], ['Insurance', '408', '17%', 57], ['Energy & Utilities', '386', '16%', 54],
+      ['Public Sector', '318', '13%', 45], ['Telecom & Media', '294', '12%', 41], ['Group Functions', '299', '12%', 42]],
+    detailTitle: 'Practice people metrics', detailNote: 'Individual compensation is excluded from your permission scope',
+    detailCols: ['Practice', 'Headcount', 'Utilisation', 'Attrition', 'Open roles', 'Leave backlog', 'Status'],
+    detailRows: [
+      ['Financial Services', '712', '82%', '9.4%', '22', '2', 'Healthy', 'pos'],
+      ['Insurance', '408', '81%', '10.1%', '14', '1', 'Healthy', 'pos'],
+      ['Energy & Utilities', '386', '74%', '14.8%', '19', '11', 'At risk', 'neg'],
+      ['Public Sector', '318', '71%', '13.2%', '12', '0', 'Watch', 'warn'],
+      ['Telecom & Media', '294', '79%', '9.8%', '9', '0', 'Healthy', 'pos'],
+      ['Group Functions', '299', '—', '7.4%', '8', '0', 'Healthy', 'pos']
+    ]
+  },
+  'ECM': {
+    meta: 'Content analytics · 6,942 documents in scope · last 12 months',
+    kpis: [['Documents', '41,308', '+18.2%', true, 'processed YTD'], ['Auto-classified', '96.2%', '+2.1pp', true, 'above floor'],
+      ['OCR accuracy', '98.4%', '+0.7pp', true, 'weighted'], ['Awaiting review', '112', '-34', true, 'below confidence'], ['Retention holds', '37', '+4', false, 'legal']],
+    trendTitle: 'Documents processed by month against prior year', trendSeries: 'FY2026 processed',
+    trend: [['Jan', 56, 50], ['Feb', 62, 54], ['Mar', 70, 60], ['Apr', 66, 62], ['May', 74, 64], ['Jun', 80, 68], ['Jul', 72, 70], ['Aug', 84, 72], ['Sep', 90, 76]],
+    compositionTitle: 'Documents by class',
+    composition: [['Client deliverables', '14,204', '34%', 100], ['Contracts and legal', '8,918', '22%', 63], ['Finance records', '7,442', '18%', 52],
+      ['Procurement', '5,106', '12%', 36], ['HR records', '3,488', '8%', 25], ['Board and governance', '2,150', '5%', 15]],
+    detailTitle: 'Classification quality by source', detailNote: 'Sources below the confidence floor are routed to manual review',
+    detailCols: ['Source', 'Volume', 'Auto-classified', 'Confidence', 'Manual review', 'Status'],
+    detailRows: [
+      ['Client portal upload', '12,480', '98.8%', '99.1%', '142', 'Healthy', 'pos'],
+      ['Email intake', '9,206', '97.2%', '97.8%', '258', 'Healthy', 'pos'],
+      ['Frankfurt scanner', '8,844', '95.4%', '96.2%', '406', 'Watch', 'warn'],
+      ['Prague scanner', '6,118', '81.2%', '72.6%', '1,150', 'Degraded', 'neg'],
+      ['Workflow output', '4,660', '100%', '100%', '0', 'Healthy', 'pos']
+    ]
+  },
+  'Innovation': {
+    meta: 'Think Tank analytics · 312 ideas this year · 18 converted',
+    kpis: [['Ideas', '312', '+38', true, 'this quarter'], ['Participation', '41%', '+6pp', true, 'of employees'],
+      ['Approval rate', '9.3%', '-0.8pp', false, 'of submissions'], ['Time to decision', '31 d', '-7 d', true, 'median'], ['Realised value', '€11.4M', '+€3.2M', true, 'three-year basis']],
+    trendTitle: 'Ideas submitted by month against prior year', trendSeries: 'FY2026 submissions',
+    trend: [['Jan', 42, 38], ['Feb', 54, 44], ['Mar', 62, 50], ['Apr', 48, 52], ['May', 70, 56], ['Jun', 78, 60], ['Jul', 58, 62], ['Aug', 82, 64], ['Sep', 88, 68]],
+    compositionTitle: 'Ideas by category',
+    composition: [['Client offering', '104', '33%', 100], ['Internal efficiency', '86', '28%', 83], ['Growth', '54', '17%', 52],
+      ['Delivery asset', '42', '13%', 40], ['Knowledge', '26', '9%', 25]],
+    detailTitle: 'Converted ideas and realised value', detailNote: 'Value is tracked for three years after conversion',
+    detailCols: ['Idea', 'Author', 'Practice', 'Converted', 'Estimated', 'Realised', 'Status'],
+    detailRows: [
+      ['Reusable ESG assurance toolkit', 'Camille Béranger', 'Sustainability', 'Mar 2026', '€2.8M', '€1.9M', 'Tracking', 'pos'],
+      ['Client obligation register', 'Priya Raghunathan', 'Insurance', 'Jan 2026', '€3.4M', '€2.6M', 'Tracking', 'pos'],
+      ['Automated closure pack', 'Lena Fischbach', 'Public Sector', 'Nov 2025', '€740k', '€810k', 'Exceeded', 'pos'],
+      ['Shared research library', 'Camille Béranger', 'Sustainability', 'Aug 2026', '€620k', '€40k', 'Early', 'neutral'],
+      ['Bid/no-bid scoring', 'Tomas Reinhardt', 'Financial Services', 'Pending', '€1.9M', '—', 'In approval', 'warn']
+    ]
+  },
+  'Operational': {
+    meta: 'Operational analytics · workflow, SLA and delivery health',
+    kpis: [['Workflow instances', '1,842', '+11.4%', true, 'this month'], ['SLA compliance', '92.6%', '-2.1pp', false, 'target 95%'],
+      ['Average cycle', '3.4 d', '+0.6 d', false, 'all workflows'], ['Escalations', '48', '+9', false, 'this month'], ['Amber/red projects', '13', '+3', false, 'of 148']],
+    trendTitle: 'Workflow completions by month against prior year', trendSeries: 'FY2026 completions',
+    trend: [['Jan', 60, 58], ['Feb', 66, 60], ['Mar', 72, 64], ['Apr', 70, 66], ['May', 76, 68], ['Jun', 78, 70], ['Jul', 68, 72], ['Aug', 80, 74], ['Sep', 84, 76]],
+    compositionTitle: 'Instances by workflow type',
+    composition: [['Invoice approval', '648', '35%', 100], ['Document review', '412', '22%', 64], ['Leave approval', '336', '18%', 52],
+      ['Purchase order', '244', '13%', 38], ['Change request', '124', '7%', 19], ['Innovation gate', '78', '4%', 12]],
+    detailTitle: 'SLA performance by workflow', detailNote: 'Breaches escalate to the step owner’s manager automatically',
+    detailCols: ['Workflow', 'Instances', 'Median cycle', 'SLA', 'Compliance', 'Breaches', 'Status'],
+    detailRows: [
+      ['Invoice approval', '648', '1.8 d', '2 d', '96.4%', '23', 'Healthy', 'pos'],
+      ['Document review', '412', '5.2 d', '5 d', '88.1%', '49', 'Watch', 'warn'],
+      ['Leave approval', '336', '4.2 d', '3 d', '74.4%', '86', 'Breaching', 'neg'],
+      ['Purchase order', '244', '2.4 d', '3 d', '97.1%', '7', 'Healthy', 'pos'],
+      ['Change request', '124', '6.8 d', '7 d', '91.9%', '10', 'Healthy', 'pos'],
+      ['Innovation gate', '78', '9.1 d', '10 d', '94.8%', '4', 'Healthy', 'pos']
+    ]
+  }
+};
+
+class Component extends DCLogic {
+  state = { board: 'Executive', range: 'FY2026', drill: null, filters: ['All practices'] };
+
+  nav = (screen, sub, entity) => { const f = this.props.navigate; if (f) f(screen, sub, entity); };
+  toast = (t) => { const f = this.props.toast; if (f) f(t); };
+
+  tagStyle(kind) {
+    const map = { pos: ['var(--tv-pos-tint)', 'var(--tv-pos)'], warn: ['var(--tv-warn-tint)', 'var(--tv-warn)'], neg: ['var(--tv-neg-tint)', 'var(--tv-neg)'], neutral: ['var(--tv-surface)', 'var(--tv-ink-70)'] };
+    const c = map[kind] || map.neutral;
+    return 'display:inline-flex;align-items:center;font-size:11px;font-weight:800;letter-spacing:.04em;padding:2px 7px;background:' + c[0] + ';color:' + c[1];
+  }
+
+  renderVals() {
+    const s = this.state;
+    const b = BOARDS[s.board];
+    const names = Object.keys(BOARDS);
+
+    const detailLink = (label) => {
+      if (/INV-/.test(label)) return () => this.nav('erp', 'Finance', 'inv-1');
+      if (/Migration|Retainer|Programme|Study|Model|Reform/.test(label)) return () => this.nav('crm', 'Opportunities');
+      if (/toolkit|register|closure|library|scoring/.test(label)) return () => this.nav('think', 'Ideas', 'idea-1');
+      if (/Financial Services|Insurance|Energy|Public Sector|Telecom|Sustainability|Group Functions/.test(label)) return () => this.nav('hr', 'Employees');
+      return null;
+    };
+
+    return {
+      boardMeta: b.meta,
+      boards: names.map((n) => ({
+        label: n === 'HR' ? 'HR Analytics' : n === 'ECM' ? 'ECM Analytics' : n === 'Executive' ? 'Executive' : n + ' Analytics',
+        onClick: () => this.setState({ board: n, drill: null }),
+        style: 'background:none;border:0;border-bottom:2px solid ' + (s.board === n ? 'var(--tv-accent)' : 'transparent') +
+          ';margin-bottom:-2px;padding:10px 15px 9px;font:inherit;font-size:13px;font-weight:' + (s.board === n ? '800' : '400') +
+          ';color:' + (s.board === n ? 'var(--tv-ink)' : 'var(--tv-ink-55)') + ';cursor:pointer;white-space:nowrap'
+      })),
+      filters: ['All practices', 'EMEA', 'Strategic accounts', 'Exclude internal'].map((f) => {
+        const on = s.filters.indexOf(f) >= 0;
+        return {
+          label: f,
+          onClick: () => this.setState((st) => ({ filters: on ? st.filters.filter((x) => x !== f) : [...st.filters, f] })),
+          style: 'background:' + (on ? 'var(--tv-ink)' : 'none') + ';color:' + (on ? 'var(--tv-bg)' : 'var(--tv-ink-55)') +
+            ';border:1px solid ' + (on ? 'var(--tv-ink)' : 'var(--tv-hair)') + ';padding:4px 10px;font:inherit;font-size:12px;font-weight:' + (on ? '800' : '400') + ';cursor:pointer;white-space:nowrap'
+        };
+      }),
+      rangeLabel: 'Range: ' + s.range,
+      onRange: () => this.setState((st) => ({ range: st.range === 'FY2026' ? 'Rolling 12m' : st.range === 'Rolling 12m' ? 'QTD' : 'FY2026' })),
+      onSave: () => this.toast('Report saved to your library and shareable with a role'),
+      onExport: () => this.toast('Export queued · XLSX, PDF and scheduled email all available'),
+      drilled: !!s.drill,
+      drillLabel: s.drill || '',
+      onClearDrill: () => this.setState({ drill: null }),
+
+      kpis: b.kpis.map((k) => ({ label: k[0], value: k[1], delta: k[2], note: k[4], deltaStyle: 'font-weight:800;color:' + (k[3] ? 'var(--tv-pos)' : 'var(--tv-neg)') })),
+
+      trendTitle: b.trendTitle,
+      trendSeries: b.trendSeries,
+      trend: b.trend.map((t) => {
+        const sel = s.drill === t[0];
+        return {
+          label: t[0], tip: t[0] + ' · index ' + t[1],
+          style: 'display:block;height:' + t[1] + '%;background:' + (sel ? 'var(--tv-accent)' : 'var(--tv-ink)') + ';transform-origin:bottom;animation:tv-bar .4s ease',
+          compareStyle: 'position:absolute;left:0;right:0;bottom:' + t[2] + '%;height:2px;background:var(--tv-mute)',
+          labelStyle: 'flex:1;font-size:10.5px;text-align:center;color:' + (sel ? 'var(--tv-accent)' : 'var(--tv-ink-55)') + ';font-weight:' + (sel ? '800' : '400'),
+          onClick: () => this.setState((st) => ({ drill: st.drill === t[0] ? null : t[0] }))
+        };
+      }),
+
+      compositionTitle: b.compositionTitle,
+      composition: b.composition.map((c, i) => ({
+        label: c[0], value: c[1], share: c[2],
+        style: 'height:100%;width:' + c[3] + '%;background:' + (i === 0 ? 'var(--tv-accent)' : 'var(--tv-ink)'),
+        onClick: () => this.setState({ drill: c[0] })
+      })),
+
+      detailTitle: b.detailTitle,
+      detailNote: b.detailNote,
+      detailCols: b.detailCols.map((c, i) => ({ label: c, style: i > 0 && i < b.detailCols.length - 1 ? 'text-align:right' : '' })),
+      detailRows: b.detailRows.map((r) => ({
+        cells: r.slice(0, b.detailCols.length).map((v, i) => {
+          const last = i === b.detailCols.length - 1;
+          const link = i === 0 ? detailLink(v) : null;
+          return {
+            text: v,
+            isTag: last, isLink: !last && !!link, isPlain: !last && !link,
+            tagStyle: last ? this.tagStyle(r[b.detailCols.length]) : '',
+            onClick: link || (() => {}),
+            tdStyle: (i > 0 && !last ? 'text-align:right;font-variant-numeric:tabular-nums;' : '') + (i > 0 && !last ? 'color:var(--tv-ink-70);' : '')
+          };
+        })
+      }))
+    };
+  }
+}
+
+</script>
+</body>
+</html>

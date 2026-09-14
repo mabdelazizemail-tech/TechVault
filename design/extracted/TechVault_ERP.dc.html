@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/modernist-36bd29c9-a0f6-40d6-82f9-3de3249645b6/styles.css">
+<script src="_ds/modernist-36bd29c9-a0f6-40d6-82f9-3de3249645b6/_ds_bundle.js"></script>
+<link rel="stylesheet" href="tv-tokens.css">
+</helmet>
+
+<div style="font-family:'Archivo',system-ui,sans-serif;color:var(--tv-ink);padding-bottom:48px;animation:tv-fade .2s ease">
+
+  <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:16px;padding:0 24px 12px;flex-wrap:wrap">
+    <div style="min-width:0">
+      <h1 style="font-size:34px;margin:0 0 3px">{{ pageTitle }}</h1>
+      <div style="font-size:12.5px;color:var(--tv-ink-55)">{{ pageMeta }}</div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-secondary" onClick="{{ onPeriod }}">Period: FY2026 Q3</button>
+      <button class="btn btn-secondary" onClick="{{ onExport }}">Export</button>
+      <button class="btn btn-primary" onClick="{{ onCreate }}">{{ createLabel }}</button>
+    </div>
+  </div>
+
+  <sc-if value="{{ isFinanceDash }}" hint-placeholder-val="{{ true }}">
+    <div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(186px,1fr));gap:1px;background:var(--tv-hair);border-top:1px solid var(--tv-hair);border-bottom:1px solid var(--tv-hair)">
+        <sc-for list="{{ finKpis }}" as="k" hint-placeholder-count="6">
+          <div style="background:var(--tv-panel);padding:14px 16px 16px">
+            <div style="font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--tv-ink-55)">{{ k.label }}</div>
+            <div style="font-size:26px;font-weight:800;line-height:1.1;letter-spacing:-.02em;margin-top:4px">{{ k.value }}</div>
+            <div style="font-size:12px"><span style="{{ k.deltaStyle }}">{{ k.delta }}</span> <span style="color:var(--tv-ink-40)">{{ k.note }}</span></div>
+          </div>
+        </sc-for>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:1px;background:var(--tv-hair);border-bottom:1px solid var(--tv-hair)">
+        <section style="grid-column:span 5;background:var(--tv-panel);padding:14px 16px 18px;min-width:0">
+          <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--tv-accent-ink)">Accounts receivable</div>
+          <h3 style="font-size:16px;margin:2px 0 12px">Ageing profile</h3>
+          <sc-for list="{{ ageing }}" as="a" hint-placeholder-count="5">
+            <div style="border-top:1px solid var(--tv-hair);padding:9px 0">
+              <div style="display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:5px">
+                <span style="font-weight:800">{{ a.label }}</span>
+                <span style="font-variant-numeric:tabular-nums">{{ a.value }}</span>
+              </div>
+              <div style="height:8px;background:var(--tv-surface)"><div style="{{ a.style }}"></div></div>
+            </div>
+          </sc-for>
+          <div style="font-size:11px;color:var(--tv-ink-40);margin-top:10px">Total receivables €18.6M · overdue €3.42M across six invoices</div>
+        </section>
+        <section style="grid-column:span 7;background:var(--tv-panel);padding:14px 16px 18px;min-width:0">
+          <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--tv-accent-ink)">Profit and loss</div>
+          <h3 style="font-size:16px;margin:2px 0 14px">Actual against budget by line</h3>
+          <table class="table">
+            <thead><tr><th>Line</th><th style="text-align:right">Actual</th><th style="text-align:right">Budget</th><th style="text-align:right">Variance</th><th style="width:110px"></th></tr></thead>
+            <tbody>
+              <sc-for list="{{ pnl }}" as="p" hint-placeholder-count="6">
+                <tr>
+                  <td style="{{ p.labelStyle }}">{{ p.label }}</td>
+                  <td style="text-align:right;font-variant-numeric:tabular-nums">{{ p.actual }}</td>
+                  <td style="text-align:right;font-variant-numeric:tabular-nums;color:var(--tv-ink-55)">{{ p.budget }}</td>
+                  <td style="{{ p.varStyle }}">{{ p.variance }}</td>
+                  <td><div style="height:7px;background:var(--tv-surface)"><div style="{{ p.barStyle }}"></div></div></td>
+                </tr>
+              </sc-for>
+            </tbody>
+          </table>
+        </section>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isInvoice }}" hint-placeholder-val="{{ false }}">
+    <div style="display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:1px;background:var(--tv-hair);border-top:2px solid var(--tv-rule)">
+      <section style="grid-column:span 8;background:var(--tv-panel);padding:18px 22px 24px;min-width:0">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:4px">
+          <h2 style="font-size:24px;margin:0">INV-2026-04417</h2>
+          <span style="{{ overdueStyle }}">18 days overdue</span>
+          <span class="tag tag-neutral">Dunning stage 2</span>
+        </div>
+        <div style="font-size:12.5px;color:var(--tv-ink-55);margin-bottom:18px">Meridian Federal Bank · issued 25 Aug 2026 · due 9 Sep 2026 · net 45 · owner Group Finance</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px 20px;margin-bottom:22px">
+          <sc-for list="{{ invoiceFields }}" as="f" hint-placeholder-count="6">
+            <div style="border-top:1px solid var(--tv-hair);padding-top:7px">
+              <div style="font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--tv-ink-55)">{{ f.label }}</div>
+              <div style="font-size:14px;font-weight:800">{{ f.value }}</div>
+            </div>
+          </sc-for>
+        </div>
+        <h4 style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--tv-accent-ink);margin:0 0 10px">Invoice lines</h4>
+        <table class="table">
+          <thead><tr><th>Description</th><th>Engagement</th><th style="text-align:right">Quantity</th><th style="text-align:right">Rate</th><th style="text-align:right">Amount</th></tr></thead>
+          <tbody>
+            <sc-for list="{{ invoiceLines }}" as="l" hint-placeholder-count="4">
+              <tr>
+                <td style="font-weight:800">{{ l.desc }}</td>
+                <td style="color:var(--tv-ink-55)">{{ l.project }}</td>
+                <td style="text-align:right;font-variant-numeric:tabular-nums">{{ l.qty }}</td>
+                <td style="text-align:right;font-variant-numeric:tabular-nums">{{ l.rate }}</td>
+                <td style="text-align:right;font-variant-numeric:tabular-nums;font-weight:800">{{ l.amount }}</td>
+              </tr>
+            </sc-for>
+          </tbody>
+        </table>
+        <div style="display:flex;justify-content:flex-end;gap:32px;border-top:2px solid var(--tv-rule);padding-top:12px;margin-top:8px">
+          <div style="text-align:right"><div style="font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--tv-ink-55)">Net</div><div style="font-size:17px;font-weight:800">€1,042,017</div></div>
+          <div style="text-align:right"><div style="font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--tv-ink-55)">VAT 19%</div><div style="font-size:17px;font-weight:800">€197,983</div></div>
+          <div style="text-align:right"><div style="font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--tv-ink-55)">Total due</div><div style="font-size:24px;font-weight:800;color:var(--tv-accent-ink)">€1,240,000</div></div>
+        </div>
+      </section>
+      <aside style="grid-column:span 4;background:var(--tv-panel);padding:18px 20px 24px;min-width:0">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px">
+          <button class="btn btn-primary" onClick="{{ onDun }}">Send dunning letter</button>
+          <button class="btn btn-secondary" onClick="{{ onWriteOff }}">Request write-off</button>
+        </div>
+        <h4 style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--tv-ink-55);margin:0 0 10px">Collection history</h4>
+        <sc-for list="{{ collection }}" as="c" hint-placeholder-count="4">
+          <div style="display:flex;gap:11px">
+            <div style="flex:none;display:flex;flex-direction:column;align-items:center;width:11px">
+              <span style="{{ c.dotStyle }}"></span>
+              <span style="{{ c.lineStyle }}"></span>
+            </div>
+            <div style="flex:1;min-width:0;padding-bottom:14px">
+              <div style="font-size:12.5px;font-weight:800">{{ c.title }}</div>
+              <div style="font-size:11.5px;color:var(--tv-ink-55)">{{ c.who }}</div>
+              <div style="font-size:11px;color:var(--tv-ink-40)">{{ c.when }}</div>
+            </div>
+          </div>
+        </sc-for>
+        <div style="height:2px;background:var(--tv-rule);margin:6px 0 18px"></div>
+        <h4 style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--tv-ink-55);margin:0 0 10px">Connected records</h4>
+        <sc-for list="{{ invoiceLinks }}" as="l" hint-placeholder-count="4">
+          <button onClick="{{ l.onClick }}" style="display:flex;justify-content:space-between;align-items:center;width:100%;background:none;border:0;border-top:1px solid var(--tv-hair);padding:9px 0;cursor:pointer;font:inherit;font-size:12.5px;color:inherit;text-align:left">
+            <span style="min-width:0"><span style="display:block;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--tv-ink-55)">{{ l.module }}</span>{{ l.label }}</span>
+            <span style="color:var(--tv-accent-ink);font-weight:800;flex:none">→</span>
+          </button>
+        </sc-for>
+      </aside>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isProjectDetail }}" hint-placeholder-val="{{ false }}">
+    <div>
+      <div style="background:var(--tv-panel);border-top:1px solid var(--tv-hair);border-bottom:2px solid var(--tv-rule);padding:16px 24px">
+        <div style="display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap">
+          <div style="flex:1;min-width:240px">
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:3px">
+              <h2 style="font-size:25px;margin:0">Meridian Core Banking Migration</h2>
+              <span style="{{ amberStyle }}">Amber</span>
+            </div>
+            <div style="font-size:12.5px;color:var(--tv-ink-55)">PRJ-2026-041 · Meridian Federal Bank · partner Adaeze Okafor · 1 Feb 2026 – 31 Dec 2026 · 34 people assigned</div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(4,minmax(94px,auto));gap:1px;background:var(--tv-hair);border:1px solid var(--tv-hair)">
+            <sc-for list="{{ projStats }}" as="p" hint-placeholder-count="4">
+              <div style="background:var(--tv-panel);padding:8px 12px">
+                <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--tv-ink-55)">{{ p.label }}</div>
+                <div style="{{ p.valueStyle }}">{{ p.value }}</div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:1px;background:var(--tv-hair)">
+        <section style="grid-column:span 8;background:var(--tv-panel);padding:18px 22px 24px;min-width:0">
+          <h4 style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--tv-accent-ink);margin:0 0 12px">Milestones</h4>
+          <sc-for list="{{ milestones }}" as="m" hint-placeholder-count="5">
+            <div style="display:flex;gap:14px;align-items:center;border-top:1px solid var(--tv-hair);padding:11px 0">
+              <span style="{{ m.dotStyle }}"></span>
+              <div style="flex:1;min-width:0">
+                <div style="font-weight:800;font-size:13.5px">{{ m.title }}</div>
+                <div style="font-size:11.5px;color:var(--tv-ink-55)">{{ m.meta }}</div>
+              </div>
+              <span style="{{ m.statusStyle }}">{{ m.status }}</span>
+              <span style="font-size:12px;color:var(--tv-ink-55);width:92px;text-align:right;font-variant-numeric:tabular-nums">{{ m.value }}</span>
+            </div>
+          </sc-for>
+          <h4 style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--tv-accent-ink);margin:24px 0 12px">Budget burn by month</h4>
+          <div style="display:flex;align-items:flex-end;gap:6px;height:130px;border-bottom:2px solid var(--tv-rule)">
+            <sc-for list="{{ burn }}" as="b" hint-placeholder-count="8">
+              <div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;height:100%;position:relative">
+                <div style="{{ b.planStyle }}"></div>
+                <div style="{{ b.style }}"></div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="display:flex;gap:6px;margin-top:6px">
+            <sc-for list="{{ burn }}" as="b" hint-placeholder-count="8">
+              <div style="flex:1;font-size:10.5px;color:var(--tv-ink-55);text-align:center">{{ b.label }}</div>
+            </sc-for>
+          </div>
+        </section>
+        <aside style="grid-column:span 4;background:var(--tv-panel);padding:18px 20px 24px;min-width:0">
+          <h4 style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--tv-ink-55);margin:0 0 10px">Why this is amber</h4>
+          <p style="font-size:12.5px;line-height:1.55;color:var(--tv-ink-70);margin:0 0 16px">Burn is 74% against 61% of elapsed schedule. Two milestones moved right when the client delayed environment access, and the Phase 2 statement of work is still in legal review, which blocks the follow-on team ramp.</p>
+          <h4 style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--tv-ink-55);margin:0 0 10px">Connected records</h4>
+          <sc-for list="{{ projLinks }}" as="l" hint-placeholder-count="5">
+            <button onClick="{{ l.onClick }}" style="display:flex;justify-content:space-between;align-items:center;width:100%;background:none;border:0;border-top:1px solid var(--tv-hair);padding:9px 0;cursor:pointer;font:inherit;font-size:12.5px;color:inherit;text-align:left">
+              <span style="min-width:0"><span style="display:block;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--tv-ink-55)">{{ l.module }}</span>{{ l.label }}</span>
+              <span style="color:var(--tv-accent-ink);font-weight:800;flex:none">→</span>
+            </button>
+          </sc-for>
+        </aside>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isTable }}" hint-placeholder-val="{{ false }}">
+    <div>
+      <div style="border-top:1px solid var(--tv-hair);background:var(--tv-panel);padding:10px 24px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <div style="display:flex;align-items:center;gap:7px;background:var(--tv-surface);border:1px solid var(--tv-hair);padding:0 9px;height:32px;min-width:200px;flex:1;max-width:300px">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--tv-ink-40)" stroke-width="2" style="flex:none"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+          <input value="{{ query }}" onChange="{{ onQuery }}" placeholder="Search {{ noun }}" aria-label="Search records" style="flex:1;min-width:0;border:0;background:none;font:inherit;font-size:13px;color:inherit;outline:none">
+        </div>
+        <sc-for list="{{ views }}" as="v" hint-placeholder-count="3">
+          <button onClick="{{ v.onClick }}" style="{{ v.style }}">{{ v.label }}</button>
+        </sc-for>
+        <div style="flex:1"></div>
+        <span style="font-size:11.5px;color:var(--tv-ink-55)">{{ rowCount }}</span>
+        <button class="btn btn-secondary" style="padding:5px 10px;font-size:12px" onClick="{{ onColumns }}">Columns</button>
+        <button class="btn btn-secondary" style="padding:5px 10px;font-size:12px" onClick="{{ onFilters }}">Filters</button>
+      </div>
+      <sc-if value="{{ hasSelection }}" hint-placeholder-val="{{ false }}">
+        <div style="background:var(--tv-ink);color:var(--tv-bg);padding:8px 24px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;animation:tv-rise .15s ease">
+          <span style="font-size:12.5px;font-weight:800">{{ selectionLabel }}</span>
+          <button onClick="{{ onBulkApprove }}" style="background:none;border:1px solid var(--tv-bg);color:var(--tv-bg);font:inherit;font-size:12px;padding:3px 9px;cursor:pointer">Approve selection</button>
+          <button onClick="{{ onBulkHold }}" style="background:none;border:1px solid var(--tv-bg);color:var(--tv-bg);font:inherit;font-size:12px;padding:3px 9px;cursor:pointer">Place on hold</button>
+          <button onClick="{{ onClearSelection }}" style="background:none;border:0;color:var(--tv-bg);font:inherit;font-size:12px;cursor:pointer;text-decoration:underline">Clear</button>
+        </div>
+      </sc-if>
+      <div style="overflow-x:auto;background:var(--tv-panel);border-top:1px solid var(--tv-hair)">
+        <table class="table" style="min-width:880px">
+          <thead>
+            <tr>
+              <th style="width:34px"><input type="checkbox" checked="{{ allSelected }}" onChange="{{ onSelectAll }}" aria-label="Select all rows"></th>
+              <sc-for list="{{ columns }}" as="c" hint-placeholder-count="6">
+                <th style="{{ c.style }}"><button onClick="{{ c.onSort }}" style="background:none;border:0;padding:0;font:inherit;color:inherit;cursor:pointer;letter-spacing:.08em;text-transform:uppercase;font-size:11px">{{ c.label }}{{ c.arrow }}</button></th>
+              </sc-for>
+            </tr>
+          </thead>
+          <tbody>
+            <sc-for list="{{ rows }}" as="r" hint-placeholder-count="8">
+              <tr>
+                <td><input type="checkbox" checked="{{ r.selected }}" onChange="{{ r.onSelect }}" aria-label="Select row"></td>
+                <sc-for list="{{ r.cells }}" as="cell" hint-placeholder-count="6">
+                  <td style="{{ cell.tdStyle }}">
+                    <sc-if value="{{ cell.isLink }}" hint-placeholder-val="{{ false }}">
+                      <button onClick="{{ cell.onClick }}" style="background:none;border:0;padding:0;font:inherit;font-weight:800;color:inherit;cursor:pointer;text-align:left">{{ cell.text }}</button>
+                    </sc-if>
+                    <sc-if value="{{ cell.isTag }}" hint-placeholder-val="{{ false }}">
+                      <span style="{{ cell.tagStyle }}">{{ cell.text }}</span>
+                    </sc-if>
+                    <sc-if value="{{ cell.isPlain }}" hint-placeholder-val="{{ true }}">
+                      <span>{{ cell.text }}</span>
+                    </sc-if>
+                  </td>
+                </sc-for>
+              </tr>
+            </sc-for>
+          </tbody>
+        </table>
+        <sc-if value="{{ tableEmpty }}" hint-placeholder-val="{{ false }}">
+          <div style="padding:42px 24px;max-width:60ch">
+            <div style="font-weight:800;font-size:17px;margin-bottom:5px">No {{ noun }} match this view</div>
+            <div style="font-size:13px;color:var(--tv-ink-55);margin-bottom:14px">{{ emptyNote }}</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button class="btn btn-secondary" onClick="{{ onClearQuery }}">Clear search</button>
+              <button class="btn btn-primary" onClick="{{ onCreate }}">{{ createLabel }}</button>
+            </div>
+          </div>
+        </sc-if>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 24px;background:var(--tv-panel);border-top:1px solid var(--tv-hair);flex-wrap:wrap">
+        <span style="font-size:11.5px;color:var(--tv-ink-55)">{{ pageLabel }}</span>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-secondary" style="padding:4px 10px;font-size:12px" onClick="{{ onPage }}">Previous</button>
+          <button class="btn btn-secondary" style="padding:4px 10px;font-size:12px" onClick="{{ onPage }}">Next</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1180,&quot;height&quot;:820},&quot;sub&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Finance&quot;,&quot;Procurement&quot;,&quot;Vendors&quot;,&quot;Inventory&quot;,&quot;Projects&quot;],&quot;default&quot;:&quot;Finance&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;entity&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;navigate&quot;:{&quot;editor&quot;:null,&quot;tsType&quot;:&quot;(screen: string, sub?: string, entity?: string) =&gt; void&quot;},&quot;toast&quot;:{&quot;editor&quot;:null,&quot;tsType&quot;:&quot;(text: string) =&gt; void&quot;}}">
+const INVOICES = [
+  ['INV-2026-04417', 'Meridian Federal Bank', 'Core Banking Migration', '25 Aug 2026', '€1,240,000', '18 days overdue', 'neg', 'inv-1'],
+  ['INV-2026-04502', 'Corvus Telecom Group', 'Spectrum Advisory', '02 Sep 2026', '€486,500', 'Due in 9 days', 'neutral', ''],
+  ['INV-2026-04388', 'Halden Energy Nordics', 'Grid Resilience Audit', '18 Aug 2026', '€742,000', '11 days overdue', 'neg', ''],
+  ['INV-2026-04301', 'Blackfen Municipal Authority', 'Procurement Reform', '05 Aug 2026', '€610,500', '27 days overdue', 'neg', ''],
+  ['INV-2026-04466', 'Verity Health Systems', 'Claims Automation', '29 Aug 2026', '€388,000', 'Due in 3 days', 'warn', ''],
+  ['INV-2026-04511', 'Quillon Insurance', 'Claims TOM', '04 Sep 2026', '€214,800', 'Due in 12 days', 'neutral', ''],
+  ['INV-2026-04302', 'Meridian Federal Bank', 'Core Banking Migration', '28 Jul 2026', '€980,000', 'Paid', 'pos', ''],
+  ['INV-2026-04255', 'Ostara Logistics', 'Network Study', '21 Jul 2026', '€176,400', 'Paid', 'pos', '']
+];
+
+const PURCHASE = [
+  ['PO-2026-1188', 'Lindqvist Legal Partners', 'External counsel — Meridian MSA', '€486,500', 'Awaiting approval', 'neg', 'P. Raghunathan'],
+  ['PO-2026-1184', 'Northvolt Data Services', 'Cloud infrastructure Q4', '€212,000', 'Approved', 'pos', 'IT Operations'],
+  ['PO-2026-1179', 'Helix Recruitment', 'Contract delivery staff × 6', '€318,400', 'Approved', 'pos', 'Delivery Excellence'],
+  ['PO-2026-1172', 'Bergstrom Facilities', 'Prague office fit-out', '€310,000', 'Awaiting approval', 'warn', 'Facilities'],
+  ['PO-2026-1166', 'Meridian Translation Bureau', 'Regulatory document translation', '€44,200', 'Received', 'neutral', 'Financial Services'],
+  ['PO-2026-1150', 'Aurora Print', 'Board pack production', '€8,600', 'Closed', 'neutral', 'Group Secretariat']
+];
+
+const VENDORS = [
+  ['Lindqvist Legal Partners', 'Legal services', 'Stockholm', 'Tier 1', '€1.86M', 'Compliant', 'pos'],
+  ['Northvolt Data Services', 'Cloud infrastructure', 'Gothenburg', 'Tier 1', '€2.44M', 'Compliant', 'pos'],
+  ['Helix Recruitment', 'Contract staffing', 'London', 'Tier 2', '€1.12M', 'Review due', 'warn'],
+  ['Bergstrom Facilities', 'Facilities management', 'Prague', 'Tier 3', '€480k', 'Compliant', 'pos'],
+  ['Aurora Print', 'Print and production', 'Malmö', 'Tier 3', '€96k', 'Expired insurance', 'neg'],
+  ['Meridian Translation Bureau', 'Translation', 'Frankfurt', 'Tier 3', '€142k', 'Compliant', 'pos']
+];
+
+const INVENTORY = [
+  ['Managed laptops — Northbridge standard', 'IT asset', 'Frankfurt store', '284', '41', 'In stock', 'pos'],
+  ['Secure tokens (FIDO2)', 'IT asset', 'Frankfurt store', '612', '120', 'In stock', 'pos'],
+  ['Client workshop kits', 'Delivery asset', 'Rotterdam store', '18', '6', 'Low', 'warn'],
+  ['Encrypted field drives', 'IT asset', 'Prague store', '4', '20', 'Reorder', 'neg'],
+  ['Mobile scanners (ECM capture)', 'ECM hardware', 'Frankfurt store', '26', '10', 'In stock', 'pos']
+];
+
+const PROJECTS = [
+  ['PRJ-2026-041', 'Meridian Core Banking Migration', 'Meridian Federal Bank', 'A. Okafor', '€6,200,000', '74%', 'Amber', 'warn', 'proj-1'],
+  ['PRJ-2026-052', 'Corvus 5G Spectrum Advisory', 'Corvus Telecom Group', 'T. Reinhardt', '€2,400,000', '41%', 'Green', 'pos', ''],
+  ['PRJ-2026-038', 'Halden Grid Resilience Audit', 'Halden Energy Nordics', 'M. Dvořák', '€1,800,000', '52%', 'Green', 'pos', ''],
+  ['PRJ-2026-061', 'Verity Claims Automation', 'Verity Health Systems', 'P. Raghunathan', '€3,100,000', '38%', 'Green', 'pos', 'proj-2'],
+  ['PRJ-2026-029', 'Blackfen Procurement Reform', 'Blackfen Municipal Authority', 'L. Fischbach', '€2,900,000', '91%', 'Red', 'neg', ''],
+  ['PRJ-2026-074', 'Quillon Claims TOM', 'Quillon Insurance', 'P. Raghunathan', '€1,450,000', '18%', 'Green', 'pos', ''],
+  ['PRJ-2026-081', 'ESG Assurance Toolkit build', 'Internal — from IDEA-2026-018', 'C. Béranger', '€620,000', '24%', 'Green', 'pos', ''],
+  ['PRJ-2026-066', 'Ostara Network Optimisation', 'Ostara Logistics', 'L. Fischbach', '€980,000', '66%', 'Amber', 'warn', '']
+];
+
+class Component extends DCLogic {
+  state = { query: '', view: 'All', sort: null, sortDir: 1, selected: [] };
+
+  nav = (screen, sub, entity) => { const f = this.props.navigate; if (f) f(screen, sub, entity); };
+  toast = (t) => { const f = this.props.toast; if (f) f(t); };
+  go = (to) => () => this.nav(to[0], to[1], to[2]);
+
+  tagStyle(kind) {
+    const map = { pos: ['var(--tv-pos-tint)', 'var(--tv-pos)'], warn: ['var(--tv-warn-tint)', 'var(--tv-warn)'], neg: ['var(--tv-neg-tint)', 'var(--tv-neg)'], neutral: ['var(--tv-surface)', 'var(--tv-ink-70)'] };
+    const c = map[kind] || map.neutral;
+    return 'display:inline-flex;align-items:center;font-size:11px;font-weight:800;letter-spacing:.04em;padding:2px 7px;background:' + c[0] + ';color:' + c[1];
+  }
+
+  cell(text, o) {
+    o = o || {};
+    return {
+      text: text, isLink: !!o.link, isTag: !!o.tag, isPlain: !o.link && !o.tag,
+      onClick: o.link || (() => {}), tagStyle: o.tag ? this.tagStyle(o.tag) : '',
+      tdStyle: (o.align === 'right' ? 'text-align:right;font-variant-numeric:tabular-nums;' : '') + (o.muted ? 'color:var(--tv-ink-55);' : '')
+    };
+  }
+
+  renderVals() {
+    const s = this.state;
+    const sub = this.props.sub || 'Finance';
+    const entity = this.props.entity;
+    const go = this.go;
+
+    const isInvoice = entity === 'inv-1';
+    const isProjectDetail = entity === 'proj-1' || entity === 'proj-2';
+    const isFinanceDash = sub === 'Finance' && !entity;
+    const isTable = !isInvoice && !isProjectDetail && !isFinanceDash;
+
+    let columns = [], source = [], noun = 'records', emptyNote = '';
+    if (sub === 'Finance' || isInvoice) {
+      noun = 'invoices'; emptyNote = 'Invoices are raised from engagement milestones. Nothing in this filter is outstanding.';
+      columns = ['Invoice', 'Customer', 'Engagement', 'Issued', 'Amount', 'Status'];
+      source = INVOICES.map((r) => ({ key: r.join(' '), cells: [
+        this.cell(r[0], { link: () => this.nav('erp', 'Finance', r[7] || 'inv-1') }),
+        this.cell(r[1], { link: () => this.nav('crm', 'Customers', r[1].indexOf('Meridian') === 0 ? 'meridian' : 'corvus') }),
+        this.cell(r[2], { muted: true }), this.cell(r[3], { muted: true }),
+        this.cell(r[4], { align: 'right' }), this.cell(r[5], { tag: r[6] })
+      ] }));
+    } else if (sub === 'Procurement') {
+      noun = 'purchase orders'; emptyNote = 'Purchase orders route through delegated authority before commitment. Raise one to start the approval workflow.';
+      columns = ['Order', 'Vendor', 'Description', 'Value', 'Status', 'Requested by'];
+      source = PURCHASE.map((r) => ({ key: r.join(' '), cells: [
+        this.cell(r[0], { link: () => this.nav('workflow', 'My approvals') }),
+        this.cell(r[1], { link: () => this.nav('erp', 'Vendors') }),
+        this.cell(r[2], { muted: true }), this.cell(r[3], { align: 'right' }),
+        this.cell(r[4], { tag: r[5] }), this.cell(r[6], { muted: true })
+      ] }));
+    } else if (sub === 'Vendors') {
+      noun = 'vendors'; emptyNote = 'Vendors are onboarded through due diligence in ECM before they can receive a purchase order.';
+      columns = ['Vendor', 'Category', 'Location', 'Tier', 'Spend YTD', 'Compliance'];
+      source = VENDORS.map((r) => ({ key: r.join(' '), cells: [
+        this.cell(r[0], { link: () => this.nav('ecm', 'Repository') }),
+        this.cell(r[1], { muted: true }), this.cell(r[2], { muted: true }),
+        this.cell(r[3], { tag: 'neutral' }), this.cell(r[4], { align: 'right' }), this.cell(r[5], { tag: r[6] })
+      ] }));
+    } else if (sub === 'Inventory') {
+      noun = 'stock items'; emptyNote = 'Inventory covers issued IT and delivery assets. Reorder points trigger a procurement request automatically.';
+      columns = ['Item', 'Category', 'Location', 'On hand', 'Reorder at', 'Status'];
+      source = INVENTORY.map((r) => ({ key: r.join(' '), cells: [
+        this.cell(r[0], { link: () => this.toast('Asset register entry with assignment history') }),
+        this.cell(r[1], { muted: true }), this.cell(r[2], { muted: true }),
+        this.cell(r[3], { align: 'right' }), this.cell(r[4], { align: 'right' }), this.cell(r[5], { tag: r[6] })
+      ] }));
+    } else {
+      noun = 'engagements'; emptyNote = 'Engagements arrive from won opportunities in CRM or from approved Think Tank ideas.';
+      columns = ['Reference', 'Engagement', 'Client', 'Partner', 'Budget', 'Burn', 'Health'];
+      source = PROJECTS.map((r) => ({ key: r.join(' '), cells: [
+        this.cell(r[0], { muted: true }),
+        this.cell(r[1], { link: () => this.nav('erp', 'Projects', r[8] || 'proj-1') }),
+        this.cell(r[2], { muted: true }), this.cell(r[3], { muted: true }),
+        this.cell(r[4], { align: 'right' }), this.cell(r[5], { align: 'right' }), this.cell(r[6], { tag: r[7] })
+      ] }));
+    }
+
+    const q = s.query.trim().toLowerCase();
+    let rowsSrc = source.filter((r) => !q || r.key.toLowerCase().indexOf(q) >= 0);
+    if (s.view === 'Overdue') rowsSrc = rowsSrc.filter((r) => r.key.indexOf('overdue') >= 0);
+    if (s.view === 'Needs attention') rowsSrc = rowsSrc.filter((r) => /overdue|Awaiting|Reorder|Red|Amber|Expired|Review|Low/.test(r.key));
+    if (s.sort !== null) {
+      rowsSrc = rowsSrc.slice().sort((a, b) => String(a.cells[s.sort].text).localeCompare(String(b.cells[s.sort].text)) * s.sortDir);
+    }
+
+    const bar = (pct, color) => 'height:100%;width:' + pct + '%;background:' + color;
+
+    return {
+      pageTitle: isInvoice ? 'Invoice' : isProjectDetail ? 'Engagement' : isFinanceDash ? 'Finance' : sub,
+      pageMeta: isInvoice ? 'Accounts receivable · Group Finance · escalated 2 Sep 2026'
+        : isProjectDetail ? 'Delivery · engagement record with budget, milestones and connected records'
+        : isFinanceDash ? 'Group consolidated · FY2026 Q3 · reporting currency EUR'
+        : rowsSrc.length + ' of ' + source.length + ' records · view “' + s.view + '”',
+      createLabel: sub === 'Procurement' ? 'Raise purchase order' : sub === 'Vendors' ? 'Onboard vendor' : sub === 'Projects' ? 'New engagement' : 'Raise invoice',
+      onCreate: () => this.toast('Creation runs as a wizard with delegated-authority checks'),
+      onPeriod: () => this.toast('Period selector: month, quarter, year, or custom range'),
+      onExport: () => this.toast('Export queued · XLSX with drill-down references'),
+
+      isFinanceDash: isFinanceDash,
+      isInvoice: isInvoice,
+      isProjectDetail: isProjectDetail,
+      isTable: isTable,
+
+      finKpis: [
+        ['Revenue YTD', '€184.2M', '+4.7%', true, 'vs plan'],
+        ['EBIT margin', '18.4%', '+0.9pp', true, 'vs plan 17.5%'],
+        ['Cash position', '€42.8M', '-3.1%', false, 'vs last quarter'],
+        ['Receivables', '€18.6M', '+6.2%', false, 'DSO 52 days'],
+        ['Overdue', '€3.42M', '+18.4%', false, '6 invoices'],
+        ['Committed spend', '€24.1M', '+2.2%', false, 'open purchase orders']
+      ].map((k) => ({ label: k[0], value: k[1], delta: k[2], note: k[4], deltaStyle: 'font-weight:800;color:' + (k[3] ? 'var(--tv-pos)' : 'var(--tv-neg)') })),
+
+      ageing: [
+        ['Current', '€15.18M', 82, 'var(--tv-ink)'],
+        ['1–30 days', '€1.23M', 18, 'var(--tv-ink-40)'],
+        ['31–60 days', '€1.35M', 20, 'var(--tv-warn)'],
+        ['61–90 days', '€0.61M', 9, 'var(--tv-accent)'],
+        ['90+ days', '€0.23M', 4, 'var(--tv-accent)']
+      ].map((a) => ({ label: a[0], value: a[1], style: bar(a[2], a[3]) })),
+
+      pnl: [
+        ['Net revenue', '€184.2M', '€176.0M', '+4.7%', true, 105, true],
+        ['Delivery cost', '€98.4M', '€96.2M', '-2.3%', false, 102, false],
+        ['Gross profit', '€85.8M', '€79.8M', '+7.5%', true, 108, true],
+        ['Sales & marketing', '€18.6M', '€19.4M', '+4.1%', true, 96, false],
+        ['General & administrative', '€33.3M', '€30.7M', '-8.5%', false, 108, false],
+        ['Operating profit', '€33.9M', '€29.7M', '+14.1%', true, 114, true]
+      ].map((p) => ({
+        label: p[0], actual: p[1], budget: p[2], variance: p[3],
+        labelStyle: 'font-weight:800' + (p[6] ? ';border-left:3px solid var(--tv-accent);padding-left:9px' : ''),
+        varStyle: 'text-align:right;font-variant-numeric:tabular-nums;font-weight:800;color:' + (p[4] ? 'var(--tv-pos)' : 'var(--tv-neg)'),
+        barStyle: bar(Math.min(100, p[5] - 20), p[4] ? 'var(--tv-ink)' : 'var(--tv-accent)')
+      })),
+
+      overdueStyle: this.tagStyle('neg'),
+      amberStyle: this.tagStyle('warn'),
+      invoiceFields: [
+        ['Customer', 'Meridian Federal Bank'], ['Engagement', 'PRJ-2026-041'], ['Payment terms', 'Net 45'],
+        ['Contract', 'MSA 2026 v4.2'], ['Account owner', 'Tomas Reinhardt'], ['Collection owner', 'Group Finance']
+      ].map((f) => ({ label: f[0], value: f[1] })),
+      invoiceLines: [
+        ['Migration assurance — August', 'PRJ-2026-041', '1,284 h', '€420', '€539,280'],
+        ['Data reconciliation workstream', 'PRJ-2026-041', '840 h', '€380', '€319,200'],
+        ['Regulator reporting support', 'PRJ-2026-041', '312 h', '€465', '€145,080'],
+        ['Travel and disbursements', 'PRJ-2026-041', '—', '—', '€38,457']
+      ].map((l) => ({ desc: l[0], project: l[1], qty: l[2], rate: l[3], amount: l[4] })),
+      collection: [
+        ['Escalated to dunning stage 2', 'System · collections policy', 'Today 07:04', true],
+        ['Reminder sent to accounts payable', 'Group Finance', '4 Sep 2026', false],
+        ['Account owner notified', 'System · to Tomas Reinhardt', '30 Aug 2026', false],
+        ['Invoice issued', 'Group Finance', '25 Aug 2026', false]
+      ].map((c, i, arr) => ({
+        title: c[0], who: c[1], when: c[2],
+        dotStyle: 'width:9px;height:9px;flex:none;margin-top:4px;background:' + (c[3] ? 'var(--tv-accent)' : 'var(--tv-ink-40)'),
+        lineStyle: i === arr.length - 1 ? 'display:none' : 'flex:1;width:1px;background:var(--tv-hair);margin-top:3px'
+      })),
+      invoiceLinks: [
+        { module: 'CRM · Customer', label: 'Meridian Federal Bank', onClick: go(['crm', 'Customers', 'meridian']) },
+        { module: 'ERP · Engagement', label: 'Core Banking Migration', onClick: go(['erp', 'Projects', 'proj-1']) },
+        { module: 'ECM · Contract', label: 'MSA 2026 — executed', onClick: go(['ecm', 'Document Viewer', 'doc-1']) },
+        { module: 'Workflow · Instance', label: 'Collections escalation', onClick: go(['workflow', 'Workflow instances']) },
+        { module: 'BI · Analytics', label: 'Receivables ageing report', onClick: go(['bi', '']) }
+      ],
+      onDun: () => this.toast('Dunning letter drafted for review by Group Finance'),
+      onWriteOff: () => this.toast('Write-off request routed to the CFO approval workflow'),
+
+      projStats: [
+        ['Budget', '€6.2M', false], ['Burn', '74%', true], ['Schedule', '61%', false], ['Margin', '22.4%', false]
+      ].map((p) => ({ label: p[0], value: p[1], valueStyle: 'font-size:17px;font-weight:800;color:' + (p[2] ? 'var(--tv-accent)' : 'var(--tv-ink)') })),
+      milestones: [
+        ['M1 · Current state assessment', 'Signed off 28 Feb 2026', 'Complete', 'pos', '€620,000'],
+        ['M2 · Target architecture', 'Signed off 30 Apr 2026', 'Complete', 'pos', '€980,000'],
+        ['M3 · Data migration dry run', 'Slipped from 31 Aug to 30 Sep', 'At risk', 'warn', '€1,420,000'],
+        ['M4 · Dual-run reconciliation', 'Planned 30 Nov 2026', 'Not started', 'neutral', '€1,860,000'],
+        ['M5 · Regulator readiness', 'Planned 20 Dec 2026', 'Not started', 'neutral', '€1,320,000']
+      ].map((m) => ({
+        title: m[0], meta: m[1], status: m[2], value: m[4], statusStyle: this.tagStyle(m[3]),
+        dotStyle: 'width:11px;height:11px;flex:none;background:' + (m[3] === 'pos' ? 'var(--tv-ink)' : m[3] === 'warn' ? 'var(--tv-accent)' : 'var(--tv-surface)') + ';border:2px solid ' + (m[3] === 'neutral' ? 'var(--tv-ink-40)' : 'transparent')
+      })),
+      burn: [['Feb', 22, 24], ['Mar', 38, 36], ['Apr', 44, 44], ['May', 52, 50], ['Jun', 61, 56], ['Jul', 68, 60], ['Aug', 74, 64], ['Sep', 79, 70]]
+        .map((b, i, arr) => ({
+          label: b[0],
+          planStyle: 'position:absolute;left:0;right:0;bottom:' + b[2] + '%;height:2px;background:var(--tv-mute)',
+          style: 'height:' + b[1] + '%;background:' + (i === arr.length - 1 ? 'var(--tv-accent)' : 'var(--tv-ink)') + ';transform-origin:bottom;animation:tv-bar .4s ease'
+        })),
+      projLinks: [
+        { module: 'CRM · Customer', label: 'Meridian Federal Bank', onClick: go(['crm', 'Customers', 'meridian']) },
+        { module: 'ECM · Statement of work', label: 'Phase 2 SOW — in legal review', onClick: go(['ecm', 'Document Viewer', 'doc-2']) },
+        { module: 'ERP · Invoice', label: 'INV-2026-04417 — overdue', onClick: go(['erp', 'Finance', 'inv-1']) },
+        { module: 'HR · Delivery team', label: '34 people assigned', onClick: go(['hr', 'Employees']) },
+        { module: 'Workflow · Change request', label: 'CR-2026-0214 — open', onClick: go(['workflow', 'Workflow instances']) }
+      ],
+
+      noun: noun,
+      query: s.query,
+      onQuery: (e) => this.setState({ query: e.target.value, selected: [] }),
+      onClearQuery: () => this.setState({ query: '', view: 'All' }),
+      views: ['All', 'Needs attention', 'Overdue', 'My practice'].map((v) => ({
+        label: v, onClick: () => this.setState({ view: v, selected: [] }),
+        style: 'background:' + (s.view === v ? 'var(--tv-ink)' : 'none') + ';color:' + (s.view === v ? 'var(--tv-bg)' : 'var(--tv-ink-55)') +
+          ';border:1px solid ' + (s.view === v ? 'var(--tv-ink)' : 'var(--tv-hair)') + ';padding:5px 10px;font:inherit;font-size:12px;font-weight:' + (s.view === v ? '800' : '400') + ';cursor:pointer;white-space:nowrap'
+      })),
+      columns: columns.map((c, i) => ({
+        label: c, arrow: s.sort === i ? (s.sortDir === 1 ? ' ↑' : ' ↓') : '',
+        style: /Amount|Value|Budget|Burn|Spend|On hand|Reorder/.test(c) ? 'text-align:right' : '',
+        onSort: () => this.setState((st) => ({ sort: i, sortDir: st.sort === i ? -st.sortDir : 1 }))
+      })),
+      rows: rowsSrc.map((r, i) => ({
+        cells: r.cells, selected: s.selected.indexOf(i) >= 0,
+        onSelect: () => this.setState((st) => ({ selected: st.selected.indexOf(i) >= 0 ? st.selected.filter((x) => x !== i) : [...st.selected, i] }))
+      })),
+      rowCount: rowsSrc.length + ' of ' + source.length + ' records',
+      tableEmpty: rowsSrc.length === 0,
+      emptyNote: emptyNote,
+      allSelected: s.selected.length === rowsSrc.length && rowsSrc.length > 0,
+      onSelectAll: () => this.setState((st) => ({ selected: st.selected.length === rowsSrc.length ? [] : rowsSrc.map((r, i) => i) })),
+      hasSelection: s.selected.length > 0,
+      selectionLabel: s.selected.length + (s.selected.length === 1 ? ' record selected' : ' records selected'),
+      onClearSelection: () => this.setState({ selected: [] }),
+      onBulkApprove: () => { this.toast('Approved ' + s.selected.length + ' records · workflows advanced'); this.setState({ selected: [] }); },
+      onBulkHold: () => { this.toast(s.selected.length + ' records placed on hold'); this.setState({ selected: [] }); },
+      onColumns: () => this.toast('Column picker with per-user saved order and widths'),
+      onFilters: () => this.toast('Filter builder: field, operator, value, AND/OR groups'),
+      onPage: () => this.toast('Page 1 of 1 in this demo dataset'),
+      pageLabel: 'Showing 1–' + rowsSrc.length + ' · 50 rows per page'
+    };
+  }
+}
+
+</script>
+</body>
+</html>

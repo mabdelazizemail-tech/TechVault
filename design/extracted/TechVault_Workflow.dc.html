@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/modernist-36bd29c9-a0f6-40d6-82f9-3de3249645b6/styles.css">
+<script src="_ds/modernist-36bd29c9-a0f6-40d6-82f9-3de3249645b6/_ds_bundle.js"></script>
+<link rel="stylesheet" href="tv-tokens.css">
+</helmet>
+
+<div style="font-family:'Archivo',system-ui,sans-serif;color:var(--tv-ink);padding-bottom:48px;animation:tv-fade .2s ease">
+
+  <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:16px;padding:0 24px 12px;flex-wrap:wrap">
+    <div>
+      <h1 style="font-size:34px;margin:0 0 3px">Workflow Center</h1>
+      <div style="font-size:12.5px;color:var(--tv-ink-55)">1,842 instances this month · 92.6% within SLA · 48 escalations · your queue: {{ queueCount }}</div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-secondary" onClick="{{ onConfigure }}">Configure workflows</button>
+      <button class="btn btn-primary" onClick="{{ onStart }}">Start a workflow</button>
+    </div>
+  </div>
+
+  <div style="display:flex;padding:0 24px;border-bottom:2px solid var(--tv-rule);background:var(--tv-panel);overflow-x:auto">
+    <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="5">
+      <button onClick="{{ t.onClick }}" style="{{ t.style }}">{{ t.label }}<span style="{{ t.countStyle }}">{{ t.count }}</span></button>
+    </sc-for>
+  </div>
+
+  <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(340px,0.72fr);gap:1px;background:var(--tv-hair)">
+
+    <section style="background:var(--tv-panel);min-width:0">
+      <sc-for list="{{ items }}" as="i" hint-placeholder-count="5">
+        <button onClick="{{ i.onSelect }}" style="{{ i.style }}">
+          <span style="display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:4px">
+            <span class="tag tag-neutral">{{ i.module }}</span>
+            <span style="font-size:11px;color:var(--tv-ink-40);font-variant-numeric:tabular-nums">{{ i.ref }}</span>
+            <span style="{{ i.slaStyle }}">{{ i.sla }}</span>
+          </span>
+          <span style="display:block;font-weight:800;font-size:14.5px;line-height:1.25;margin-bottom:3px">{{ i.title }}</span>
+          <span style="display:block;font-size:12.5px;color:var(--tv-ink-55);margin-bottom:8px">{{ i.meta }}</span>
+          <span style="display:flex;align-items:center;gap:3px">
+            <sc-for list="{{ i.pips }}" as="p" hint-placeholder-count="5">
+              <span style="{{ p.style }}"></span>
+            </sc-for>
+            <span style="font-size:11px;color:var(--tv-ink-55);margin-left:8px">{{ i.stepLabel }}</span>
+          </span>
+        </button>
+      </sc-for>
+      <sc-if value="{{ itemsEmpty }}" hint-placeholder-val="{{ false }}">
+        <div style="padding:46px 24px;max-width:58ch">
+          <div style="font-weight:800;font-size:17px;margin-bottom:5px">{{ emptyTitle }}</div>
+          <div style="font-size:13px;color:var(--tv-ink-55);margin-bottom:16px">{{ emptyBody }}</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-secondary" onClick="{{ onSeeAll }}">See all instances</button>
+            <button class="btn btn-primary" onClick="{{ onStart }}">Start a workflow</button>
+          </div>
+        </div>
+      </sc-if>
+    </section>
+
+    <aside style="background:var(--tv-panel);min-width:0;padding:18px 20px 26px">
+      <sc-if value="{{ hasSelection }}" hint-placeholder-val="{{ true }}">
+        <div>
+          <div style="font-size:11px;color:var(--tv-ink-40);font-variant-numeric:tabular-nums;margin-bottom:3px">{{ sel.ref }}</div>
+          <h3 style="font-size:19px;margin:0 0 5px;line-height:1.2">{{ sel.title }}</h3>
+          <div style="font-size:12.5px;color:var(--tv-ink-55);margin-bottom:14px">{{ sel.meta }}</div>
+
+          <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1px;background:var(--tv-hair);border:1px solid var(--tv-hair);margin-bottom:18px">
+            <sc-for list="{{ sel.facts }}" as="f" hint-placeholder-count="4">
+              <div style="background:var(--tv-panel);padding:9px 11px">
+                <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--tv-ink-55)">{{ f.label }}</div>
+                <div style="{{ f.valueStyle }}">{{ f.value }}</div>
+              </div>
+            </sc-for>
+          </div>
+
+          <h4 style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--tv-ink-55);margin:0 0 12px">Workflow timeline</h4>
+          <sc-for list="{{ sel.steps }}" as="st" hint-placeholder-count="5">
+            <div style="display:flex;gap:12px">
+              <div style="flex:none;display:flex;flex-direction:column;align-items:center;width:16px">
+                <span style="{{ st.dotStyle }}"></span>
+                <span style="{{ st.lineStyle }}"></span>
+              </div>
+              <div style="flex:1;min-width:0;padding-bottom:16px">
+                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                  <span style="{{ st.titleStyle }}">{{ st.title }}</span>
+                  <span style="{{ st.statusStyle }}">{{ st.status }}</span>
+                </div>
+                <div style="font-size:12px;color:var(--tv-ink-55)">{{ st.who }}</div>
+                <div style="font-size:11px;color:var(--tv-ink-40)">{{ st.when }}</div>
+                <div style="{{ st.commentStyle }}">{{ st.comment }}</div>
+              </div>
+            </div>
+          </sc-for>
+
+          <sc-if value="{{ sel.actionable }}" hint-placeholder-val="{{ true }}">
+            <div>
+              <div style="height:1px;background:var(--tv-hair);margin:4px 0 14px"></div>
+              <div class="field" style="margin-bottom:10px">
+                <label for="wf-comment">Decision comment</label>
+                <textarea class="input" id="wf-comment" placeholder="Visible to the requester and recorded in the audit trail" value="{{ comment }}" onChange="{{ onComment }}"></textarea>
+              </div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <button class="btn btn-primary" onClick="{{ onApprove }}">Approve</button>
+                <button class="btn btn-secondary" onClick="{{ onReject }}">Reject</button>
+                <button class="btn btn-secondary" onClick="{{ onDelegate }}">Delegate</button>
+              </div>
+            </div>
+          </sc-if>
+
+          <div style="height:2px;background:var(--tv-rule);margin:20px 0 16px"></div>
+          <h4 style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--tv-ink-55);margin:0 0 10px">Connected records</h4>
+          <sc-for list="{{ sel.links }}" as="l" hint-placeholder-count="3">
+            <button onClick="{{ l.onClick }}" style="display:flex;justify-content:space-between;align-items:center;width:100%;background:none;border:0;border-top:1px solid var(--tv-hair);padding:9px 0;cursor:pointer;font:inherit;font-size:12.5px;color:inherit;text-align:left">
+              <span style="min-width:0"><span style="display:block;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--tv-ink-55)">{{ l.module }}</span>{{ l.label }}</span>
+              <span style="color:var(--tv-accent-ink);font-weight:800;flex:none">→</span>
+            </button>
+          </sc-for>
+        </div>
+      </sc-if>
+      <sc-if value="{{ noSelection }}" hint-placeholder-val="{{ false }}">
+        <div style="padding:30px 0">
+          <div style="font-weight:800;font-size:16px;margin-bottom:5px">Select an item</div>
+          <div style="font-size:12.5px;color:var(--tv-ink-55);max-width:40ch">Choose a workflow instance on the left to see its timeline, SLA position, decision history and the business records it is attached to.</div>
+        </div>
+      </sc-if>
+    </aside>
+  </div>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1180,&quot;height&quot;:840},&quot;sub&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;My approvals&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;entity&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;navigate&quot;:{&quot;editor&quot;:null,&quot;tsType&quot;:&quot;(screen: string, sub?: string, entity?: string) =&gt; void&quot;},&quot;toast&quot;:{&quot;editor&quot;:null,&quot;tsType&quot;:&quot;(text: string) =&gt; void&quot;}}">
+const ITEMS = [
+  { id: 'w1', tab: 'My approvals', module: 'ERP', ref: 'WF-2026-11842', title: 'Supplier invoice — Lindqvist Legal Partners',
+    meta: '€486,500 · exceeds delegated authority · requested by Priya Raghunathan', sla: 'SLA 4 h', slaKind: 'neg', step: 2, total: 4,
+    facts: [['Amount', '€486,500', true], ['Vendor', 'Lindqvist Legal', false], ['Raised', '10 Sep 2026', false], ['SLA due', 'Today 16:00', true]],
+    steps: [
+      ['Purchase order raised', 'Complete', 'pos', 'Priya Raghunathan · Principal', '10 Sep 2026 11:20', ''],
+      ['Practice approval', 'Complete', 'pos', 'Tomas Reinhardt · Partner', '10 Sep 2026 15:44', 'Engagement-related; cost recoverable from client.'],
+      ['CFO approval', 'Waiting on you', 'neg', 'Ingrid Solberg · CFO', 'SLA expires in 4 hours', ''],
+      ['Payment release', 'Waiting', 'neutral', 'Accounts Payable', 'Not started', '']
+    ],
+    links: [['ERP · Purchase order', 'PO-2026-1188', ['erp', 'Procurement']], ['ERP · Vendor', 'Lindqvist Legal Partners', ['erp', 'Vendors']], ['ECM · Engagement letter', 'External counsel scope', ['ecm', 'Repository']]] },
+
+  { id: 'w2', tab: 'My approvals', module: 'CRM', ref: 'WF-2026-11840', title: 'Discount approval — Corvus Spectrum Retainer',
+    meta: '14% off rate card · €2.1M · requested by Adaeze Okafor', sla: 'SLA 1 d', slaKind: 'warn', step: 1, total: 3,
+    facts: [['Value', '€2,100,000', false], ['Discount', '14%', true], ['Customer', 'Corvus Telecom', false], ['Close date', '14 Oct 2026', false]],
+    steps: [
+      ['Discount requested', 'Complete', 'pos', 'Adaeze Okafor · Principal', 'Yesterday 09:12', 'Renewal defence; incumbent pricing pressure from two competitors.'],
+      ['CFO approval', 'Waiting on you', 'warn', 'Ingrid Solberg · CFO', 'SLA expires tomorrow 09:12', ''],
+      ['Contract issue', 'Waiting', 'neutral', 'Legal Operations', 'Not started', '']
+    ],
+    links: [['CRM · Opportunity', 'Spectrum Advisory Retainer', ['crm', 'Opportunities']], ['CRM · Customer', 'Corvus Telecom Group', ['crm', 'Customers', 'corvus']], ['BI · Analytics', 'Discount impact on margin', ['bi', '']]] },
+
+  { id: 'w3', tab: 'My approvals', module: 'Think Tank', ref: 'WF-2026-11833', title: 'Business case — Regulatory-change radar',
+    meta: '€4.2M three-year contribution · finance gate · IDEA-2026-041', sla: 'SLA 2 d', slaKind: 'neutral', step: 3, total: 5,
+    facts: [['Contribution', '€4.2M', false], ['Investment', '€480k', false], ['Payback', '14 months', false], ['Confidence', 'Medium-high', false]],
+    steps: [
+      ['Idea accepted into assessment', 'Complete', 'pos', 'Innovation board', '14 Aug 2026', ''],
+      ['Technical assessment', 'Complete', 'pos', 'Hiroshi Tanabe · Delivery Excellence', '28 Aug 2026', 'Feasible. Mapping needs specialist setup per client.'],
+      ['Business assessment', 'Complete', 'pos', 'Adaeze Okafor · Principal', '4 Sep 2026', 'Defends six banking relationships.'],
+      ['Finance gate', 'Waiting on you', 'warn', 'Ingrid Solberg · CFO', 'SLA expires in 2 days', ''],
+      ['Management approval', 'Waiting', 'neutral', 'Executive committee', 'Not started', '']
+    ],
+    links: [['Think Tank · Idea', 'Regulatory-change radar', ['think', 'Ideas', 'idea-1']], ['CRM · Pilot customer', 'Meridian Federal Bank', ['crm', 'Customers', 'meridian']], ['ERP · Project template', 'Internal build', ['erp', 'Projects']]] },
+
+  { id: 'w4', tab: 'My approvals', module: 'ECM', ref: 'WF-2026-11827', title: 'Retention override — Meridian audit file',
+    meta: 'Extend retention to 10 years · requested by Legal Operations', sla: 'SLA 3 d', slaKind: 'neutral', step: 1, total: 3,
+    facts: [['Documents', '148', false], ['Current policy', '7 years', false], ['Requested', '10 years', false], ['Reason', 'Regulatory', false]],
+    steps: [
+      ['Override requested', 'Complete', 'pos', 'Anja Pedersen · Legal Operations', '2 days ago', 'ECB supervisory expectation for migration records.'],
+      ['CFO approval', 'Waiting on you', 'neutral', 'Ingrid Solberg · CFO', 'SLA expires in 3 days', ''],
+      ['Policy applied', 'Waiting', 'neutral', 'ECM retention engine', 'Not started', '']
+    ],
+    links: [['ECM · Contract', 'MSA 2026 — executed', ['ecm', 'Document Viewer', 'doc-1']], ['Admin · Audit', 'Retention policy changes', ['admin', 'Audit Logs']]] },
+
+  { id: 'w5', tab: 'Pending on others', module: 'ECM', ref: 'WF-2026-11761', title: 'Client contract review — Phase 2 Statement of Work',
+    meta: 'Open 6 days with Legal Operations · two contested clauses', sla: 'SLA 8 d', slaKind: 'warn', step: 2, total: 5,
+    facts: [['Value', '€8,400,000', false], ['Owner', 'Anja Pedersen', false], ['Open', '6 days', true], ['Close date', '30 Nov 2026', false]],
+    steps: [
+      ['Author submitted', 'Complete', 'pos', 'Tomas Reinhardt · Partner', '6 Sep 2026 09:14', ''],
+      ['Commercial review', 'Complete', 'pos', 'Adaeze Okafor · Principal', '6 Sep 2026 16:40', 'Pricing floor confirmed at €8.1M.'],
+      ['Legal review', 'In progress', 'warn', 'Anja Pedersen · Legal Operations', 'Open 6 days of 8', 'Clauses 11.2 and 11.4 contested by client counsel.'],
+      ['Finance approval', 'Waiting', 'neutral', 'Ingrid Solberg · CFO', 'Not started', ''],
+      ['Client signature', 'Waiting', 'neutral', 'Meridian Federal Bank', 'Not started', '']
+    ],
+    links: [['ECM · Document', 'Phase 2 Statement of Work', ['ecm', 'Document Viewer', 'doc-2']], ['CRM · Opportunity', 'Core Banking Migration Ph.2', ['crm', 'Opportunities']], ['ERP · Engagement', 'Meridian Core Banking Migration', ['erp', 'Projects', 'proj-1']]] },
+
+  { id: 'w6', tab: 'Pending on others', module: 'ERP', ref: 'WF-2026-11809', title: 'Change request — Blackfen Procurement Reform',
+    meta: 'CR-2026-0214 · €260k forecast overrun · awaiting client sign-off', sla: 'SLA 7 d', slaKind: 'neg', step: 2, total: 4,
+    facts: [['Overrun', '€260,000', true], ['Burn', '91%', true], ['Raised', '9 Sep 2026', false], ['Owner', 'L. Fischbach', false]],
+    steps: [
+      ['Change request raised', 'Complete', 'pos', 'Lena Fischbach · Senior Manager', '9 Sep 2026', 'Scope creep across three unpriced work items.'],
+      ['Internal approval', 'Complete', 'pos', 'Ingrid Solberg · CFO', '10 Sep 2026', 'Approved to present to client.'],
+      ['Client sign-off', 'Overdue', 'neg', 'Blackfen Municipal Authority', '3 days past SLA', ''],
+      ['Budget revision', 'Waiting', 'neutral', 'Group Finance', 'Not started', '']
+    ],
+    links: [['ERP · Engagement', 'Blackfen Procurement Reform', ['erp', 'Projects']], ['ECM · Document', 'CR-2026-0214', ['ecm', 'Repository']], ['CRM · Customer', 'Blackfen Municipal Authority', ['crm', 'Customers', 'blackfen']]] },
+
+  { id: 'w7', tab: 'Completed', module: 'HR', ref: 'WF-2026-11702', title: 'Secondment approval — Hiroshi Tanabe',
+    meta: 'Approved 8 Sep 2026 · six-month secondment to Delivery Excellence', sla: 'Closed in 2 d', slaKind: 'pos', step: 3, total: 3,
+    facts: [['Duration', '6 months', false], ['From', 'Rotterdam', false], ['Decision', 'Approved', false], ['Cycle time', '2 days', false]],
+    steps: [
+      ['Request raised', 'Complete', 'pos', 'Delivery Excellence', '6 Sep 2026', ''],
+      ['Practice release', 'Complete', 'pos', 'Katarina Lindqvist · COO', '7 Sep 2026', 'Released with backfill plan.'],
+      ['HR confirmed', 'Complete', 'pos', 'HR Operations', '8 Sep 2026', '']
+    ],
+    links: [['HR · Employee', 'Hiroshi Tanabe', ['hr', 'Employees', 'emp-4']], ['ERP · Engagement', 'ESG Assurance Toolkit build', ['erp', 'Projects']]] },
+
+  { id: 'w8', tab: 'Completed', module: 'ERP', ref: 'WF-2026-11698', title: 'Capital request — Frankfurt office refresh',
+    meta: 'Approved 4 Sep 2026 · €182,000 · within delegated authority', sla: 'Closed in 1 d', slaKind: 'pos', step: 3, total: 3,
+    facts: [['Amount', '€182,000', false], ['Category', 'Facilities', false], ['Decision', 'Approved', false], ['Cycle time', '1 day', false]],
+    steps: [
+      ['Request raised', 'Complete', 'pos', 'Facilities', '3 Sep 2026', ''],
+      ['Finance approval', 'Complete', 'pos', 'Ingrid Solberg · CFO', '4 Sep 2026', 'Within FY2026 capital envelope.'],
+      ['Purchase order issued', 'Complete', 'pos', 'Procurement', '4 Sep 2026', '']
+    ],
+    links: [['ERP · Purchase order', 'PO-2026-1172', ['erp', 'Procurement']]] },
+
+  { id: 'w9', tab: 'Rejected', module: 'CRM', ref: 'WF-2026-11655', title: 'Discount approval — Calderwood Rail renewal',
+    meta: 'Rejected 1 Sep 2026 · 28% discount below pricing floor', sla: 'Closed in 3 d', slaKind: 'neutral', step: 2, total: 2,
+    facts: [['Requested', '28% off', true], ['Floor', '15% off', false], ['Decision', 'Rejected', false], ['Cycle time', '3 days', false]],
+    steps: [
+      ['Discount requested', 'Complete', 'pos', 'Hiroshi Tanabe · Director', '29 Aug 2026', 'Client threatening to retender.'],
+      ['CFO decision', 'Rejected', 'neg', 'Ingrid Solberg · CFO', '1 Sep 2026', 'Below pricing floor. Revise scope instead of price, or let it go to retender.']
+    ],
+    links: [['CRM · Customer', 'Calderwood Rail', ['crm', 'Customers', 'calderwood']], ['BI · Analytics', 'Discount and margin analysis', ['bi', '']]] }
+];
+
+class Component extends DCLogic {
+  state = { tab: 'My approvals', selected: 'w1', comment: '', decided: {} };
+
+  nav = (screen, sub, entity) => { const f = this.props.navigate; if (f) f(screen, sub, entity); };
+  toast = (t) => { const f = this.props.toast; if (f) f(t); };
+  go = (to) => () => this.nav(to[0], to[1], to[2]);
+
+  tagStyle(kind) {
+    const map = { pos: ['var(--tv-pos-tint)', 'var(--tv-pos)'], warn: ['var(--tv-warn-tint)', 'var(--tv-warn)'], neg: ['var(--tv-neg-tint)', 'var(--tv-neg)'], neutral: ['var(--tv-surface)', 'var(--tv-ink-70)'] };
+    const c = map[kind] || map.neutral;
+    return 'display:inline-flex;align-items:center;font-size:11px;font-weight:800;letter-spacing:.04em;padding:2px 7px;background:' + c[0] + ';color:' + c[1];
+  }
+
+  decide(id, verdict) {
+    this.setState((st) => ({ decided: Object.assign({}, st.decided, { [id]: verdict }), comment: '' }));
+    const item = ITEMS.find((x) => x.id === id);
+    this.toast(verdict + ' ' + item.ref + ' · requester notified and audit entry written');
+  }
+
+  renderVals() {
+    const s = this.state;
+    const sub = this.props.sub || '';
+    const tab = sub === 'Workflow instances' ? 'Pending on others' : (sub && sub !== 'My approvals' ? s.tab : s.tab);
+
+    const counts = {};
+    ITEMS.forEach((i) => { counts[i.tab] = (counts[i.tab] || 0) + (s.decided[i.id] ? 0 : 1); });
+
+    const tabs = ['My approvals', 'Pending on others', 'Completed', 'Rejected'].map((t) => ({
+      label: t, count: String(counts[t] || 0),
+      countStyle: 'font-size:10.5px;font-weight:800;margin-left:7px;color:' + (tab === t ? 'var(--tv-accent)' : 'var(--tv-ink-40)'),
+      onClick: () => this.setState({ tab: t, selected: null }),
+      style: 'background:none;border:0;border-bottom:2px solid ' + (tab === t ? 'var(--tv-accent)' : 'transparent') +
+        ';margin-bottom:-2px;padding:10px 15px 9px;font:inherit;font-size:13.5px;font-weight:' + (tab === t ? '800' : '400') +
+        ';color:' + (tab === t ? 'var(--tv-ink)' : 'var(--tv-ink-55)') + ';cursor:pointer;white-space:nowrap'
+    }));
+
+    const list = ITEMS.filter((i) => i.tab === tab && !s.decided[i.id]);
+    const sel = ITEMS.find((i) => i.id === s.selected && i.tab === tab && !s.decided[i.id]) || list[0] || null;
+
+    return {
+      queueCount: String(counts['My approvals'] || 0),
+      tabs: tabs,
+      onConfigure: () => this.nav('admin', 'Workflow Configuration'),
+      onStart: () => this.toast('Workflow picker: 14 configured workflows across six modules'),
+      onSeeAll: () => this.setState({ tab: 'Pending on others' }),
+
+      items: list.map((i) => ({
+        module: i.module, ref: i.ref, title: i.title, meta: i.meta, sla: i.sla, slaStyle: this.tagStyle(i.slaKind),
+        stepLabel: 'Step ' + i.step + ' of ' + i.total,
+        pips: Array.from({ length: i.total }).map((x, n) => ({
+          style: 'width:22px;height:5px;display:block;background:' + (n < i.step ? 'var(--tv-ink)' : n === i.step ? 'var(--tv-accent)' : 'var(--tv-surface)')
+        })),
+        onSelect: () => this.setState({ selected: i.id }),
+        style: 'display:block;width:100%;text-align:left;font:inherit;color:inherit;cursor:pointer;border:0;border-bottom:1px solid var(--tv-hair);border-left:3px solid ' +
+          (sel && sel.id === i.id ? 'var(--tv-accent)' : 'transparent') + ';background:' + (sel && sel.id === i.id ? 'var(--tv-surface)' : 'var(--tv-panel)') + ';padding:14px 20px'
+      })),
+      itemsEmpty: list.length === 0,
+      emptyTitle: tab === 'My approvals' ? 'Your approval queue is clear' : tab === 'Rejected' ? 'Nothing rejected in this period' : 'Nothing here',
+      emptyBody: tab === 'My approvals'
+        ? 'Items arrive when a workflow step names you as approver: invoices above your delegated authority, commercial discounts, innovation business cases and retention overrides. Every decision writes to the audit trail.'
+        : 'Workflow instances move through here as they progress. Change the tab to see items waiting on other people, or start a new workflow.',
+
+      hasSelection: !!sel,
+      noSelection: !sel,
+      sel: sel ? {
+        ref: sel.ref, title: sel.title, meta: sel.meta,
+        actionable: sel.tab === 'My approvals',
+        facts: sel.facts.map((f) => ({ label: f[0], value: f[1], valueStyle: 'font-size:14px;font-weight:800;color:' + (f[2] ? 'var(--tv-accent)' : 'var(--tv-ink)') })),
+        steps: sel.steps.map((st, i) => ({
+          title: st[0], status: st[1], who: st[3], when: st[4], comment: st[5],
+          titleStyle: 'font-weight:800;font-size:13px',
+          statusStyle: this.tagStyle(st[2]),
+          dotStyle: 'width:11px;height:11px;flex:none;margin-top:4px;background:' + (st[2] === 'pos' ? 'var(--tv-ink)' : st[2] === 'neutral' ? 'var(--tv-panel)' : 'var(--tv-accent)') + ';border:2px solid ' + (st[2] === 'neutral' ? 'var(--tv-ink-40)' : 'transparent'),
+          lineStyle: i === sel.steps.length - 1 ? 'display:none' : 'flex:1;width:1px;background:var(--tv-hair);margin-top:3px',
+          commentStyle: st[5] ? 'font-size:12px;color:var(--tv-ink-70);border-left:2px solid var(--tv-hair);padding-left:9px;margin-top:6px' : 'display:none'
+        })),
+        links: sel.links.map((l) => ({ module: l[0], label: l[1], onClick: this.go(l[2]) }))
+      } : { ref: '', title: '', meta: '', actionable: false, facts: [], steps: [], links: [] },
+
+      comment: s.comment,
+      onComment: (e) => this.setState({ comment: e.target.value }),
+      onApprove: () => sel && this.decide(sel.id, 'Approved'),
+      onReject: () => sel && this.decide(sel.id, 'Rejected'),
+      onDelegate: () => sel && this.toast('Delegate picker: choose a colleague with the same authority level')
+    };
+  }
+}
+
+</script>
+</body>
+</html>

@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/modernist-36bd29c9-a0f6-40d6-82f9-3de3249645b6/styles.css">
+<script src="_ds/modernist-36bd29c9-a0f6-40d6-82f9-3de3249645b6/_ds_bundle.js"></script>
+<link rel="stylesheet" href="tv-tokens.css">
+</helmet>
+
+<div style="font-family:'Archivo',system-ui,sans-serif;color:var(--tv-ink);padding-bottom:48px;animation:tv-fade .2s ease">
+
+  <sc-if value="{{ isEmployee }}" hint-placeholder-val="{{ false }}">
+    <div>
+      <div style="background:var(--tv-panel);border-top:1px solid var(--tv-hair);border-bottom:2px solid var(--tv-rule);padding:18px 24px">
+        <div style="display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap">
+          <div style="width:60px;height:60px;background:var(--tv-ink);color:var(--tv-bg);display:grid;place-items:center;font-weight:800;font-size:19px;flex:none">{{ emp.initials }}</div>
+          <div style="flex:1;min-width:230px">
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:3px">
+              <h1 style="font-size:27px;margin:0">{{ emp.name }}</h1>
+              <span class="tag tag-neutral">{{ emp.id }}</span>
+            </div>
+            <div style="font-size:13px;font-weight:800;margin-bottom:2px">{{ emp.role }}</div>
+            <div style="font-size:12.5px;color:var(--tv-ink-55)">{{ emp.meta }}</div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(4,minmax(92px,auto));gap:1px;background:var(--tv-hair);border:1px solid var(--tv-hair)">
+            <sc-for list="{{ emp.stats }}" as="st" hint-placeholder-count="4">
+              <div style="background:var(--tv-panel);padding:8px 12px">
+                <div style="font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--tv-ink-55)">{{ st.label }}</div>
+                <div style="font-size:17px;font-weight:800">{{ st.value }}</div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-secondary" onClick="{{ onMessage }}">Message</button>
+            <button class="btn btn-primary" onClick="{{ onAssign }}">Assign to engagement</button>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;padding:0 24px;border-bottom:2px solid var(--tv-rule);background:var(--tv-panel);overflow-x:auto">
+        <sc-for list="{{ empTabs }}" as="t" hint-placeholder-count="6">
+          <button onClick="{{ t.onClick }}" style="{{ t.style }}">{{ t.label }}</button>
+        </sc-for>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:1px;background:var(--tv-hair)">
+        <section style="grid-column:span 8;background:var(--tv-panel);padding:18px 22px 24px;min-width:0">
+          <sc-if value="{{ empIsProfile }}" hint-placeholder-val="{{ true }}">
+            <div>
+              <h4 style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--tv-accent-ink);margin:0 0 10px">Employment information</h4>
+              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px 22px;margin-bottom:22px">
+                <sc-for list="{{ emp.fields }}" as="f" hint-placeholder-count="9">
+                  <div style="border-top:1px solid var(--tv-hair);padding-top:7px">
+                    <div style="font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--tv-ink-55)">{{ f.label }}</div>
+                    <div style="{{ f.valueStyle }}">{{ f.value }}</div>
+                    <div style="{{ f.lockStyle }}">{{ f.lock }}</div>
+                  </div>
+                </sc-for>
+              </div>
+              <div style="border:1px solid var(--tv-hair);background:var(--tv-surface);padding:12px 14px;margin-bottom:22px">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--tv-ink-55)" stroke-width="2"><rect x="4" y="10" width="16" height="11"></rect><path d="M8 10V7a4 4 0 1 1 8 0v3"></path></svg>
+                  <span style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--tv-ink-55);font-weight:800">Permission-controlled fields</span>
+                </div>
+                <div style="font-size:12.5px;color:var(--tv-ink-70);line-height:1.5">Compensation, bank details and performance ratings are visible to the employee, their line manager, and HR business partners. As CFO you see aggregate cost but not individual salary. Access attempts are written to the audit log.</div>
+              </div>
+              <h4 style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--tv-accent-ink);margin:0 0 10px">Current engagements</h4>
+              <table class="table">
+                <thead><tr><th>Engagement</th><th>Client</th><th>Role</th><th style="text-align:right">Allocation</th><th>Health</th></tr></thead>
+                <tbody>
+                  <sc-for list="{{ emp.engagements }}" as="e" hint-placeholder-count="4">
+                    <tr>
+                      <td><button onClick="{{ e.onOpen }}" style="background:none;border:0;padding:0;font:inherit;font-weight:800;color:inherit;cursor:pointer;text-align:left">{{ e.name }}</button></td>
+                      <td style="color:var(--tv-ink-55)">{{ e.client }}</td>
+                      <td style="color:var(--tv-ink-55)">{{ e.role }}</td>
+                      <td style="text-align:right;font-variant-numeric:tabular-nums">{{ e.alloc }}</td>
+                      <td><span style="{{ e.healthStyle }}">{{ e.health }}</span></td>
+                    </tr>
+                  </sc-for>
+                </tbody>
+              </table>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ empIsAttendance }}" hint-placeholder-val="{{ false }}">
+            <div>
+              <h4 style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--tv-accent-ink);margin:0 0 4px">Time and attendance</h4>
+              <p style="font-size:12.5px;color:var(--tv-ink-55);margin-bottom:14px">Recorded hours for the current month, split between billable client work and internal time.</p>
+              <div style="display:flex;align-items:flex-end;gap:4px;height:150px;border-bottom:2px solid var(--tv-rule)">
+                <sc-for list="{{ emp.timesheet }}" as="d" hint-placeholder-count="20">
+                  <div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;height:100%" title="{{ d.tip }}">
+                    <div style="{{ d.internalStyle }}"></div>
+                    <div style="{{ d.billableStyle }}"></div>
+                  </div>
+                </sc-for>
+              </div>
+              <div style="display:flex;gap:18px;margin-top:10px;font-size:11.5px;color:var(--tv-ink-55)">
+                <span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;background:var(--tv-ink);display:block"></span>Billable</span>
+                <span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;background:var(--tv-ink-40);display:block"></span>Internal</span>
+                <span>Utilisation this month 82.4% against a 78% target</span>
+              </div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ empIsRelated }}" hint-placeholder-val="{{ false }}">
+            <div>
+              <h4 style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--tv-accent-ink);margin:0 0 4px">{{ relatedTitle }}</h4>
+              <p style="font-size:12.5px;color:var(--tv-ink-55);margin-bottom:14px">{{ relatedNote }}</p>
+              <table class="table">
+                <thead><tr><sc-for list="{{ relatedCols }}" as="c" hint-placeholder-count="4"><th style="{{ c.style }}">{{ c.label }}</th></sc-for></tr></thead>
+                <tbody>
+                  <sc-for list="{{ relatedRows }}" as="r" hint-placeholder-count="4">
+                    <tr>
+                      <sc-for list="{{ r.cells }}" as="cell" hint-placeholder-count="4">
+                        <td style="{{ cell.tdStyle }}">
+                          <sc-if value="{{ cell.isTag }}" hint-placeholder-val="{{ false }}"><span style="{{ cell.tagStyle }}">{{ cell.text }}</span></sc-if>
+                          <sc-if value="{{ cell.isLink }}" hint-placeholder-val="{{ false }}"><button onClick="{{ cell.onClick }}" style="background:none;border:0;padding:0;font:inherit;font-weight:800;color:inherit;cursor:pointer;text-align:left">{{ cell.text }}</button></sc-if>
+                          <sc-if value="{{ cell.isPlain }}" hint-placeholder-val="{{ true }}"><span>{{ cell.text }}</span></sc-if>
+                        </td>
+                      </sc-for>
+                    </tr>
+                  </sc-for>
+                </tbody>
+              </table>
+            </div>
+          </sc-if>
+        </section>
+
+        <aside style="grid-column:span 4;background:var(--tv-panel);padding:18px 20px 24px;min-width:0">
+          <h4 style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--tv-ink-55);margin:0 0 10px">Reporting line</h4>
+          <sc-for list="{{ emp.line }}" as="l" hint-placeholder-count="3">
+            <div style="{{ l.wrapStyle }}">
+              <div style="width:28px;height:28px;background:var(--tv-surface);display:grid;place-items:center;font-size:10.5px;font-weight:800;flex:none">{{ l.initials }}</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:12.5px;font-weight:800">{{ l.name }}</div>
+                <div style="font-size:11px;color:var(--tv-ink-55)">{{ l.role }}</div>
+              </div>
+            </div>
+          </sc-for>
+          <div style="height:2px;background:var(--tv-rule);margin:18px 0"></div>
+          <h4 style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--tv-ink-55);margin:0 0 10px">Connected records</h4>
+          <sc-for list="{{ emp.links }}" as="l" hint-placeholder-count="4">
+            <button onClick="{{ l.onClick }}" style="display:flex;justify-content:space-between;align-items:center;width:100%;background:none;border:0;border-top:1px solid var(--tv-hair);padding:9px 0;cursor:pointer;font:inherit;font-size:12.5px;color:inherit;text-align:left">
+              <span style="min-width:0"><span style="display:block;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--tv-ink-55)">{{ l.module }}</span>{{ l.label }}</span>
+              <span style="color:var(--tv-accent-ink);font-weight:800;flex:none">→</span>
+            </button>
+          </sc-for>
+        </aside>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ isDirectory }}" hint-placeholder-val="{{ true }}">
+    <div>
+      <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:16px;padding:0 24px 12px;flex-wrap:wrap">
+        <div>
+          <h1 style="font-size:34px;margin:0 0 3px">{{ dirTitle }}</h1>
+          <div style="font-size:12.5px;color:var(--tv-ink-55)">{{ dirMeta }}</div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-secondary" onClick="{{ onOrgChart }}">Organisation chart</button>
+          <button class="btn btn-primary" onClick="{{ onAdd }}">{{ dirAction }}</button>
+        </div>
+      </div>
+
+      <sc-if value="{{ isLeave }}" hint-placeholder-val="{{ false }}">
+        <div style="border-top:1px solid var(--tv-hair);background:var(--tv-panel)">
+          <div style="padding:14px 24px;border-bottom:1px solid var(--tv-hair);display:flex;gap:20px;flex-wrap:wrap">
+            <div><div style="font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--tv-ink-55)">Requests outstanding</div><div style="font-size:26px;font-weight:800;color:var(--tv-accent-ink)">14</div></div>
+            <div><div style="font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--tv-ink-55)">Past SLA</div><div style="font-size:26px;font-weight:800">11</div></div>
+            <div><div style="font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--tv-ink-55)">Approved this month</div><div style="font-size:26px;font-weight:800">86</div></div>
+            <div><div style="font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--tv-ink-55)">Average decision time</div><div style="font-size:26px;font-weight:800">4.2 d</div></div>
+          </div>
+          <table class="table">
+            <thead><tr><th>Employee</th><th>Practice</th><th>Type</th><th>Dates</th><th style="text-align:right">Days</th><th>Waiting</th><th></th></tr></thead>
+            <tbody>
+              <sc-for list="{{ leaveRows }}" as="l" hint-placeholder-count="6">
+                <tr>
+                  <td><button onClick="{{ l.onOpen }}" style="background:none;border:0;padding:0;font:inherit;font-weight:800;color:inherit;cursor:pointer;text-align:left">{{ l.name }}</button></td>
+                  <td style="color:var(--tv-ink-55)">{{ l.practice }}</td>
+                  <td>{{ l.type }}</td>
+                  <td style="color:var(--tv-ink-55)">{{ l.dates }}</td>
+                  <td style="text-align:right;font-variant-numeric:tabular-nums">{{ l.days }}</td>
+                  <td><span style="{{ l.waitStyle }}">{{ l.wait }}</span></td>
+                  <td style="text-align:right"><button class="btn btn-ghost" style="font-size:12px" onClick="{{ l.onApprove }}">Approve →</button></td>
+                </tr>
+              </sc-for>
+            </tbody>
+          </table>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isPeopleList }}" hint-placeholder-val="{{ true }}">
+        <div>
+          <div style="border-top:1px solid var(--tv-hair);background:var(--tv-panel);padding:10px 24px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <div style="display:flex;align-items:center;gap:7px;background:var(--tv-surface);border:1px solid var(--tv-hair);padding:0 9px;height:32px;min-width:200px;flex:1;max-width:300px">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--tv-ink-40)" stroke-width="2" style="flex:none"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+              <input value="{{ query }}" onChange="{{ onQuery }}" placeholder="Search people, skills, practices" aria-label="Search employees" style="flex:1;min-width:0;border:0;background:none;font:inherit;font-size:13px;color:inherit;outline:none">
+            </div>
+            <sc-for list="{{ practices }}" as="p" hint-placeholder-count="5">
+              <button onClick="{{ p.onClick }}" style="{{ p.style }}">{{ p.label }}</button>
+            </sc-for>
+            <div style="flex:1"></div>
+            <span style="font-size:11.5px;color:var(--tv-ink-55)">{{ rowCount }}</span>
+            <div class="seg">
+              <label class="seg-opt"><input type="radio" name="hr-layout" checked="{{ cardsChecked }}" onChange="{{ onCards }}">Cards</label>
+              <label class="seg-opt"><input type="radio" name="hr-layout" checked="{{ tableChecked }}" onChange="{{ onTable }}">Table</label>
+            </div>
+          </div>
+
+          <sc-if value="{{ cardsMode }}" hint-placeholder-val="{{ true }}">
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(256px,1fr));gap:1px;background:var(--tv-hair);border-top:1px solid var(--tv-hair)">
+              <sc-for list="{{ people }}" as="p" hint-placeholder-count="8">
+                <button onClick="{{ p.onOpen }}" style="background:var(--tv-panel);border:0;padding:15px 16px;text-align:left;cursor:pointer;font:inherit;color:inherit;display:flex;gap:12px;align-items:flex-start;min-height:110px">
+                  <span style="width:38px;height:38px;background:var(--tv-surface);display:grid;place-items:center;font-size:12px;font-weight:800;flex:none">{{ p.initials }}</span>
+                  <span style="flex:1;min-width:0">
+                    <span style="display:block;font-weight:800;font-size:14px">{{ p.name }}</span>
+                    <span style="display:block;font-size:12px;color:var(--tv-ink-70);margin-bottom:4px">{{ p.role }}</span>
+                    <span style="display:block;font-size:11.5px;color:var(--tv-ink-55)">{{ p.practice }} · {{ p.location }}</span>
+                    <span style="display:flex;align-items:center;gap:8px;margin-top:7px">
+                      <span style="{{ p.availStyle }}">{{ p.avail }}</span>
+                      <span style="font-size:11px;color:var(--tv-ink-40)">{{ p.engagements }}</span>
+                    </span>
+                  </span>
+                </button>
+              </sc-for>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ tableMode }}" hint-placeholder-val="{{ false }}">
+            <div style="overflow-x:auto;background:var(--tv-panel);border-top:1px solid var(--tv-hair)">
+              <table class="table" style="min-width:820px">
+                <thead><tr><th>Name</th><th>Role</th><th>Practice</th><th>Location</th><th>Manager</th><th style="text-align:right">Utilisation</th><th>Availability</th></tr></thead>
+                <tbody>
+                  <sc-for list="{{ people }}" as="p" hint-placeholder-count="8">
+                    <tr>
+                      <td><button onClick="{{ p.onOpen }}" style="background:none;border:0;padding:0;font:inherit;font-weight:800;color:inherit;cursor:pointer;text-align:left">{{ p.name }}</button></td>
+                      <td>{{ p.role }}</td>
+                      <td style="color:var(--tv-ink-55)">{{ p.practice }}</td>
+                      <td style="color:var(--tv-ink-55)">{{ p.location }}</td>
+                      <td style="color:var(--tv-ink-55)">{{ p.manager }}</td>
+                      <td style="text-align:right;font-variant-numeric:tabular-nums">{{ p.utilisation }}</td>
+                      <td><span style="{{ p.availStyle }}">{{ p.avail }}</span></td>
+                    </tr>
+                  </sc-for>
+                </tbody>
+              </table>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ peopleEmpty }}" hint-placeholder-val="{{ false }}">
+            <div style="padding:44px 24px;max-width:60ch;background:var(--tv-panel);border-top:1px solid var(--tv-hair)">
+              <div style="font-weight:800;font-size:17px;margin-bottom:5px">Nobody matches “{{ query }}”</div>
+              <div style="font-size:13px;color:var(--tv-ink-55);margin-bottom:14px">The directory covers 2,417 employees across seven practices and eleven offices. Search by name, skill, certification, language or client experience.</div>
+              <button class="btn btn-secondary" onClick="{{ onClearQuery }}">Clear search</button>
+            </div>
+          </sc-if>
+        </div>
+      </sc-if>
+      <div style="height:24px"></div>
+    </div>
+  </sc-if>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1180,&quot;height&quot;:820},&quot;sub&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Employees&quot;,&quot;Attendance&quot;,&quot;Leave&quot;,&quot;Payroll&quot;,&quot;Performance&quot;],&quot;default&quot;:&quot;Employees&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;entity&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;navigate&quot;:{&quot;editor&quot;:null,&quot;tsType&quot;:&quot;(screen: string, sub?: string, entity?: string) =&gt; void&quot;},&quot;toast&quot;:{&quot;editor&quot;:null,&quot;tsType&quot;:&quot;(text: string) =&gt; void&quot;}}">
+const PEOPLE = [
+  ['emp-1', 'AO', 'Adaeze Okafor', 'Principal, Financial Services', 'Financial Services', 'Frankfurt', 'I. Solberg', '86%', 'Committed', 'neg', '4 engagements'],
+  ['emp-2', 'MD', 'Marek Dvořák', 'Senior Manager, Energy', 'Energy', 'Prague', 'K. Lindqvist', '78%', 'Committed', 'neg', '2 engagements'],
+  ['emp-3', 'CB', 'Camille Béranger', 'Manager, Sustainability', 'Sustainability', 'Paris', 'K. Lindqvist', '62%', 'Part available', 'warn', '2 engagements'],
+  ['emp-4', 'HT', 'Hiroshi Tanabe', 'Director, Delivery Excellence', 'Delivery Excellence', 'Rotterdam', 'I. Solberg', '44%', 'Available', 'pos', '1 engagement'],
+  ['emp-5', 'PR', 'Priya Raghunathan', 'Principal, Insurance', 'Insurance', 'Dublin', 'I. Solberg', '91%', 'Committed', 'neg', '3 engagements'],
+  ['emp-6', 'LF', 'Lena Fischbach', 'Senior Manager, Public Sector', 'Public Sector', 'Manchester', 'K. Lindqvist', '88%', 'Committed', 'neg', '3 engagements'],
+  ['emp-7', 'TR', 'Tomas Reinhardt', 'Partner, Financial Services', 'Financial Services', 'Frankfurt', 'Board', '52%', 'Part available', 'warn', '5 engagements'],
+  ['emp-8', 'AP', 'Anja Pedersen', 'Head of Legal Operations', 'Group Functions', 'Oslo', 'I. Solberg', '74%', 'Committed', 'neg', 'Group role'],
+  ['emp-9', 'KL', 'Katarina Lindqvist', 'Chief Operating Officer', 'Group Functions', 'Stockholm', 'Board', '—', 'Executive', 'neutral', 'Group role'],
+  ['emp-10', 'JW', 'Jakob Weiss', 'Consultant, Financial Services', 'Financial Services', 'Frankfurt', 'A. Okafor', '96%', 'Committed', 'neg', '1 engagement'],
+  ['emp-11', 'SN', 'Sofia Nowak', 'Senior Consultant, Insurance', 'Insurance', 'Warsaw', 'P. Raghunathan', '68%', 'Part available', 'warn', '2 engagements'],
+  ['emp-12', 'DM', 'Daniel Meyer', 'Analyst, Delivery Excellence', 'Delivery Excellence', 'Rotterdam', 'H. Tanabe', '58%', 'Available', 'pos', '1 engagement']
+];
+
+const LEAVE = [
+  ['Jakob Weiss', 'Financial Services', 'Annual leave', '28 Sep – 9 Oct', '10', '9 days', 'neg', 'emp-10'],
+  ['Sofia Nowak', 'Insurance', 'Parental leave', '1 Nov – 31 Jan', '62', '7 days', 'neg', 'emp-11'],
+  ['Daniel Meyer', 'Delivery Excellence', 'Annual leave', '20 – 24 Oct', '5', '6 days', 'neg', 'emp-12'],
+  ['Camille Béranger', 'Sustainability', 'Study leave', '13 – 15 Oct', '3', '2 days', 'warn', 'emp-3'],
+  ['Marek Dvořák', 'Energy', 'Annual leave', '6 – 17 Oct', '10', '1 day', 'neutral', 'emp-2'],
+  ['Lena Fischbach', 'Public Sector', 'Annual leave', '26 Dec – 2 Jan', '6', 'Today', 'neutral', 'emp-6']
+];
+
+const EMP_DETAIL = {
+  'emp-1': {
+    initials: 'AO', name: 'Adaeze Okafor', id: 'EMP-001284', role: 'Principal, Financial Services practice',
+    meta: 'Frankfurt · joined 14 September 2015 · 11 years · reports to Ingrid Solberg · 6 direct reports',
+    stats: [['Utilisation', '86%'], ['Engagements', '4'], ['Leave balance', '11 d'], ['Ideas', '11']],
+    fields: [
+      ['Employee ID', 'EMP-001284', ''], ['Practice', 'Financial Services', ''],
+      ['Grade', 'Principal (P2)', ''], ['Location', 'Frankfurt am Main', ''],
+      ['Contract', 'Permanent · full time', ''], ['Line manager', 'Ingrid Solberg', ''],
+      ['Base salary', '••••••••', 'Hidden — HR and line manager only'],
+      ['Bonus band', '••••••••', 'Hidden — HR and line manager only'],
+      ['Performance rating', '••••••••', 'Hidden — HR and line manager only'],
+      ['Certifications', 'CFA, PRINCE2 Practitioner', ''],
+      ['Languages', 'English, German, Igbo', ''],
+      ['Security clearance', 'Client vetted — banking', '']
+    ],
+    engagements: [
+      ['Meridian Core Banking Migration', 'Meridian Federal Bank', 'Engagement lead', '60%', 'Amber', 'warn', ['erp', 'Projects', 'proj-1']],
+      ['Corvus 5G Spectrum Advisory', 'Corvus Telecom Group', 'Quality reviewer', '10%', 'Green', 'pos', ['erp', 'Projects']],
+      ['Treasury Controls Review', 'Meridian Federal Bank', 'Engagement lead', '12%', 'Green', 'pos', ['erp', 'Projects']],
+      ['Regulatory radar pilot', 'Internal — IDEA-2026-041', 'Sponsor', '4%', 'Green', 'pos', ['think', 'Ideas', 'idea-1']]
+    ],
+    line: [
+      ['IS', 'Ingrid Solberg', 'Chief Financial Officer', 0],
+      ['AO', 'Adaeze Okafor', 'Principal, Financial Services', 1],
+      ['JW', 'Jakob Weiss', 'Consultant · 1 of 6 direct reports', 2]
+    ],
+    links: [
+      ['CRM · Accounts', 'Meridian Federal Bank (owner)', ['crm', 'Customers', 'meridian']],
+      ['ERP · Engagements', '4 active engagements', ['erp', 'Projects']],
+      ['Think Tank · Ideas', '11 submitted · 4 approved', ['think', 'Ideas', 'idea-1']],
+      ['ECM · Documents', 'HR file — restricted', ['ecm', 'Repository']],
+      ['Workflow · Requests', '2 open approvals raised', ['workflow', 'Workflow instances']]
+    ]
+  }
+};
+
+class Component extends DCLogic {
+  state = { tab: 'Profile', query: '', practice: 'All', layout: 'cards', approved: [] };
+
+  nav = (screen, sub, entity) => { const f = this.props.navigate; if (f) f(screen, sub, entity); };
+  toast = (t) => { const f = this.props.toast; if (f) f(t); };
+  go = (to) => () => this.nav(to[0], to[1], to[2]);
+
+  tagStyle(kind) {
+    const map = { pos: ['var(--tv-pos-tint)', 'var(--tv-pos)'], warn: ['var(--tv-warn-tint)', 'var(--tv-warn)'], neg: ['var(--tv-neg-tint)', 'var(--tv-neg)'], neutral: ['var(--tv-surface)', 'var(--tv-ink-70)'] };
+    const c = map[kind] || map.neutral;
+    return 'display:inline-flex;align-items:center;font-size:11px;font-weight:800;letter-spacing:.04em;padding:2px 7px;background:' + c[0] + ';color:' + c[1];
+  }
+
+  cell(text, o) {
+    o = o || {};
+    return {
+      text: text, isLink: !!o.link, isTag: !!o.tag, isPlain: !o.link && !o.tag,
+      onClick: o.link || (() => {}), tagStyle: o.tag ? this.tagStyle(o.tag) : '',
+      tdStyle: (o.align === 'right' ? 'text-align:right;font-variant-numeric:tabular-nums;' : '') + (o.muted ? 'color:var(--tv-ink-55);' : '')
+    };
+  }
+
+  renderVals() {
+    const s = this.state;
+    const sub = this.props.sub || 'Employees';
+    const entity = this.props.entity;
+    const isEmployee = !!entity;
+    const isLeave = sub === 'Leave' && !entity;
+    const e = EMP_DETAIL[entity] || EMP_DETAIL['emp-1'];
+
+    const empTabs = ['Profile', 'Attendance', 'Leave', 'Documents', 'Performance', 'Payroll'].map((t) => ({
+      label: t, onClick: () => this.setState({ tab: t }),
+      style: 'background:none;border:0;border-bottom:2px solid ' + (s.tab === t ? 'var(--tv-accent)' : 'transparent') +
+        ';margin-bottom:-2px;padding:10px 14px 9px;font:inherit;font-size:13px;font-weight:' + (s.tab === t ? '800' : '400') +
+        ';color:' + (s.tab === t ? 'var(--tv-ink)' : 'var(--tv-ink-55)') + ';cursor:pointer;white-space:nowrap'
+    }));
+
+    const relatedSets = {
+      Leave: {
+        title: 'Leave record', note: 'Entitlement 30 days plus public holidays. Balances accrue monthly.',
+        cols: ['Type', 'Dates', 'Days', 'Status'],
+        rows: [
+          [this.cell('Annual leave', { muted: true }), this.cell('4 – 15 Aug 2026', { muted: true }), this.cell('10', { align: 'right' }), this.cell('Taken', { tag: 'neutral' })],
+          [this.cell('Annual leave', { muted: true }), this.cell('23 – 27 Dec 2026', { muted: true }), this.cell('3', { align: 'right' }), this.cell('Approved', { tag: 'pos' })],
+          [this.cell('Study leave', { muted: true }), this.cell('11 – 12 Nov 2026', { muted: true }), this.cell('2', { align: 'right' }), this.cell('Pending', { tag: 'warn' })]
+        ]
+      },
+      Documents: {
+        title: 'Employee documents', note: 'Stored in ECM under HR retention policy with restricted access.',
+        cols: ['Document', 'Type', 'Filed', 'Access'],
+        rows: [
+          [this.cell('Employment contract 2015.pdf', { link: () => this.nav('ecm', 'Repository') }), this.cell('Contract', { muted: true }), this.cell('14 Sep 2015', { muted: true }), this.cell('Restricted', { tag: 'warn' })],
+          [this.cell('Promotion letter — Principal.pdf', { link: () => this.nav('ecm', 'Repository') }), this.cell('Letter', { muted: true }), this.cell('1 Jul 2023', { muted: true }), this.cell('Restricted', { tag: 'warn' })],
+          [this.cell('Client vetting — banking.pdf', { link: () => this.nav('ecm', 'Repository') }), this.cell('Clearance', { muted: true }), this.cell('12 Feb 2026', { muted: true }), this.cell('Confidential', { tag: 'neg' })]
+        ]
+      },
+      Performance: {
+        title: 'Performance', note: 'Ratings and objectives are visible to the employee, their manager and HR only.',
+        cols: ['Cycle', 'Objectives met', 'Rating', 'Reviewer'],
+        rows: [
+          [this.cell('FY2026 mid-year', { muted: true }), this.cell('5 of 6', { muted: true }), this.cell('Hidden', { tag: 'neutral' }), this.cell('I. Solberg', { muted: true })],
+          [this.cell('FY2025 full year', { muted: true }), this.cell('6 of 6', { muted: true }), this.cell('Hidden', { tag: 'neutral' }), this.cell('I. Solberg', { muted: true })]
+        ]
+      },
+      Payroll: {
+        title: 'Payroll', note: 'You do not have permission to view individual compensation. Aggregate practice cost is available in BI.',
+        cols: ['Period', 'Gross', 'Deductions', 'Net'],
+        rows: [
+          [this.cell('August 2026', { muted: true }), this.cell('••••••', { muted: true }), this.cell('••••••', { muted: true }), this.cell('Hidden', { tag: 'neg' })],
+          [this.cell('July 2026', { muted: true }), this.cell('••••••', { muted: true }), this.cell('••••••', { muted: true }), this.cell('Hidden', { tag: 'neg' })]
+        ]
+      }
+    };
+    const related = relatedSets[s.tab];
+
+    const q = s.query.trim().toLowerCase();
+    const people = PEOPLE.filter((p) => {
+      const inP = s.practice === 'All' || p[4] === s.practice;
+      return inP && (!q || (p[2] + ' ' + p[3] + ' ' + p[4] + ' ' + p[5]).toLowerCase().indexOf(q) >= 0);
+    });
+
+    const timesheet = [7.5, 8, 8, 6, 4, 0, 0, 8, 8.5, 7, 8, 5, 0, 0, 8, 8, 8, 7.5, 6, 0, 0, 8].map((h, i) => {
+      const billable = Math.max(0, h - (i % 5 === 4 ? 3 : 1));
+      return {
+        tip: 'Day ' + (i + 1) + ' · ' + h + ' h',
+        billableStyle: 'height:' + (billable / 10 * 100) + '%;background:var(--tv-ink)',
+        internalStyle: 'height:' + ((h - billable) / 10 * 100) + '%;background:var(--tv-ink-40)'
+      };
+    });
+
+    return {
+      isEmployee: isEmployee,
+      isDirectory: !isEmployee,
+      isLeave: isLeave,
+      isPeopleList: !isLeave,
+
+      dirTitle: isLeave ? 'Leave' : sub === 'Attendance' ? 'Attendance' : sub === 'Payroll' ? 'Payroll' : sub === 'Performance' ? 'Performance' : 'Employee Directory',
+      dirMeta: isLeave ? 'Requests awaiting a decision across all practices · SLA 3 working days'
+        : '2,417 employees · seven practices · eleven offices · availability updated nightly from engagement plans',
+      dirAction: isLeave ? 'Request leave' : 'Add employee',
+      onAdd: () => this.toast('Onboarding wizard: personal details, contract, access, equipment'),
+      onOrgChart: () => this.toast('Organisation chart opens with reporting lines and practice structure'),
+
+      leaveRows: LEAVE.filter((l) => s.approved.indexOf(l[0]) < 0).map((l) => ({
+        name: l[0], practice: l[1], type: l[2], dates: l[3], days: l[4], wait: l[5], waitStyle: this.tagStyle(l[6]),
+        onOpen: () => this.nav('hr', 'Employees', l[7]),
+        onApprove: () => { this.setState((st) => ({ approved: [...st.approved, l[0]] })); this.toast('Leave approved for ' + l[0]); }
+      })),
+
+      query: s.query,
+      onQuery: (e2) => this.setState({ query: e2.target.value }),
+      onClearQuery: () => this.setState({ query: '', practice: 'All' }),
+      practices: ['All', 'Financial Services', 'Insurance', 'Energy', 'Public Sector', 'Group Functions'].map((p) => ({
+        label: p, onClick: () => this.setState({ practice: p }),
+        style: 'background:' + (s.practice === p ? 'var(--tv-ink)' : 'none') + ';color:' + (s.practice === p ? 'var(--tv-bg)' : 'var(--tv-ink-55)') +
+          ';border:1px solid ' + (s.practice === p ? 'var(--tv-ink)' : 'var(--tv-hair)') + ';padding:5px 10px;font:inherit;font-size:12px;font-weight:' + (s.practice === p ? '800' : '400') + ';cursor:pointer;white-space:nowrap'
+      })),
+      rowCount: people.length + ' of ' + PEOPLE.length + ' shown',
+      cardsMode: s.layout === 'cards', tableMode: s.layout === 'table',
+      cardsChecked: s.layout === 'cards', tableChecked: s.layout === 'table',
+      onCards: () => this.setState({ layout: 'cards' }),
+      onTable: () => this.setState({ layout: 'table' }),
+      peopleEmpty: people.length === 0,
+      people: people.map((p) => ({
+        initials: p[1], name: p[2], role: p[3], practice: p[4], location: p[5], manager: p[6], utilisation: p[7],
+        avail: p[8], availStyle: this.tagStyle(p[9]), engagements: p[10],
+        onOpen: () => this.nav('hr', 'Employees', p[0])
+      })),
+
+      emp: {
+        initials: e.initials, name: e.name, id: e.id, role: e.role, meta: e.meta,
+        stats: e.stats.map((x) => ({ label: x[0], value: x[1] })),
+        fields: e.fields.map((f) => ({
+          label: f[0], value: f[1], lock: f[2],
+          valueStyle: 'font-size:13.5px;font-weight:800;color:' + (f[2] ? 'var(--tv-ink-40)' : 'var(--tv-ink)'),
+          lockStyle: f[2] ? 'font-size:10.5px;color:var(--tv-accent-ink)' : 'display:none'
+        })),
+        engagements: e.engagements.map((x) => ({
+          name: x[0], client: x[1], role: x[2], alloc: x[3], health: x[4], healthStyle: this.tagStyle(x[5]), onOpen: this.go(x[6])
+        })),
+        line: e.line.map((l) => ({
+          initials: l[0], name: l[1], role: l[2],
+          wrapStyle: 'display:flex;gap:10px;align-items:center;padding:8px 0 8px ' + (l[3] * 16) + 'px;border-top:1px solid var(--tv-hair)' + (l[3] === 1 ? ';background:var(--tv-surface)' : '')
+        })),
+        links: e.links.map((l) => ({ module: l[0], label: l[1], onClick: this.go(l[2]) })),
+        timesheet: timesheet
+      },
+      empTabs: empTabs,
+      empIsProfile: s.tab === 'Profile',
+      empIsAttendance: s.tab === 'Attendance',
+      empIsRelated: !!related,
+      relatedTitle: related ? related.title : '',
+      relatedNote: related ? related.note : '',
+      relatedCols: related ? related.cols.map((c, i) => ({ label: c, style: i === 2 ? 'text-align:right' : '' })) : [],
+      relatedRows: related ? related.rows.map((r) => ({ cells: r })) : [],
+      onMessage: () => this.toast('Message sent through the TechVault activity feed'),
+      onAssign: () => this.toast('Assignment planner opens with availability and engagement demand')
+    };
+  }
+}
+
+</script>
+</body>
+</html>

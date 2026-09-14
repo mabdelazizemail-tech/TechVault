@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/modernist-36bd29c9-a0f6-40d6-82f9-3de3249645b6/styles.css">
+<script src="_ds/modernist-36bd29c9-a0f6-40d6-82f9-3de3249645b6/_ds_bundle.js"></script>
+<link rel="stylesheet" href="tv-tokens.css">
+</helmet>
+
+<div style="height:100%;display:flex;flex-direction:column;font-family:'Archivo',system-ui,sans-serif;color:var(--tv-ink);background:var(--tv-bg);overflow:hidden">
+
+  <div style="flex:none;background:var(--tv-panel);padding:8px 14px 0;font-size:11px;display:flex;justify-content:space-between;color:var(--tv-ink-55);font-variant-numeric:tabular-nums">
+    <span>09:41</span>
+    <span>5G · 84%</span>
+  </div>
+
+  <header style="flex:none;display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--tv-panel);border-bottom:2px solid var(--tv-rule)">
+    <div style="width:24px;height:24px;background:var(--tv-accent);color:var(--tv-on-accent);display:grid;place-items:center;font-weight:800;font-size:11px;flex:none">TV</div>
+    <div style="flex:1;min-width:0">
+      <div style="font-weight:800;font-size:14px;line-height:1.1">{{ title }}</div>
+      <div style="font-size:10.5px;color:var(--tv-ink-55)">{{ subtitle }}</div>
+    </div>
+    <button aria-label="Search" onClick="{{ onSearch }}" style="width:30px;height:30px;border:1px solid var(--tv-hair);background:none;color:inherit;cursor:pointer;display:grid;place-items:center;flex:none">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+    </button>
+  </header>
+
+  <div style="flex:1;min-height:0;overflow-y:auto">
+
+    <sc-if value="{{ onApprovals }}" hint-placeholder-val="{{ true }}">
+      <div style="animation:tv-fade .18s ease">
+        <div style="padding:12px 14px;background:var(--tv-accent);color:var(--tv-on-accent)">
+          <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;opacity:.8">Needs you today</div>
+          <div style="font-size:26px;font-weight:800;line-height:1.1">{{ pendingCount }} approvals</div>
+          <div style="font-size:11.5px;opacity:.85">2 breach SLA within four hours</div>
+        </div>
+        <sc-for list="{{ approvals }}" as="a" hint-placeholder-count="4">
+          <div style="background:var(--tv-panel);border-bottom:1px solid var(--tv-hair);padding:13px 14px;animation:tv-fade .2s ease">
+            <div style="display:flex;align-items:center;gap:7px;margin-bottom:5px;flex-wrap:wrap">
+              <span class="tag tag-neutral">{{ a.module }}</span>
+              <span style="{{ a.slaStyle }}">{{ a.sla }}</span>
+            </div>
+            <div style="font-weight:800;font-size:14px;line-height:1.25;margin-bottom:3px">{{ a.title }}</div>
+            <div style="font-size:11.5px;color:var(--tv-ink-55);margin-bottom:10px">{{ a.meta }}</div>
+            <div style="display:flex;gap:8px">
+              <button onClick="{{ a.onApprove }}" style="flex:1;min-height:44px;background:var(--tv-accent);border:0;color:var(--tv-on-accent);font:inherit;font-size:13.5px;font-weight:800;cursor:pointer">Approve</button>
+              <button onClick="{{ a.onReject }}" style="flex:1;min-height:44px;background:none;border:1px solid var(--tv-ink-40);color:var(--tv-ink);font:inherit;font-size:13.5px;cursor:pointer">Reject</button>
+            </div>
+          </div>
+        </sc-for>
+        <sc-if value="{{ approvalsEmpty }}" hint-placeholder-val="{{ false }}">
+          <div style="padding:34px 16px;background:var(--tv-panel)">
+            <div style="font-weight:800;font-size:15px;margin-bottom:4px">Queue clear</div>
+            <div style="font-size:12.5px;color:var(--tv-ink-55)">Approvals arrive here the moment a workflow names you. You can decide from the phone; anything needing a full record opens the desktop view.</div>
+          </div>
+        </sc-if>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ onDashboard }}" hint-placeholder-val="{{ false }}">
+      <div style="animation:tv-fade .18s ease">
+        <sc-for list="{{ kpis }}" as="k" hint-placeholder-count="4">
+          <div style="background:var(--tv-panel);border-bottom:1px solid var(--tv-hair);padding:13px 14px;display:flex;align-items:flex-end;justify-content:space-between;gap:10px">
+            <div style="min-width:0">
+              <div style="font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--tv-ink-55)">{{ k.label }}</div>
+              <div style="font-size:24px;font-weight:800;line-height:1.1">{{ k.value }}</div>
+              <div style="font-size:11.5px"><span style="{{ k.deltaStyle }}">{{ k.delta }}</span> <span style="color:var(--tv-ink-40)">{{ k.note }}</span></div>
+            </div>
+            <div style="display:flex;align-items:flex-end;gap:2px;height:34px;width:82px;flex:none">
+              <sc-for list="{{ k.spark }}" as="sp" hint-placeholder-count="8">
+                <div style="{{ sp.style }}"></div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-for>
+        <div style="background:var(--tv-panel);border-bottom:1px solid var(--tv-hair);padding:13px 14px">
+          <div style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--tv-accent-ink);margin-bottom:8px">Requires attention</div>
+          <sc-for list="{{ alerts }}" as="al" hint-placeholder-count="3">
+            <div style="display:flex;gap:9px;border-top:1px solid var(--tv-hair);padding:9px 0">
+              <span style="{{ al.dotStyle }}"></span>
+              <div style="flex:1;min-width:0">
+                <div style="font-weight:800;font-size:13px">{{ al.title }}</div>
+                <div style="font-size:11.5px;color:var(--tv-ink-55)">{{ al.body }}</div>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ onTasks }}" hint-placeholder-val="{{ false }}">
+      <div style="animation:tv-fade .18s ease">
+        <sc-for list="{{ tasks }}" as="t" hint-placeholder-count="6">
+          <div style="background:var(--tv-panel);border-bottom:1px solid var(--tv-hair);padding:12px 14px;display:flex;gap:11px;align-items:center;min-height:56px">
+            <button onClick="{{ t.onDone }}" aria-label="Complete" style="{{ t.boxStyle }}">{{ t.mark }}</button>
+            <div style="flex:1;min-width:0">
+              <div style="{{ t.titleStyle }}">{{ t.title }}</div>
+              <div style="font-size:11px;color:var(--tv-ink-55)">{{ t.meta }}</div>
+            </div>
+            <span style="{{ t.dueStyle }}">{{ t.due }}</span>
+          </div>
+        </sc-for>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ onIdeas }}" hint-placeholder-val="{{ false }}">
+      <div style="animation:tv-fade .18s ease">
+        <div style="background:var(--tv-panel);border-bottom:1px solid var(--tv-hair);padding:13px 14px">
+          <div style="font-weight:800;font-size:15px;margin-bottom:3px">Submit an idea</div>
+          <div style="font-size:12px;color:var(--tv-ink-55);margin-bottom:10px">Problem first, then what you would do about it. Two minutes is enough.</div>
+          <button onClick="{{ onSubmitIdea }}" style="width:100%;min-height:44px;background:var(--tv-accent);border:0;color:var(--tv-on-accent);font:inherit;font-size:13.5px;font-weight:800;cursor:pointer;text-align:left;padding:0 14px">New idea</button>
+        </div>
+        <sc-for list="{{ ideas }}" as="i" hint-placeholder-count="4">
+          <div style="background:var(--tv-panel);border-bottom:1px solid var(--tv-hair);padding:13px 14px">
+            <div style="display:flex;align-items:center;gap:7px;margin-bottom:5px;flex-wrap:wrap">
+              <span style="{{ i.statusStyle }}">{{ i.status }}</span>
+              <span style="font-size:10.5px;color:var(--tv-ink-40)">{{ i.ref }}</span>
+            </div>
+            <div style="font-weight:800;font-size:14px;line-height:1.25;margin-bottom:4px">{{ i.title }}</div>
+            <div style="font-size:11.5px;color:var(--tv-ink-55);margin-bottom:9px">{{ i.author }}</div>
+            <div style="display:flex;gap:8px">
+              <button onClick="{{ i.onVote }}" style="{{ i.voteStyle }}">▲ {{ i.votes }}</button>
+              <button onClick="{{ i.onOpen }}" style="flex:1;min-height:40px;background:none;border:1px solid var(--tv-hair);color:var(--tv-ink-70);font:inherit;font-size:12.5px;cursor:pointer">Open on desktop</button>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+    </sc-if>
+  </div>
+
+  <nav style="flex:none;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));background:var(--tv-panel);border-top:2px solid var(--tv-rule)">
+    <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="4">
+      <button onClick="{{ t.onClick }}" style="{{ t.style }}">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="{{ t.icon }}"></path></svg>
+        <span style="font-size:10.5px">{{ t.label }}</span>
+        <span style="{{ t.badgeStyle }}">{{ t.badge }}</span>
+      </button>
+    </sc-for>
+  </nav>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:392,&quot;height&quot;:800},&quot;navigate&quot;:{&quot;editor&quot;:null,&quot;tsType&quot;:&quot;(screen: string, sub?: string, entity?: string) =&gt; void&quot;},&quot;toast&quot;:{&quot;editor&quot;:null,&quot;tsType&quot;:&quot;(text: string) =&gt; void&quot;}}">
+const ICONS = {
+  check: 'M3 3h18v18H3zM8 12l3 3 5-6',
+  chart: 'M3 3v18h18M7 15v3M12 9v9M17 5v13',
+  list: 'M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01',
+  bulb: 'M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7V18h8v-3.3A7 7 0 0 0 12 2'
+};
+
+class Component extends DCLogic {
+  state = {
+    tab: 'Approvals',
+    done: [],
+    votes: {},
+    approvals: [
+      { id: 'a1', module: 'ERP', title: 'Supplier invoice — Lindqvist Legal Partners', meta: '€486,500 · exceeds delegated authority', sla: 'SLA 4 h', kind: 'neg' },
+      { id: 'a2', module: 'CRM', title: 'Discount approval — Corvus Spectrum Retainer', meta: '14% off rate card · €2.1M', sla: 'SLA 1 d', kind: 'warn' },
+      { id: 'a3', module: 'Think Tank', title: 'Business case — Regulatory-change radar', meta: '€4.2M three-year contribution', sla: 'SLA 2 d', kind: 'neutral' },
+      { id: 'a4', module: 'ECM', title: 'Retention override — Meridian audit file', meta: 'Extend retention to 10 years', sla: 'SLA 3 d', kind: 'neutral' }
+    ]
+  };
+
+  nav = (screen, sub, entity) => { const f = this.props.navigate; if (f) f(screen, sub, entity); };
+  toast = (t) => { const f = this.props.toast; if (f) f(t); };
+
+  tagStyle(kind) {
+    const map = { pos: ['var(--tv-pos-tint)', 'var(--tv-pos)'], warn: ['var(--tv-warn-tint)', 'var(--tv-warn)'], neg: ['var(--tv-neg-tint)', 'var(--tv-neg)'], neutral: ['var(--tv-surface)', 'var(--tv-ink-70)'] };
+    const c = map[kind] || map.neutral;
+    return 'display:inline-flex;align-items:center;font-size:10.5px;font-weight:800;letter-spacing:.04em;padding:2px 6px;background:' + c[0] + ';color:' + c[1];
+  }
+
+  renderVals() {
+    const s = this.state;
+    const titles = {
+      Approvals: ['My Approvals', 'Ingrid Solberg · CFO'],
+      Dashboard: ['Executive Overview', 'Group · FY2026 Q3'],
+      Tasks: ['My Tasks', '14 open · 2 overdue'],
+      Ideas: ['Think Tank', '312 ideas this year']
+    };
+
+    const spark = (vals, accent) => vals.map((v) => ({
+      style: 'flex:1;min-width:2px;height:' + v + '%;background:' + (accent ? 'var(--tv-accent)' : 'var(--tv-mute)')
+    }));
+
+    const mkTask = (id, title, meta, due, kind) => {
+      const done = s.done.indexOf(id) >= 0;
+      return {
+        title: title, meta: meta, due: due, mark: done ? '✓' : '',
+        titleStyle: 'font-weight:800;font-size:13.5px;' + (done ? 'text-decoration:line-through;color:var(--tv-ink-40)' : ''),
+        dueStyle: this.tagStyle(done ? 'neutral' : kind),
+        boxStyle: 'width:26px;height:26px;flex:none;border:1.5px solid ' + (done ? 'var(--tv-accent)' : 'var(--tv-ink-40)') +
+          ';background:' + (done ? 'var(--tv-accent)' : 'none') + ';color:var(--tv-on-accent);cursor:pointer;font:inherit;font-size:13px;display:grid;place-items:center',
+        onDone: () => this.setState((st) => ({ done: done ? st.done.filter((x) => x !== id) : [...st.done, id] }))
+      };
+    };
+
+    return {
+      title: titles[s.tab][0],
+      subtitle: titles[s.tab][1],
+      onSearch: () => this.toast('Search opens full screen on mobile'),
+
+      onApprovals: s.tab === 'Approvals',
+      onDashboard: s.tab === 'Dashboard',
+      onTasks: s.tab === 'Tasks',
+      onIdeas: s.tab === 'Ideas',
+
+      pendingCount: String(s.approvals.length),
+      approvalsEmpty: s.approvals.length === 0,
+      approvals: s.approvals.map((a) => ({
+        module: a.module, title: a.title, meta: a.meta, sla: a.sla, slaStyle: this.tagStyle(a.kind),
+        onApprove: () => { this.setState((st) => ({ approvals: st.approvals.filter((x) => x.id !== a.id) })); this.toast('Approved from mobile · workflow advanced'); },
+        onReject: () => { this.setState((st) => ({ approvals: st.approvals.filter((x) => x.id !== a.id) })); this.toast('Rejected · returned to requester'); }
+      })),
+
+      kpis: [
+        { label: 'Revenue YTD', value: '€184.2M', delta: '+4.7%', up: true, note: 'vs plan', spark: spark([40, 52, 48, 61, 58, 70, 76, 88]) },
+        { label: 'Weighted pipeline', value: '€41.7M', delta: '+9.2%', up: true, note: 'QoQ', spark: spark([30, 44, 40, 55, 62, 58, 71, 80]) },
+        { label: 'Receivables overdue', value: '€3.42M', delta: '+18.4%', up: false, note: '6 invoices', spark: spark([22, 30, 28, 41, 46, 52, 66, 92], true) },
+        { label: 'Active engagements', value: '148', delta: '+6', up: true, note: '11 amber, 2 red', spark: spark([58, 60, 64, 62, 70, 72, 78, 84]) }
+      ].map((k) => ({
+        label: k.label, value: k.value, delta: k.delta, note: k.note, spark: k.spark,
+        deltaStyle: 'font-weight:800;color:' + (k.up ? 'var(--tv-pos)' : 'var(--tv-neg)')
+      })),
+      alerts: [
+        ['Blackfen engagement at 91% burn', 'Forecast overrun €260k', 'neg'],
+        ['Meridian receivable past dunning stage 2', '€1.24M · 18 days', 'neg'],
+        ['Two liability redlines block Phase 2 SOW', 'Legal review open 6 days', 'warn']
+      ].map((a) => ({ title: a[0], body: a[1], dotStyle: 'width:4px;flex:none;background:' + (a[2] === 'neg' ? 'var(--tv-accent)' : 'var(--tv-mute)') + ';display:block' })),
+
+      tasks: [
+        mkTask('t1', 'Sign off Meridian Phase 2 pricing floor', 'Tomas Reinhardt waiting', 'Overdue', 'neg'),
+        mkTask('t2', 'Confirm Blackfen overrun treatment', 'CR-2026-0214', 'Overdue', 'neg'),
+        mkTask('t3', 'Approve Lindqvist supplier invoice', '€486,500', 'Today', 'warn'),
+        mkTask('t4', 'Review Q3 receivables narrative', 'Board pack draft', 'Today', 'warn'),
+        mkTask('t5', 'Decide finance gate on radar idea', '€4.2M contribution', 'Today', 'warn'),
+        mkTask('t6', 'Quarterly access certification', '412 assignments', 'Monday', 'neutral')
+      ],
+
+      ideas: [
+        ['IDEA-2026-041', 'Regulatory-change radar for banking clients', 'Adaeze Okafor · Financial Services', 'Business assessment', 'warn', 148],
+        ['IDEA-2026-018', 'Reusable ESG assurance toolkit', 'Camille Béranger · Sustainability', 'Converted to project', 'pos', 121],
+        ['IDEA-2026-052', 'Engagement staffing simulator', 'Hiroshi Tanabe · Delivery Excellence', 'Submitted', 'neutral', 96],
+        ['IDEA-2026-047', 'Client obligation register as a product', 'Priya Raghunathan · Insurance', 'Technical assessment', 'warn', 84]
+      ].map((i) => {
+        const voted = !!s.votes[i[0]];
+        return {
+          ref: i[0], title: i[1], author: i[2], status: i[3], statusStyle: this.tagStyle(i[4]),
+          votes: String(i[5] + (voted ? 1 : 0)),
+          voteStyle: 'min-width:72px;min-height:40px;background:' + (voted ? 'var(--tv-accent)' : 'none') + ';border:1px solid ' + (voted ? 'var(--tv-accent)' : 'var(--tv-hair)') +
+            ';color:' + (voted ? 'var(--tv-on-accent)' : 'var(--tv-accent)') + ';font:inherit;font-size:12.5px;font-weight:800;cursor:pointer',
+          onVote: () => this.setState((st) => ({ votes: Object.assign({}, st.votes, { [i[0]]: !voted }) })),
+          onOpen: () => this.nav('think', 'Ideas', 'idea-1')
+        };
+      }),
+      onSubmitIdea: () => this.toast('Idea capture: problem, solution, benefit — three screens'),
+
+      tabs: [
+        ['Approvals', ICONS.check, String(s.approvals.length)],
+        ['Dashboard', ICONS.chart, ''],
+        ['Tasks', ICONS.list, String(6 - s.done.length)],
+        ['Ideas', ICONS.bulb, '']
+      ].map((t) => ({
+        label: t[0], icon: t[1], badge: t[2],
+        badgeStyle: t[2] && t[2] !== '0' ? 'position:absolute;top:5px;right:calc(50% - 20px);min-width:15px;height:15px;background:var(--tv-ink);color:var(--tv-bg);font-size:10px;font-weight:800;display:grid;place-items:center;padding:0 3px' : 'display:none',
+        onClick: () => this.setState({ tab: t[0] }),
+        style: 'position:relative;display:flex;flex-direction:column;align-items:center;gap:3px;padding:9px 4px 10px;background:none;border:0;border-top:2px solid ' +
+          (s.tab === t[0] ? 'var(--tv-accent)' : 'transparent') + ';margin-top:-2px;cursor:pointer;font:inherit;font-weight:' + (s.tab === t[0] ? '800' : '400') +
+          ';color:' + (s.tab === t[0] ? 'var(--tv-ink)' : 'var(--tv-ink-55)') + ';min-height:56px'
+      }))
+    };
+  }
+}
+
+</script>
+</body>
+</html>
