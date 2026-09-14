@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { BreadcrumbTitle } from "@/components/shell/breadcrumbs";
 import { notFound, redirect } from "next/navigation";
 import { PageHeader } from "@/components/ui/primitives";
 import { CRM_PERMISSIONS } from "@/modules/crm/contracts/permissions";
@@ -44,6 +45,7 @@ export default async function ConvertLeadPage({
   return (
     <div>
       <p className="kicker text-primary-ink mb-1">Convert lead</p>
+      <BreadcrumbTitle segment={id} label={preview.lead.name} />
       <PageHeader
         title={preview.lead.name}
         description="Review what conversion will create or reuse. Nothing changes until you confirm."

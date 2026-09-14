@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { BreadcrumbTitle } from "@/components/shell/breadcrumbs";
 import Link from "next/link";
 import { Plus } from "lucide-react";
 import type { ReactNode } from "react";
@@ -56,6 +57,7 @@ export default async function AccountPage({
   return (
     <div>
       <p className="kicker text-primary-ink mb-1">Company</p>
+      <BreadcrumbTitle segment={id} label={account.name} />
       <PageHeader
         title={account.name}
         description={[account.industry, location]

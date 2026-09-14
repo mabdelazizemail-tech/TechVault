@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { BreadcrumbTitle } from "@/components/shell/breadcrumbs";
 import Link from "next/link";
 import { Sparkles } from "lucide-react";
 import { ButtonLink } from "@/components/ui/button";
@@ -56,6 +57,7 @@ export default async function LeadPage({ params }: { params: Promise<{ id: strin
       <p className="kicker text-primary-ink mb-1 flex items-center gap-2">
         Lead <LeadStatusBadge status={lead.status} />
       </p>
+      <BreadcrumbTitle segment={id} label={lead.name} />
       <PageHeader
         title={lead.name}
         description={[lead.jobTitle, lead.company]

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { BreadcrumbTitle } from "@/components/shell/breadcrumbs";
 import Link from "next/link";
 import { Plus } from "lucide-react";
 import { ButtonLink } from "@/components/ui/button";
@@ -61,6 +62,7 @@ export default async function ContactPage({
   return (
     <div>
       <p className="kicker text-primary-ink mb-1">Contact</p>
+      <BreadcrumbTitle segment={id} label={contact.name} />
       <PageHeader
         title={contact.name}
         description={[contact.jobTitle, contact.account?.name ?? null]

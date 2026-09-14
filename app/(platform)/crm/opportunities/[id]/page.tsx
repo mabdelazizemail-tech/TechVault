@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { BreadcrumbTitle } from "@/components/shell/breadcrumbs";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { EmptyState, PageHeader, Panel, PanelHeader } from "@/components/ui/primitives";
@@ -76,6 +77,7 @@ export default async function OpportunityPage({
         Opportunity{" "}
         <StageBadge name={opportunity.stage.name} kind={opportunity.stage.kind} />
       </p>
+      <BreadcrumbTitle segment={id} label={opportunity.name} />
       <PageHeader
         title={opportunity.name}
         description={[opportunity.account.name, opportunity.product]

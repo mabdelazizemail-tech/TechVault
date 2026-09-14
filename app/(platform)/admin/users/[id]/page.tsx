@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { BreadcrumbTitle } from "@/components/shell/breadcrumbs";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 import { Badge, PageHeader, Panel } from "@/components/ui/primitives";
@@ -59,6 +60,7 @@ export default async function UserDetailPage({
       }}
     >
       <div className="max-w-6xl">
+        <BreadcrumbTitle segment={id} label={user.fullName ?? user.email} />
         <PageHeader
           title={user.fullName ?? user.email}
           description={user.email}
