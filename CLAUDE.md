@@ -2104,8 +2104,13 @@ Design decisions are in ADR-023. Migrations `20260914200000_ar_permission_action
 2026-09-14, to Supabase. Verified on Supabase by direct query: both migrations finished; `iam.PermissionAction` has
 CANCEL and ALLOCATE; RLS on all 10 new tables with no policies; the 8 triggers (4 deferred checks, including
 `journal_entries_source_check`); 40 CHECK constraints on the AR tables; no privileges for `anon` or `authenticated` on
-`erp`. On any database: migrate, deploy the code, then run `npm run db:seed` — permission rows using the new actions
-cannot be loaded by a Prisma client generated before them.
+`erp`. The code was then deployed to production (`a3d7f87`) and `npm run db:seed` run on Supabase: 99 permissions (16
+AR); `finance-admin` and `platform-admin` hold all 16 and `accountant` 11 (not invoice approve or cancel, receipt cancel,
+customer update or AR settings); AR settings with receivable account 1200, approval required and self-approval off; the
+INV and RCT series; 5 payment methods; 0 tax rates — each verified by direct query. Production smoke test:
+`/api/health/ready` 200 with `database: ok`, and the AR pages redirect anonymous visitors to sign-in. On any database:
+migrate, deploy the code, then seed — permission rows using the new actions cannot be loaded by a Prisma client
+generated before them.
 
 | Area        | State |
 | ----------- | ----- |
