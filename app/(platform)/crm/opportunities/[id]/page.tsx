@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import { BreadcrumbTitle } from "@/components/shell/breadcrumbs";
 import Link from "next/link";
 import type { ReactNode } from "react";
@@ -24,7 +25,7 @@ import {
   formatRelative,
 } from "@/modules/crm/ui/format";
 import { EditOpportunityButton } from "@/modules/crm/ui/opportunity-form";
-import { orNotFound } from "@/modules/crm/ui/page-helpers";
+import { orNotFound, uuidParam } from "@/modules/crm/ui/page-helpers";
 import { StageTracker } from "@/modules/crm/ui/stage-tracker";
 import { getActor } from "@/platform/auth/current-user";
 import { canAll } from "@/platform/authz/authz";
@@ -41,32 +42,43 @@ export default async function OpportunityPage({
   const { id } = await params;
   const actor = await getActor();
 
-  const [opportunity, rights] = await Promise.all([
-    orNotFound(getOpportunity(actor, id)),
-    canAll(actor, [
-      CRM_PERMISSIONS.OPPORTUNITY_UPDATE,
-      CRM_PERMISSIONS.ACCOUNT_READ,
-      CRM_PERMISSIONS.CONTACT_READ,
-      CRM_PERMISSIONS.ACTIVITY_READ,
-      CRM_PERMISSIONS.ACTIVITY_CREATE,
-      CRM_PERMISSIONS.ACTIVITY_UPDATE,
-    ]),
+  // One round: the timeline and option lists need only the id from the URL and
+  // your permissions, and every service checks its own permission. A malformed id
+  // is a 404 up front, so no service ever sees it.
+  if (uuidParam(id) === undefined) notFound();
+  const rightsPromise = canAll(actor, [
+    CRM_PERMISSIONS.OPPORTUNITY_UPDATE,
+    CRM_PERMISSIONS.ACCOUNT_READ,
+    CRM_PERMISSIONS.CONTACT_READ,
+    CRM_PERMISSIONS.ACTIVITY_READ,
+    CRM_PERMISSIONS.ACTIVITY_CREATE,
+    CRM_PERMISSIONS.ACTIVITY_UPDATE,
   ]);
+  const [opportunity, rights, timeline, stages, owners, accounts, contacts] =
+    await Promise.all([
+      orNotFound(getOpportunity(actor, id)),
+      rightsPromise,
+      rightsPromise.then((granted) =>
+        granted[CRM_PERMISSIONS.ACTIVITY_READ] === true
+          ? listTimeline(actor, { kind: "opportunity", id })
+          : [],
+      ),
+      listStages(actor),
+      listDirectory(actor),
+      rightsPromise.then((granted) =>
+        granted[CRM_PERMISSIONS.OPPORTUNITY_UPDATE] === true &&
+        granted[CRM_PERMISSIONS.ACCOUNT_READ] === true
+          ? listAccountOptions(actor)
+          : [],
+      ),
+      rightsPromise.then((granted) =>
+        granted[CRM_PERMISSIONS.OPPORTUNITY_UPDATE] === true &&
+        granted[CRM_PERMISSIONS.CONTACT_READ] === true
+          ? listContactOptions(actor)
+          : [],
+      ),
+    ]);
   const canEdit = rights[CRM_PERMISSIONS.OPPORTUNITY_UPDATE] === true;
-
-  const [timeline, stages, owners, accounts, contacts] = await Promise.all([
-    rights[CRM_PERMISSIONS.ACTIVITY_READ] === true
-      ? listTimeline(actor, { kind: "opportunity", id: opportunity.id })
-      : Promise.resolve([]),
-    listStages(actor),
-    listDirectory(actor),
-    canEdit && rights[CRM_PERMISSIONS.ACCOUNT_READ] === true
-      ? listAccountOptions(actor)
-      : Promise.resolve([]),
-    canEdit && rights[CRM_PERMISSIONS.CONTACT_READ] === true
-      ? listContactOptions(actor)
-      : Promise.resolve([]),
-  ]);
 
   const weighted = Math.round((opportunity.amountMinor * opportunity.probability) / 100);
   const contact = opportunity.primaryContactDetail;

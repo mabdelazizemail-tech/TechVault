@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import { BreadcrumbTitle } from "@/components/shell/breadcrumbs";
 import Link from "next/link";
 import { Plus } from "lucide-react";
@@ -14,7 +15,7 @@ import { Avatar, LeadStatusBadge } from "@/modules/crm/ui/badges";
 import { ContactFormButton } from "@/modules/crm/ui/contact-form";
 import { DetailList } from "@/modules/crm/ui/detail-list";
 import { formatDate, formatMoney } from "@/modules/crm/ui/format";
-import { orNotFound } from "@/modules/crm/ui/page-helpers";
+import { orNotFound, uuidParam } from "@/modules/crm/ui/page-helpers";
 import { RelatedOpportunities } from "@/modules/crm/ui/related-opportunities";
 import { getActor } from "@/platform/auth/current-user";
 import { canAll } from "@/platform/authz/authz";
@@ -31,21 +32,26 @@ export default async function AccountPage({
   const { id } = await params;
   const actor = await getActor();
 
-  const [account, rights] = await Promise.all([
-    orNotFound(getAccount(actor, id)),
-    canAll(actor, [
-      CRM_PERMISSIONS.ACCOUNT_UPDATE,
-      CRM_PERMISSIONS.CONTACT_CREATE,
-      CRM_PERMISSIONS.OPPORTUNITY_CREATE,
-      CRM_PERMISSIONS.ACTIVITY_READ,
-      CRM_PERMISSIONS.ACTIVITY_CREATE,
-      CRM_PERMISSIONS.ACTIVITY_UPDATE,
-    ]),
+  // One round: the timeline and option lists need only the id from the URL and
+  // your permissions, and every service checks its own permission. A malformed id
+  // is a 404 up front, so no service ever sees it.
+  if (uuidParam(id) === undefined) notFound();
+  const rightsPromise = canAll(actor, [
+    CRM_PERMISSIONS.ACCOUNT_UPDATE,
+    CRM_PERMISSIONS.CONTACT_CREATE,
+    CRM_PERMISSIONS.OPPORTUNITY_CREATE,
+    CRM_PERMISSIONS.ACTIVITY_READ,
+    CRM_PERMISSIONS.ACTIVITY_CREATE,
+    CRM_PERMISSIONS.ACTIVITY_UPDATE,
   ]);
-  const [timeline, owners] = await Promise.all([
-    rights[CRM_PERMISSIONS.ACTIVITY_READ] === true
-      ? listTimeline(actor, { kind: "account", id: account.id })
-      : Promise.resolve([]),
+  const [account, rights, timeline, owners] = await Promise.all([
+    orNotFound(getAccount(actor, id)),
+    rightsPromise,
+    rightsPromise.then((granted) =>
+      granted[CRM_PERMISSIONS.ACTIVITY_READ] === true
+        ? listTimeline(actor, { kind: "account", id })
+        : [],
+    ),
     listDirectory(actor),
   ]);
 

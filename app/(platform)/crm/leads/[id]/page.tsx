@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import { BreadcrumbTitle } from "@/components/shell/breadcrumbs";
 import Link from "next/link";
 import { Sparkles } from "lucide-react";
@@ -20,7 +21,7 @@ import { formatDate, formatMoney, formatRelative } from "@/modules/crm/ui/format
 import { LeadEditButton } from "@/modules/crm/ui/lead-edit";
 import { LeadStatusBar } from "@/modules/crm/ui/lead-status-bar";
 import { recordHref } from "@/modules/crm/ui/links";
-import { orNotFound } from "@/modules/crm/ui/page-helpers";
+import { orNotFound, uuidParam } from "@/modules/crm/ui/page-helpers";
 import { getActor } from "@/platform/auth/current-user";
 import { canAll } from "@/platform/authz/authz";
 import { listDirectory } from "@/platform/iam/services/directory-service";
@@ -32,19 +33,24 @@ export default async function LeadPage({ params }: { params: Promise<{ id: strin
   const { id } = await params;
   const actor = await getActor();
 
-  const [lead, rights] = await Promise.all([
-    orNotFound(getLead(actor, id)),
-    canAll(actor, [
-      CRM_PERMISSIONS.LEAD_UPDATE,
-      CRM_PERMISSIONS.ACTIVITY_READ,
-      CRM_PERMISSIONS.ACTIVITY_CREATE,
-      CRM_PERMISSIONS.ACTIVITY_UPDATE,
-    ]),
+  // One round: the timeline and option lists need only the id from the URL and
+  // your permissions, and every service checks its own permission. A malformed id
+  // is a 404 up front, so no service ever sees it.
+  if (uuidParam(id) === undefined) notFound();
+  const rightsPromise = canAll(actor, [
+    CRM_PERMISSIONS.LEAD_UPDATE,
+    CRM_PERMISSIONS.ACTIVITY_READ,
+    CRM_PERMISSIONS.ACTIVITY_CREATE,
+    CRM_PERMISSIONS.ACTIVITY_UPDATE,
   ]);
-  const [timeline, owners] = await Promise.all([
-    rights[CRM_PERMISSIONS.ACTIVITY_READ] === true
-      ? listTimeline(actor, { kind: "lead", id: lead.id })
-      : Promise.resolve([]),
+  const [lead, rights, timeline, owners] = await Promise.all([
+    orNotFound(getLead(actor, id)),
+    rightsPromise,
+    rightsPromise.then((granted) =>
+      granted[CRM_PERMISSIONS.ACTIVITY_READ] === true
+        ? listTimeline(actor, { kind: "lead", id })
+        : [],
+    ),
     listDirectory(actor),
   ]);
 
