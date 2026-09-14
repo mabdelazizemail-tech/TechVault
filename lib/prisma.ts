@@ -18,13 +18,9 @@ import { serverEnv } from "@/platform/config/env";
  */
 function createPrismaClient(): PrismaClient {
   const env = serverEnv();
-  // Supabase's pooler caps clients per project (15 in session mode), and on
-  // Vercel every function instance opens its own pool. The `pg` default of 10
-  // per instance exhausted that cap with two warm instances. Keep each pool
-  // small and release idle connections quickly; queries beyond `max` queue.
   const adapter = new PrismaPg({
     connectionString: env.databaseUrl,
-    max: env.appEnv === "development" ? 5 : 2,
+    max: poolSize(env.databaseUrl, env.appEnv),
     idleTimeoutMillis: 5_000,
   });
 
@@ -32,6 +28,23 @@ function createPrismaClient(): PrismaClient {
     adapter,
     log: env.appEnv === "development" ? ["warn", "error"] : ["error"],
   });
+}
+
+/**
+ * Connections each process may hold.
+ *
+ * Supabase's session pooler (5432) holds one server connection per client and
+ * caps the project at 15, and on Vercel every function instance opens its own
+ * pool: the `pg` default of 10 exhausted that cap with two warm instances
+ * (§23). The transaction pooler (6543) multiplexes clients over a few server
+ * connections, so a larger pool is safe there and stops a page's parallel
+ * queries from queueing. Decided from the URL itself rather than assumed, so a
+ * session-pooler URL can never get the larger pool.
+ */
+function poolSize(databaseUrl: string, appEnv: string): number {
+  const port = URL.canParse(databaseUrl) ? new URL(databaseUrl).port : "";
+  if (port === "6543") return 10;
+  return appEnv === "development" ? 5 : 2;
 }
 
 const globalForPrisma = globalThis as unknown as {

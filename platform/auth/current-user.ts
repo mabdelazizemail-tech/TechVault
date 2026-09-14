@@ -5,6 +5,8 @@ import { prisma } from "@/lib/prisma";
 import { UnauthenticatedError } from "@/lib/errors";
 import type { Actor } from "@/platform/authz/authz";
 import { createServerSupabaseClient } from "@/platform/auth/supabase/server";
+import { signingKeys, verifiedUserId } from "@/platform/auth/verify-token";
+import { publicEnv } from "@/platform/config/env";
 import { logger } from "@/platform/observability/logger";
 
 /**
@@ -33,14 +35,19 @@ export type CurrentUser = {
 
 export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
   const supabase = await createServerSupabaseClient();
-  const {
-    data: { user: authUser },
-  } = await supabase.auth.getUser();
+  // proxy.ts has already verified this session with the Auth server on this
+  // request (getUser, which also catches revoked sessions). Here the token is
+  // verified locally — signature against the project's public keys, and expiry
+  // — which saves a second Auth round trip per render (ADR-018).
+  const authUserId = await verifiedUserId(
+    supabase.auth,
+    await signingKeys(publicEnv().supabaseUrl),
+  );
 
-  if (authUser === null) return null;
+  if (authUserId === null) return null;
 
   const user = await prisma.user.findUnique({
-    where: { id: authUser.id },
+    where: { id: authUserId },
     select: {
       id: true,
       email: true,
@@ -58,7 +65,7 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
     logger.warn("Verified session with no IAM user row — treating as anonymous", {
       module: "iam",
       operation: "auth.orphanSession",
-      actorId: authUser.id,
+      actorId: authUserId,
     });
     return null;
   }
