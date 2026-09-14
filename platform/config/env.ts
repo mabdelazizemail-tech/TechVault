@@ -70,12 +70,13 @@ const serverSchema = z.object({
 
   /**
    * The privileged key that bypasses every policy. OPTIONAL, and deliberately so:
-   * nothing in TechVault uses it today, and requiring a credential we do not need
+   * only account administration uses it, and requiring a credential we do not need
    * would push people into pasting the most dangerous secret in the project into
    * every environment "because the app asked for it" (CLAUDE.md §18.1).
    *
-   * Make it required only in the change that genuinely needs it — admin user
-   * provisioning is the likely first caller — and say so here.
+   * Used by platform/auth/identity-admin.ts to create, re-address, ban and delete
+   * sign-in accounts (ADR-019). It stays optional: without it those operations
+   * refuse with a clear message and everything else keeps working.
    */
   SUPABASE_SECRET_KEY: secret,
   SUPABASE_SERVICE_ROLE_KEY: secret,

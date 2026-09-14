@@ -16,9 +16,9 @@ export const metadata: Metadata = { title: "Sign in" };
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ next?: string }>;
+  searchParams: Promise<{ next?: string; reason?: string }>;
 }) {
-  const { next } = await searchParams;
+  const { next, reason } = await searchParams;
 
   return (
     <main className="bg-canvas grid min-h-dvh lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)]">
@@ -58,7 +58,7 @@ export default async function LoginPage({
             Sign in to continue to the platform.
           </p>
 
-          <LoginForm next={next} />
+          <LoginForm next={next} notice={noticeFor(reason)} />
 
           <div className="bg-border-strong my-4 h-0.5" />
 
@@ -78,4 +78,16 @@ export default async function LoginPage({
       </section>
     </main>
   );
+}
+
+/** Explains why the visitor arrived here. Only fixed messages — never text from the URL. */
+function noticeFor(reason: string | undefined): string | undefined {
+  switch (reason) {
+    case "disabled":
+      return "Your account is not active. Contact your administrator if you think this is a mistake.";
+    case "password-set":
+      return "Your password is set. Sign in with it now.";
+    default:
+      return undefined;
+  }
 }

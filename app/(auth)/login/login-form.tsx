@@ -12,7 +12,7 @@ import { signIn, type SignInResult } from "@/app/auth/actions";
  * Action itself rather than hand-managed state. Credentials are posted to the
  * server and never held in client state (CLAUDE.md §16.5).
  */
-export function LoginForm({ next }: { next?: string }) {
+export function LoginForm({ next, notice }: { next?: string; notice?: string }) {
   const [state, formAction, isPending] = useActionState<SignInResult, FormData>(
     async (_previous, formData) => signIn(formData),
     undefined,
@@ -21,6 +21,15 @@ export function LoginForm({ next }: { next?: string }) {
   return (
     <form action={formAction} className="flex flex-col gap-3">
       {next !== undefined && <input type="hidden" name="next" value={next} />}
+
+      {notice !== undefined && (
+        <p
+          role="status"
+          className="border-border-strong bg-surface-sunken text-foreground border px-3 py-2 text-xs"
+        >
+          {notice}
+        </p>
+      )}
 
       <TextInput
         label="Email address"

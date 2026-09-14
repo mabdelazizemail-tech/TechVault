@@ -18,6 +18,7 @@ export const IAM_PERMISSIONS = {
   USER_CREATE: "iam.user.create",
   USER_UPDATE: "iam.user.update",
   USER_ADMINISTER: "iam.user.administer",
+  USER_DELETE: "iam.user.delete",
 
   ROLE_READ: "iam.role.read",
   ROLE_CREATE: "iam.role.create",
@@ -86,6 +87,15 @@ export const IAM_PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
     description:
       "Grant and revoke a user's roles and permissions. This confers control over " +
       "what everyone else can do, so treat it as the most powerful permission.",
+    isSensitive: true,
+  },
+  {
+    key: IAM_PERMISSIONS.USER_DELETE,
+    module: "iam",
+    resource: "user",
+    action: "DELETE",
+    description:
+      "Delete a user account: removes its sign-in account and role assignments while keeping its history.",
     isSensitive: true,
   },
   {

@@ -12,7 +12,14 @@ import { publicEnv } from "@/platform/config/env";
  */
 
 /** Routes reachable without a session. Everything else requires one. */
-const PUBLIC_PATHS = ["/login", "/auth/callback", "/auth/error", "/api/health"];
+const PUBLIC_PATHS = [
+  "/login",
+  // Opened from emailed invitation and reset links, before any cookie session exists.
+  "/auth/set-password",
+  // Ends the session of an account TechVault has disabled.
+  "/auth/signout",
+  "/api/health",
+];
 
 function isPublicPath(pathname: string): boolean {
   return PUBLIC_PATHS.some(

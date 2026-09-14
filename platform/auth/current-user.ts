@@ -33,7 +33,13 @@ export type CurrentUser = {
   hrisEmployeeId: string | null;
 };
 
-export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
+type Resolution =
+  | { status: "anonymous" }
+  /** A genuine session for an account TechVault does not allow: missing, inactive or deleted. */
+  | { status: "disabled" }
+  | { status: "active"; user: CurrentUser };
+
+const resolveCurrentUser = cache(async (): Promise<Resolution> => {
   const supabase = await createServerSupabaseClient();
   // proxy.ts has already verified this session with the Auth server on this
   // request (getUser, which also catches revoked sessions). Here the token is
@@ -44,7 +50,7 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
     await signingKeys(publicEnv().supabaseUrl),
   );
 
-  if (authUserId === null) return null;
+  if (authUserId === null) return { status: "anonymous" };
 
   const user = await prisma.user.findUnique({
     where: { id: authUserId },
@@ -67,37 +73,51 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
       operation: "auth.orphanSession",
       actorId: authUserId,
     });
-    return null;
+    return { status: "disabled" };
   }
 
   if (!user.isActive || user.deletedAt !== null) {
-    logger.info("Sign-in attempt by an inactive account", {
+    logger.info("Request by an inactive or deleted account", {
       module: "iam",
       operation: "auth.inactiveAccount",
       actorId: user.id,
     });
-    return null;
+    return { status: "disabled" };
   }
 
   return {
-    id: user.id,
-    email: user.email,
-    fullName: user.fullName,
-    locale: user.locale,
-    orgUnitId: user.orgUnitId,
-    orgUnitPath: user.orgUnit?.path ?? null,
-    hrisEmployeeId: user.hrisEmployeeId,
+    status: "active",
+    user: {
+      id: user.id,
+      email: user.email,
+      fullName: user.fullName,
+      locale: user.locale,
+      orgUnitId: user.orgUnitId,
+      orgUnitPath: user.orgUnit?.path ?? null,
+      hrisEmployeeId: user.hrisEmployeeId,
+    },
   };
 });
 
+/** The signed-in, active user, or `null`. */
+export async function getCurrentUser(): Promise<CurrentUser | null> {
+  const resolution = await resolveCurrentUser();
+  return resolution.status === "active" ? resolution.user : null;
+}
+
 /**
- * Requires an authenticated, active user, redirecting to sign-in otherwise.
+ * Requires an authenticated, active user, redirecting otherwise.
  * Use at the top of protected pages and layouts.
+ *
+ * A disabled account still holds a valid Supabase session, and proxy.ts sends
+ * signed-in visitors of /login back into the app — so redirecting it straight to
+ * /login would loop. It goes through /auth/signout, which ends the session first.
  */
 export async function requireUser(): Promise<CurrentUser> {
-  const user = await getCurrentUser();
-  if (user === null) redirect("/login");
-  return user;
+  const resolution = await resolveCurrentUser();
+  if (resolution.status === "active") return resolution.user;
+  if (resolution.status === "disabled") redirect("/auth/signout?reason=disabled");
+  redirect("/login");
 }
 
 /**

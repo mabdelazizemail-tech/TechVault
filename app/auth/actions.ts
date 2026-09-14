@@ -49,6 +49,26 @@ export async function signIn(formData: FormData): Promise<SignInResult> {
     return { error: "Those credentials are not valid." };
   }
 
+  // Supabase accepted the password, but TechVault decides who may use the platform:
+  // a deactivated, deleted or unknown account is refused here too, and its new
+  // session ended, rather than bouncing between the sign-in page and the app.
+  const account = await prisma.user.findUnique({
+    where: { id: data.user.id },
+    select: { isActive: true, deletedAt: true },
+  });
+  if (account === null || !account.isActive || account.deletedAt !== null) {
+    await supabase.auth.signOut({ scope: "local" });
+    await recordLoginAttempt({
+      userId: account === null ? undefined : data.user.id,
+      email,
+      success: false,
+      failureReason: account === null ? "no IAM account" : "account inactive",
+      ipAddress,
+      userAgent,
+    });
+    return { error: "This account is not active. Contact your administrator." };
+  }
+
   await recordLoginAttempt({
     userId: data.user.id,
     email,

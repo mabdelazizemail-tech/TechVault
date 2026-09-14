@@ -6,6 +6,11 @@ import { type Actor, requirePermission, scopeFilter } from "@/platform/authz/aut
 import { scopeWhere } from "@/platform/authz/prisma-filter";
 import { publish } from "@/platform/events/publish";
 import { IAM_PERMISSIONS } from "@/platform/iam/permissions";
+import {
+  assertAdministrationRemains,
+  lockAdministration,
+} from "@/platform/iam/services/admin-guard";
+import { syncSignInBan } from "@/platform/iam/services/user-admin-service";
 
 /**
  * User administration (CLAUDE.md §11, §19.2).
@@ -28,6 +33,10 @@ export const listUsersInput = z.object({
   sort: z.enum(["email", "fullName", "createdAt", "lastLoginAt"]).default("email"),
   direction: z.enum(["asc", "desc"]).default("asc"),
   includeInactive: z.boolean().default(false),
+  /** Takes precedence over includeInactive when set. */
+  status: z.enum(["all", "active", "inactive"]).optional(),
+  roleId: z.string().uuid().optional(),
+  orgUnitId: z.string().uuid().optional(),
 });
 
 export type ListUsersInput = z.input<typeof listUsersInput>;
@@ -44,6 +53,14 @@ export type UserSummary = {
   createdAt: Date;
 };
 
+/** A row of the administration list: the summary plus what the row's actions need. */
+export type UserListItem = UserSummary & {
+  locale: string;
+  orgUnitId: string | null;
+  /** Unscoped role assignments — the ones the "Change role" dialog manages. */
+  globalRoleIds: string[];
+};
+
 export type Paginated<T> = {
   rows: T[];
   total: number;
@@ -54,7 +71,7 @@ export type Paginated<T> = {
 export async function listUsers(
   actor: Actor,
   rawInput: ListUsersInput = {},
-): Promise<Paginated<UserSummary>> {
+): Promise<Paginated<UserListItem>> {
   await requirePermission(actor, IAM_PERMISSIONS.USER_READ);
 
   const parsed = listUsersInput.safeParse(rawInput);
@@ -69,7 +86,9 @@ export async function listUsers(
 
   const where = {
     deletedAt: null,
-    ...(input.includeInactive ? {} : { isActive: true }),
+    ...statusFilter(input.status ?? (input.includeInactive ? "all" : "active")),
+    ...(input.roleId !== undefined ? { roles: { some: { roleId: input.roleId } } } : {}),
+    ...(input.orgUnitId !== undefined ? { orgUnitId: input.orgUnitId } : {}),
     ...scoped,
     ...(input.search !== undefined && input.search !== ""
       ? {
@@ -96,8 +115,12 @@ export async function listUsers(
         isActive: true,
         lastLoginAt: true,
         createdAt: true,
+        locale: true,
+        orgUnitId: true,
         orgUnit: { select: { name: true } },
-        roles: { select: { role: { select: { key: true } } } },
+        roles: {
+          select: { roleId: true, scopeType: true, role: { select: { key: true } } },
+        },
       },
     }),
   ]);
@@ -112,6 +135,11 @@ export async function listUsers(
       roleKeys: user.roles.map((assignment) => assignment.role.key),
       lastLoginAt: user.lastLoginAt,
       createdAt: user.createdAt,
+      locale: user.locale,
+      orgUnitId: user.orgUnitId,
+      globalRoleIds: user.roles
+        .filter((assignment) => assignment.scopeType === "GLOBAL")
+        .map((assignment) => assignment.roleId),
     })),
     total,
     page: input.page,
@@ -166,7 +194,14 @@ export async function setUserActive(
     ownerId: existing.id,
   });
 
-  return prisma.$transaction(async (tx) => {
+  const summary = await prisma.$transaction(async (tx) => {
+    if (!input.isActive) {
+      // Serialised with every change that could remove administration, so the last
+      // active platform administrator cannot be deactivated (ADR-019).
+      await lockAdministration(tx);
+      await assertAdministrationRemains(tx, input.userId);
+    }
+
     const updated = await tx.user.update({
       where: { id: input.userId },
       data: { isActive: input.isActive, updatedBy: actor.id },
@@ -221,6 +256,13 @@ export async function setUserActive(
       createdAt: updated.createdAt,
     };
   });
+
+  // IAM refuses an inactive account on its next request; the ban also stops the
+  // sign-in service from issuing or refreshing its sessions.
+  if (existing.isActive !== input.isActive) {
+    await syncSignInBan(actor, summary.id, !input.isActive);
+  }
+  return summary;
 }
 
 export const assignRoleInput = z.object({
@@ -307,6 +349,10 @@ export async function assignRole(actor: Actor, rawInput: AssignRoleInput): Promi
       payload: { userId: user.id, roleId: role.id, roleKey: role.key },
     });
   });
+}
+
+function statusFilter(status: "all" | "active" | "inactive") {
+  return status === "all" ? {} : { isActive: status === "active" };
 }
 
 /** Flattens Zod issues into the field-level shape forms render. */
