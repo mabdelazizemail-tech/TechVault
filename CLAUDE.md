@@ -1921,6 +1921,9 @@ Open debt and risk:
 | 13  | **Display time zone is fixed to Africa/Cairo**              | CRM timestamps render in one zone until users carry a preference                                                                                                                                                        | Read the zone from the user's profile once it is stored                                                                                          | 🟢 Low    |
 | 14  | **Every opportunity needs a company**                       | Required by the written spec and the schema (`account_id NOT NULL`); a deal with no company yet cannot be recorded                                                                                                      | Owner to confirm; relaxing it is a migration plus form changes                                                                                   | 🟢 Low    |
 
+| 15 | **Two Supabase Auth round trips per page** | `proxy.ts` and `getCurrentUser` each call `auth.getUser()`, a network call to Supabase Auth; measured in the ADR-017 audit, not changed because it is the token-verification control | Consider verifying the JWT locally (`getClaims` with asymmetric signing keys) in one of the two places, with a security review | 🟢 Low |
+| 16 | **Production pool capped at 2 connections per instance** | Set to survive the session pooler's 15-client cap; a page's parallel queries queue behind it (measured: dashboard data 2.8 s at 10 vs 5.1 s at 2 before co-location) | Once Vercel's `DATABASE_URL` is confirmed on the transaction pooler (6543), raise the cap | 🟢 Low |
+
 Add real debt here as it accrues, with why it was accepted and the trigger to repay it. A
 TODO in code without a row here is invisible debt.
 
