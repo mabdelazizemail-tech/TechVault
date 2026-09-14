@@ -28,6 +28,13 @@ function isPublicPath(pathname: string): boolean {
 }
 
 export async function updateSession(request: NextRequest): Promise<NextResponse> {
+  // Health probes are public and read no session, so they skip the Auth round
+  // trip. Every other request still has its session verified here (ADR-018).
+  const { pathname: requestPath } = request.nextUrl;
+  if (requestPath === "/api/health" || requestPath.startsWith("/api/health/")) {
+    return NextResponse.next({ request });
+  }
+
   let response = NextResponse.next({ request });
   const env = publicEnv();
 
