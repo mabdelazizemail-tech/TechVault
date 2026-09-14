@@ -24,7 +24,7 @@ import {
   formatMoney,
   formatRelative,
 } from "@/modules/crm/ui/format";
-import { EditOpportunityButton } from "@/modules/crm/ui/opportunity-form";
+import { EditOpportunityButton } from "@/modules/crm/ui/edit-opportunity-button";
 import { orNotFound, uuidParam } from "@/modules/crm/ui/page-helpers";
 import { StageTracker } from "@/modules/crm/ui/stage-tracker";
 import { getActor } from "@/platform/auth/current-user";

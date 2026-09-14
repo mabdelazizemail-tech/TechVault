@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { MoreHorizontal } from "lucide-react";
 import { useOptimistic, useState, useTransition, type DragEvent } from "react";
@@ -12,9 +13,16 @@ import type {
 } from "../contracts/types";
 import { moveOpportunityAction } from "./actions";
 import { STAGE_EDGE } from "./badges";
-import { CloseDealDialog, type CloseInput, type PendingClose } from "./close-deal-dialog";
+import type { CloseInput, PendingClose } from "./close-deal-dialog";
 import { formatTotals } from "./format";
 import { OpportunityCard } from "./opportunity-card";
+
+// Loaded on first use: the closing forms carry the shared validation schemas,
+// which most visits to this page never need.
+const CloseDealDialog = dynamic(
+  () => import("./close-deal-dialog").then((loaded) => loaded.CloseDealDialog),
+  { ssr: false },
+);
 
 /**
  * The opportunity pipeline — the CRM's centrepiece.
@@ -325,15 +333,16 @@ export function PipelineBoard({
         )}
       </div>
 
-      <CloseDealDialog
-        pending={pendingClose}
-        onCancel={() => setPendingClose(null)}
-        onConfirm={(close) => {
-          if (pendingClose !== null)
+      {pendingClose !== null && (
+        <CloseDealDialog
+          pending={pendingClose}
+          onCancel={() => setPendingClose(null)}
+          onConfirm={(close) => {
             commitMove(pendingClose.card, pendingClose.stage, close);
-          setPendingClose(null);
-        }}
-      />
+            setPendingClose(null);
+          }}
+        />
+      )}
     </div>
   );
 }

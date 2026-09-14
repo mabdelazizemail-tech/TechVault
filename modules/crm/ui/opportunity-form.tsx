@@ -1,10 +1,8 @@
 "use client";
 
-import { Pencil } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition, type FormEvent } from "react";
 import { Button, ButtonLink } from "@/components/ui/button";
-import { Dialog } from "@/components/ui/dialog";
 import {
   Field,
   PillGroup,
@@ -424,42 +422,5 @@ export function OpportunityForm({
         </Button>
       </div>
     </form>
-  );
-}
-
-export function EditOpportunityButton({
-  opportunity,
-  options,
-  currentUserId,
-}: {
-  opportunity: OpportunityDetail;
-  options: OpportunityFormOptions;
-  currentUserId: string;
-}) {
-  const [open, setOpen] = useState(false);
-  const [formKey, setFormKey] = useState(0);
-
-  return (
-    <>
-      <Button
-        icon={<Pencil aria-hidden="true" size={14} />}
-        onClick={() => {
-          setFormKey((key) => key + 1);
-          setOpen(true);
-        }}
-      >
-        Edit
-      </Button>
-      <Dialog open={open} onOpenChange={setOpen} title="Edit opportunity" variant="sheet">
-        <OpportunityForm
-          key={formKey}
-          opportunity={opportunity}
-          options={options}
-          currentUserId={currentUserId}
-          onSaved={() => setOpen(false)}
-          onCancel={() => setOpen(false)}
-        />
-      </Dialog>
-    </>
   );
 }

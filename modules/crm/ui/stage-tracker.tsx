@@ -1,11 +1,19 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { Check } from "lucide-react";
 import { useOptimistic, useState, useTransition } from "react";
 import { cn } from "@/lib/cn";
 import type { OpportunityDetail, StageDto } from "../contracts/types";
 import { moveOpportunityAction } from "./actions";
-import { CloseDealDialog, type CloseInput, type PendingClose } from "./close-deal-dialog";
+import type { CloseInput, PendingClose } from "./close-deal-dialog";
+
+// Loaded on first use: the closing forms carry the shared validation schemas,
+// which most visits to this page never need.
+const CloseDealDialog = dynamic(
+  () => import("./close-deal-dialog").then((loaded) => loaded.CloseDealDialog),
+  { ssr: false },
+);
 
 /**
  * The horizontal stage tracker on an opportunity. Open stages read left to right;
@@ -153,14 +161,16 @@ export function StageTracker({
         {message?.text}
       </p>
 
-      <CloseDealDialog
-        pending={pendingClose}
-        onCancel={() => setPendingClose(null)}
-        onConfirm={(close) => {
-          if (pendingClose !== null) commit(pendingClose.stage, close);
-          setPendingClose(null);
-        }}
-      />
+      {pendingClose !== null && (
+        <CloseDealDialog
+          pending={pendingClose}
+          onCancel={() => setPendingClose(null)}
+          onConfirm={(close) => {
+            commit(pendingClose.stage, close);
+            setPendingClose(null);
+          }}
+        />
+      )}
     </section>
   );
 }
