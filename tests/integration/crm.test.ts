@@ -432,6 +432,67 @@ describe.skipIf(!hasTestDatabase)("CRM workflow (integration)", () => {
       expect(leadColumn?.count).toBe(2);
       expect(leadColumn?.totals).toHaveLength(2);
     });
+
+    it("computes dashboard figures that match the records, per currency", async () => {
+      const lost = await newDeal(); // EGP 45,000
+      await moveOpportunity(
+        { id: rep.id },
+        {
+          opportunityId: lost,
+          stageId: stageId("closed_lost"),
+          close: { kind: "LOST", lostReason: "PRICE", notes: "" },
+        },
+      );
+      await createLead(
+        { id: rep.id },
+        wizard({
+          info: {
+            firstName: "Sara",
+            lastName: "Lee",
+            company: "Globex",
+            email: "sara@globex.example",
+            source: "EVENT",
+          },
+          opportunity: {
+            name: "Globex Records Scanning",
+            amount: "35000",
+            currency: "USD",
+            closeDate: "2026-11-15",
+            probability: "20",
+            stageId: stageId("lead"),
+          },
+        }),
+      );
+
+      const dashboard = await getCrmDashboard({ id: rep.id });
+
+      // Lead figures against a direct count of the rows.
+      const leads = testPrisma().crmLead;
+      const live = { deletedAt: null };
+      expect(dashboard.totalLeads).toBe(await leads.count({ where: live }));
+      expect(dashboard.newLeads).toBe(
+        await leads.count({ where: { ...live, status: "NEW" } }),
+      );
+      expect(dashboard.qualifiedLeads).toBe(
+        await leads.count({ where: { ...live, status: "QUALIFIED" } }),
+      );
+
+      // Deal figures: one open USD deal, one lost EGP deal, nothing won.
+      expect(dashboard.openOpportunities).toBe(1);
+      expect(dashboard.pipeline).toEqual([{ currency: "USD", amountMinor: 3_500_000 }]);
+      expect(dashboard.lostCount).toBe(1);
+      expect(dashboard.wonCount).toBe(0);
+      expect(dashboard.won).toEqual([]);
+
+      const leadStage = dashboard.stageBreakdown.find((row) => row.stage.key === "lead");
+      expect(leadStage?.count).toBe(1);
+      expect(leadStage?.totals).toEqual([{ currency: "USD", amountMinor: 3_500_000 }]);
+      expect(
+        dashboard.stageBreakdown
+          .filter((row) => row.stage.key !== "lead")
+          .every((row) => row.count === 0 && row.totals.length === 0),
+      ).toBe(true);
+    });
   });
 
   describe("scope", () => {

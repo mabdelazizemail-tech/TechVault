@@ -83,13 +83,21 @@ async function leadFigures(actor: Actor) {
     AND: [{ deletedAt: null }, scoped, extra],
   });
 
-  const [total, fresh, qualified, converted] = await Promise.all([
-    prisma.crmLead.count({ where: where({}) }),
-    prisma.crmLead.count({ where: where({ status: "NEW" }) }),
-    prisma.crmLead.count({ where: where({ status: "QUALIFIED" }) }),
-    prisma.crmLead.count({ where: where({ status: "CONVERTED" }) }),
-  ]);
-  return { total, fresh, qualified, converted };
+  // One grouped count instead of four: every lead figure is a slice of it.
+  const groups = await prisma.crmLead.groupBy({
+    by: ["status"],
+    where: where({}),
+    _count: { _all: true },
+  });
+  const countOf = (status: string) =>
+    groups.find((group) => group.status === status)?._count._all ?? 0;
+
+  return {
+    total: groups.reduce((sum, group) => sum + group._count._all, 0),
+    fresh: countOf("NEW"),
+    qualified: countOf("QUALIFIED"),
+    converted: countOf("CONVERTED"),
+  };
 }
 
 async function opportunityFigures(actor: Actor): Promise<{
@@ -115,34 +123,37 @@ async function opportunityFigures(actor: Actor): Promise<{
     AND: [{ deletedAt: null }, scoped, extra],
   });
 
-  const [openCount, pipeline, won, lostCount, byStage] = await Promise.all([
-    prisma.crmOpportunity.count({ where: where({ status: "OPEN" }) }),
-    prisma.crmOpportunity.groupBy({
-      by: ["currency"],
-      where: where({ status: "OPEN" }),
-      _sum: { amountMinor: true },
-    }),
-    prisma.crmOpportunity.groupBy({
-      by: ["currency"],
-      where: where({ status: "WON" }),
-      _count: { _all: true },
-      _sum: { amountMinor: true },
-    }),
-    prisma.crmOpportunity.count({ where: where({ status: "LOST" }) }),
-    prisma.crmOpportunity.groupBy({
-      by: ["stageId", "currency"],
-      where: where({ status: "OPEN" }),
-      _count: { _all: true },
-      _sum: { amountMinor: true },
-    }),
-  ]);
+  // One grouped query instead of five: the open, won and lost figures and the
+  // per-stage breakdown are all slices of the same status × stage × currency
+  // grouping. Money stays per currency throughout (ADR-016).
+  const groups = await prisma.crmOpportunity.groupBy({
+    by: ["status", "stageId", "currency"],
+    where: where({}),
+    _count: { _all: true },
+    _sum: { amountMinor: true },
+  });
+
+  type Group = (typeof groups)[number];
+  const withStatus = (status: string) =>
+    groups.filter((group) => group.status === status);
+  const countOf = (rows: readonly Group[]) =>
+    rows.reduce((sum, group) => sum + group._count._all, 0);
+
+  const open = withStatus("OPEN");
+  const won = withStatus("WON");
 
   return {
-    openCount,
-    pipeline: totalsFromGroups(pipeline),
-    wonCount: won.reduce((sum, group) => sum + group._count._all, 0),
+    openCount: countOf(open),
+    // totalsFromGroups merges the several stage rows that share a currency.
+    pipeline: totalsFromGroups(open),
+    wonCount: countOf(won),
     won: totalsFromGroups(won),
-    lostCount,
-    byStage,
+    lostCount: countOf(withStatus("LOST")),
+    byStage: open.map((group) => ({
+      stageId: group.stageId,
+      currency: group.currency,
+      _count: { _all: group._count._all },
+      _sum: { amountMinor: group._sum.amountMinor },
+    })),
   };
 }
