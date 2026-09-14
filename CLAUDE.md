@@ -1333,9 +1333,11 @@ with 4 migrations applied (schema, uuid defaults, unique indexes, RLS — ADR-01
 seed run.
 🟡 Deployed to Vercel (project `tech-vault`, Git-connected to `github.com/mabdelazizemail-tech/TechVault`,
 `main` → Production, `vercel.json` sets the Next.js framework). The build succeeds with no secrets
-(the Prisma client is created on first use), but **the project has no environment variables yet**,
-so every request fails at runtime with a 500 until the §23 variables are added in the Vercel
-dashboard and the deployment is redeployed. Deployment URLs sit behind Vercel Deployment Protection.
+(the Prisma client is created on first use); runtime variables are set in the Vercel dashboard.
+Verified 2026-09-14 on `https://tech-vault-gamma.vercel.app`: `/api/health` 200,
+`/api/health/ready` 200 with `database: ok` (Supabase session pooler), `/login` 200, and
+`/dashboard` and `/crm` redirect anonymous visitors to sign-in. Per-deployment URLs sit behind
+Vercel Deployment Protection; the production domain does not.
 
 **Environments:** `local` (developer machine, local or branch Supabase) → `preview` (per
 pull request, isolated data, **never** production data) → `production`. Never point a
