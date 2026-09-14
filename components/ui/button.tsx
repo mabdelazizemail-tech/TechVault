@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { cn } from "@/lib/cn";
 
@@ -73,5 +74,41 @@ function Spinner() {
       aria-hidden="true"
       className="size-3.5 animate-spin border-2 border-current border-t-transparent"
     />
+  );
+}
+
+/**
+ * A link styled as a button — for navigation only. An action that changes data is
+ * always a real `<button>` (CLAUDE.md §17.5).
+ */
+export function ButtonLink({
+  href,
+  variant = "secondary",
+  size = "md",
+  icon,
+  className,
+  children,
+}: {
+  href: string;
+  variant?: ButtonVariant;
+  size?: ButtonSize;
+  icon?: ReactNode;
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <Link
+      href={href}
+      className={cn(
+        "inline-flex items-center justify-start leading-tight font-extrabold whitespace-nowrap",
+        "transition-colors duration-150",
+        VARIANT_CLASSES[variant],
+        SIZE_CLASSES[size],
+        className,
+      )}
+    >
+      {icon}
+      {children}
+    </Link>
   );
 }

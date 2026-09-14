@@ -32,7 +32,8 @@ Supabase Auth, linked via `npm run db:bootstrap-admin`, verified by direct query
 Phase 1 is fully done.
 
 **§28 holds the authoritative implementation status. Read it before trusting any claim in
-this document, and update it with every change.** Phases 2–10 remain 📋 PLANNED.
+this document, and update it with every change.** Phases 2–4 and 6–10 remain 📋 PLANNED. The CRM (Phase 5) was built ahead of that
+order at the owner's request and is 🟡 PARTIAL — see §28.
 
 **Provenance of the stack in §3.** The technology choices are not invented. They mirror
 the established house stack of the sibling project `C:\Software\CaptureERP` (Next.js App
@@ -178,7 +179,7 @@ TechVault/
 │  │  ├─ dashboard/              #   ✅ cross-module landing
 │  │  ├─ admin/                  #   ✅ users, roles, permissions, org-units, audit
 │  │  ├─ error.tsx               #   ✅ user-safe error boundary
-│  │  └─ crm/ erp/ ecm/ hris/ innovation/ bi/   # 📋 one segment per module
+│  │  └─ crm/ (🟡) erp/ ecm/ hris/ innovation/ bi/   # 📋 one segment per module
 │  ├─ api/health/                #   ✅ liveness + readiness probes
 │  └─ api/v1/<module>/           #   📋 versioned REST for external consumers (§9)
 ├─ platform/                     # ✅ shared platform services (§7) — generic, no module imports
@@ -200,7 +201,7 @@ TechVault/
 │     ├─ events/                 #     publishers and subscribers
 │     └─ ui/                     #     components specific to this domain
 ├─ components/
-│  ├─ ui/                        # ✅ button.tsx, primitives.tsx, data-table.tsx
+│  ├─ ui/                        # ✅ button.tsx, primitives.tsx, data-table.tsx, dialog.tsx, form-controls.tsx
 │  └─ shell/                     # ✅ navigation.ts, sidebar, header, breadcrumbs, user-menu
 ├─ lib/                          # ✅ prisma.ts, errors.ts, money.ts, cn.ts
 ├─ prisma/                       # ✅ schema.prisma (generator+datasource), iam.prisma,
@@ -1422,7 +1423,7 @@ Phase 1  ✅ DONE (verified against live Postgres + Supabase Auth)
 Phase 2  platform/jobs + platform/events dispatcher + platform/storage + notifications
 Phase 3  ECM core (register → store → version → search → download, permissioned)
 Phase 4  platform/workflow + the first real approval flow
-Phase 5  CRM core (accounts, contacts, opportunities, pipeline-as-data)
+Phase 5  CRM core (accounts, contacts, opportunities, pipeline-as-data) — 🟡 built ahead of order (§28)
 Phase 6  ERP finance core (chart of accounts, invoices, payments, double-entry)
 Phase 7  HRIS core (employees, org structure, sensitive-field isolation)
 Phase 8  Innovation (ideas, configurable stage workflow, voting)
@@ -1724,24 +1725,45 @@ Closing that remaining gap needs a dedicated, unprivileged application role (tra
 _Revisit when:_ a second, non-Supabase Postgres consumer of this schema exists, or when the
 dedicated application role is built.
 
+**ADR-016 — CRM data model: one activity table, per-currency money, company-first deals.**
+_Context:_ the CRM had to ship leads, deals and a single timeline of calls, emails, meetings, tasks and
+notes, for a team that sells in both EGP and USD, directly and through channel partners. _Decision:_
+(1) Prisma models are prefixed `Crm` (`CrmAccount`, `CrmLead`, …) so they cannot collide with other
+modules' models in the one generated client; tables stay unprefixed inside the `crm` schema.
+(2) One `crm.activities` table holds every activity type — tasks and notes included, plus the system
+`STATUS_CHANGE`/`STAGE_CHANGE` rows — with nullable links to lead, company, contact and opportunity and
+a CHECK that at least one is set: one timeline query, one permission model, no union views. (3) Every
+amount carries its currency, and totals are a list with one entry per currency — never summed across
+currencies, in services, DTOs or UI. (4) The sales channel (`DIRECT`/`INDIRECT` plus partner name) is a
+column on the deal, enforced by CHECK. (5) An opportunity requires a company (`account_id NOT NULL`,
+`ON DELETE RESTRICT`); conversion reuses an existing company by case-insensitive name and an existing
+contact by email, backed by partial unique indexes on live rows. (6) Stages are rows with a `kind`
+(`OPEN`/`WON`/`LOST`); closing requires details, enforced by the pure `planStageMove` rule and by a CHECK.
+_Consequences:_ the timeline and dashboard are simple queries and a new activity type is an enum value;
+mixed-currency pipelines stay honest at the cost of multi-line figures; a deal with no company cannot be
+recorded until rule (5) is relaxed. _Revisit when:_ activity volume makes the single table a hot spot
+(partition by `occurred_at`), reporting needs exchange rates (add a rates table and convert explicitly,
+for reporting only), or the owner wants company-less deals.
+
 ---
 
 ## 28. Current Implementation Status
 
-**Snapshot date: 2026-09-13, after Phase 1 was verified end to end against a live database.
+**Snapshot date: 2026-09-13 — Phase 1 verified end to end against a live database; the CRM module
+built and verified the same day.
 Keep this section honest and current — it is what the next session trusts.**
 
 ### Verification state — what was actually run
 
 | Gate                                                   | Result                                                                                                                                         |
 | ------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| `npm run verify` (typecheck → lint → test)             | ✅ 0 type errors, 0 lint errors, **107 tests passing**                                                                                         |
-| `npm run build`                                        | ✅ succeeds, 10 routes                                                                                                                         |
-| Integration suite, local PostgreSQL (default)          | ✅ **35 tests passing** in ~9s, self-cleaning (skipped unless `TEST_DATABASE_URL` is set)                                                      |
+| `npm run verify` (typecheck → lint → test)             | ✅ 0 type errors, 0 lint errors, **127 tests passing**                                                                                         |
+| `npm run build`                                        | ✅ succeeds, 27 routes (16 of them CRM)                                                                                                        |
+| Integration suite, local PostgreSQL (default)          | ✅ **54 tests passing** (35 platform + 19 CRM), self-cleaning (skipped unless `TEST_DATABASE_URL` is set)                                      |
 | Integration suite against **live Supabase**            | ✅ **35 tests passing** in ~55s (same suite, `TEST_DATABASE_URL` pointed at the pooler)                                                        |
 | Playwright e2e vs **running app + live Supabase Auth** | ✅ **7 tests passing**                                                                                                                         |
-| `prisma migrate deploy`                                | ✅ 4 migrations applied (schema, uuid defaults, unique indexes, RLS)                                                                           |
-| `npm run db:seed`                                      | ✅ 25 permissions, 4 system roles, root org unit, 3 security policies                                                                          |
+| `prisma migrate deploy`                                | ✅ 5 migrations applied (schema, uuid defaults, unique indexes, RLS, CRM module)                                                               |
+| `npm run db:seed`                                      | ✅ 47 permissions (22 CRM), 5 system roles (adds `sales`), root org unit, 3 security policies, 7 pipeline stages                               |
 | `/api/health/ready`                                    | ✅ `{"status":"ready","checks":{"database":"ok"}}`                                                                                             |
 | Anonymous access to `/dashboard`, `/admin/users`       | ✅ 307 → `/login?next=…`                                                                                                                       |
 | Failed sign-in against live Supabase                   | ✅ uniform "Those credentials are not valid."; attempt recorded in `iam.login_history` with IP and user agent, **no credential in the record** |
@@ -1750,16 +1772,17 @@ Keep this section honest and current — it is what the next session trusts.**
 ### Database — provisioned and verified
 
 Supabase project `yobzdfdqonzjbeuvnqox`, eu-west-1, PostgreSQL 17.6, reached through the
-session pooler (§23). Schemas `iam` (16 tables) and `platform` (4 tables). RLS enabled
+session pooler (§23). Schemas `iam` (16 tables), `platform` (4 tables) and `crm` (7 tables). RLS enabled
 deny-by-default on all 20 tables; `platform.audit_log` additionally rejects UPDATE/DELETE
 via trigger (ADR-015). Mirrored on the local integration-test database, PostgreSQL 18.1.
 
-| Migration                                  | What it does                                                         |
-| ------------------------------------------ | -------------------------------------------------------------------- |
-| `20260912163132_init`                      | The full `iam` + `platform` schema                                   |
-| `20260912163714_uuid_db_defaults`          | Database-level `gen_random_uuid()` defaults (ADR-013)                |
-| `20260912164500_unique_unscoped_grants`    | Partial unique indexes closing the NULL-in-unique hole (ADR-014)     |
-| `20260913071500_rls_and_append_only_audit` | Deny-by-default RLS on all 20 tables + append-only trigger (ADR-015) |
+| Migration                                  | What it does                                                                                       |
+| ------------------------------------------ | -------------------------------------------------------------------------------------------------- |
+| `20260912163132_init`                      | The full `iam` + `platform` schema                                                                 |
+| `20260912163714_uuid_db_defaults`          | Database-level `gen_random_uuid()` defaults (ADR-013)                                              |
+| `20260912164500_unique_unscoped_grants`    | Partial unique indexes closing the NULL-in-unique hole (ADR-014)                                   |
+| `20260913071500_rls_and_append_only_audit` | Deny-by-default RLS on all 20 tables + append-only trigger (ADR-015)                               |
+| `20260913171405_crm_module`                | The `crm` schema: 7 tables, CHECK invariants, live-row partial unique indexes, deny-by-default RLS |
 
 Seeded baseline, confirmed by direct SQL: 25 permissions, 4 roles, 46 role-permission
 links, 1 org unit, 3 security policies, **0 users**, 0 audit rows, 0 outbox rows.
@@ -1798,9 +1821,24 @@ links, 1 org unit, 3 security policies, **0 users**, 0 audit rows, 0 outbox rows
 | Notifications, search, jobs, workflow, storage, AI, integrations | Not started     | Phase 2+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | CSP                                                              | Omitted         | Other security headers set in `next.config.ts`; CSP needs a nonce in `proxy.ts` (§29).                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 
+### 🟡 CRM module — built ahead of the phase order, at the owner's request
+
+Phase 5 was requested before Phases 2–4. It stands on the Phase 1 platform (authz, audit, outbox
+writer) and needs nothing from Phases 2–4 to work; what it gives up by going first is listed under
+"Missing" and in §29. Design decisions are in ADR-016.
+
+| Area        | State                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Data model  | ✅ `crm` schema, 7 tables: accounts, contacts, leads, opportunity_stages, opportunities, opportunity_contacts, activities. Money is `Int` minor units with an explicit `EGP`/`USD` currency. CHECKs: closing details (WON needs `won_at`; LOST needs `lost_at` and a reason), partner required for indirect deals, scores and probabilities in range, every activity linked to at least one record. Partial unique indexes on live company name (case-insensitive) and live contact email. RLS deny-by-default, API roles revoked.                                                                                                                       |
+| Services    | ✅ Leads (wizard create, status, bulk status/owner, conversion that reuses an existing company by name and contact by email), companies, contacts, opportunities (board with per-stage counts and per-currency totals, moves with Won/Lost details), unified activities (call/email/meeting/task/note plus system status and stage rows), search, dashboard. Every write: permission → Zod → one transaction with audit entry, outbox event and timeline row. Reads are scope-filtered; an out-of-scope record is a 404.                                                                                                                                 |
+| UI          | ✅ `/crm` dashboard; leads table (status tabs, search, filters, sort, pagination, bulk selection); 4-step lead wizard; lead detail (status progression, timeline, edit slide-over); conversion confirmation screen; pipeline board (native drag and drop with drop-target feedback, optimistic move with rollback, Won/Lost modals, keyboard "Move to" menu, one-stage-at-a-time layout on phones) plus a table view and filters (owner, stage, currency, channel, amount, close date, industry, lead source); opportunity detail with stage tracker; companies and contacts with related records; activities, tasks and notes feeds; global CRM search. |
+| Tests       | ✅ 19 CRM integration tests (create → convert → dedupe → move → won/lost, board totals, EGP/USD kept apart, OWN scope, database invariants) and 19 unit tests (pure pipeline rules, schemas).                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| Data        | ✅ Migration applied to the local test database and to Supabase; `npm run db:seed` adds the `sales` role, CRM permissions and the 7 stages; `npm run db:seed:crm` loaded demo data into Supabase (8 companies, 15 contacts, 15 leads, 12 opportunities, 46 activities).                                                                                                                                                                                                                                                                                                                                                                                  |
+| **Missing** | Browser walk-through of the full workflow against Supabase: **pending** (needs a signed-in session). No Playwright CRM spec. Dashboard figures query transactional tables (§6.7 wants BI rollups). Events are written but never delivered (no dispatcher, §29 #1). No ECM document links. No Arabic strings.                                                                                                                                                                                                                                                                                                                                             |
+
 ### 📋 Not started
 
-All six domain modules (CRM, ERP, ECM, HRIS, Innovation, BI). Their navigation entries and
+The five remaining domain modules (ERP, ECM, HRIS, Innovation, BI). Their navigation entries and
 permission keys are declared but uncatalogued, so they correctly do not render.
 
 ### The honest summary
@@ -1841,17 +1879,22 @@ would be expensive):
 
 Open debt and risk:
 
-| #   | Item                                                        | Why it matters                                                                                                                                                                                                          | Mitigation                                                                                                     | Severity  |
-| --- | ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- | --------- |
-| 1   | **Event dispatcher missing**                                | Events are written but never delivered, so cross-module reactions silently do not happen                                                                                                                                | Phase 2                                                                                                        | 🟠 High   |
-| 2   | **No CSP**                                                  | Other security headers are set; CSP needs a nonce-based policy in `proxy.ts` because Next injects inline bootstrap scripts                                                                                              | Implement with the nonce; never `unsafe-inline`                                                                | 🟠 High   |
-| 3   | **Database password was shared in a chat transcript**       | The original was rotated on 2026-09-13 (old value verified rejected, new value verified by Prisma and `/api/health/ready`), but the replacement was also typed into the same transcript                                 | Rotate once more to a value that never appears in chat; update only `.env.local`                               | 🟡 Medium |
-| 4   | **RLS does not restrict the app's own connection**          | The app connects as the table owner, which bypasses RLS by design (`FORCE ROW LEVEL SECURITY` is not set); the real barrier is Supabase's schema-exposure setting plus the revoked API grants (ADR-015), not RLS itself | Build a dedicated, unprivileged application role if a second, non-owner consumer of this schema ever exists    | 🟡 Medium |
-| 5   | **Scoped DENY grants are not expressible as a list filter** | `scopeFilterFor` applies global denials but cannot express a scope-limited DENY as positive SQL, so a list may include a row the caller may not act on                                                                  | Documented in `evaluate.ts`: re-check any row a list acts on with `requirePermission` and a target             | 🟡 Medium |
-| 6   | **Org-unit `path` is maintained by the service layer**      | A bug in re-parenting would silently widen or narrow access platform-wide, since scope resolution is a prefix match on this column                                                                                      | Write the re-parent operation with tests before exposing org-unit editing; consider a trigger or integrity job | 🟡 Medium |
-| 7   | **Pinned below the latest TypeScript and ESLint**           | TS 7 and ESLint 10 break linting here (ADR-011); an innocent `npm update` breaks the lint run                                                                                                                           | Constraints documented in §3 and ADR-011                                                                       | 🟡 Medium |
-| 8   | **i18n/RTL groundwork only**                                | Strings are hardcoded English; layout is RTL-ready but the text is not                                                                                                                                                  | Externalise strings when Arabic is scheduled (ADR-009)                                                         | 🟡 Medium |
-| 9   | **`react-hook-form` installed but unused**                  | Phase 1 forms use `useActionState`. An unused dependency is small but real surface                                                                                                                                      | Use it in Phase 2 forms or remove it                                                                           | 🟢 Low    |
+| #   | Item                                                        | Why it matters                                                                                                                                                                                                          | Mitigation                                                                                                                                       | Severity  |
+| --- | ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | --------- |
+| 1   | **Event dispatcher missing**                                | Events are written but never delivered, so cross-module reactions silently do not happen                                                                                                                                | Phase 2                                                                                                                                          | 🟠 High   |
+| 2   | **No CSP**                                                  | Other security headers are set; CSP needs a nonce-based policy in `proxy.ts` because Next injects inline bootstrap scripts                                                                                              | Implement with the nonce; never `unsafe-inline`                                                                                                  | 🟠 High   |
+| 3   | **Database password was shared in a chat transcript**       | The original was rotated on 2026-09-13 (old value verified rejected, new value verified by Prisma and `/api/health/ready`), but the replacement was also typed into the same transcript                                 | Rotate once more to a value that never appears in chat; update only `.env.local`                                                                 | 🟡 Medium |
+| 4   | **RLS does not restrict the app's own connection**          | The app connects as the table owner, which bypasses RLS by design (`FORCE ROW LEVEL SECURITY` is not set); the real barrier is Supabase's schema-exposure setting plus the revoked API grants (ADR-015), not RLS itself | Build a dedicated, unprivileged application role if a second, non-owner consumer of this schema ever exists                                      | 🟡 Medium |
+| 5   | **Scoped DENY grants are not expressible as a list filter** | `scopeFilterFor` applies global denials but cannot express a scope-limited DENY as positive SQL, so a list may include a row the caller may not act on                                                                  | Documented in `evaluate.ts`: re-check any row a list acts on with `requirePermission` and a target                                               | 🟡 Medium |
+| 6   | **Org-unit `path` is maintained by the service layer**      | A bug in re-parenting would silently widen or narrow access platform-wide, since scope resolution is a prefix match on this column                                                                                      | Write the re-parent operation with tests before exposing org-unit editing; consider a trigger or integrity job                                   | 🟡 Medium |
+| 7   | **Pinned below the latest TypeScript and ESLint**           | TS 7 and ESLint 10 break linting here (ADR-011); an innocent `npm update` breaks the lint run                                                                                                                           | Constraints documented in §3 and ADR-011                                                                                                         | 🟡 Medium |
+| 8   | **i18n/RTL groundwork only**                                | Strings are hardcoded English; layout is RTL-ready but the text is not                                                                                                                                                  | Externalise strings when Arabic is scheduled (ADR-009)                                                                                           | 🟡 Medium |
+| 9   | **`react-hook-form` installed but unused**                  | Phase 1 forms use `useActionState`. An unused dependency is small but real surface                                                                                                                                      | The CRM forms validate with the shared Zod schemas through plain component state and do not use it either; remove it unless a form outgrows that | 🟢 Low    |
+| 10  | **CRM dashboard reads transactional tables**                | §6.7 says dashboards read BI rollups; `getCrmDashboard` groups leads and opportunities live on page load                                                                                                                | Fine at demo volume; move to a rollup with BI (Phase 9) or when a dashboard query passes ~200 ms                                                 | 🟡 Medium |
+| 11  | **No CRM Playwright spec**                                  | The workflow is covered by integration tests and a manual browser run, not an automated browser test                                                                                                                    | Add `tests/e2e/crm.spec.ts`: wizard → convert → move → closed won                                                                                | 🟡 Medium |
+| 12  | **CRM pickers load capped option lists**                    | Company and contact selects load at most 200 / 300 options; a larger CRM needs type-ahead search                                                                                                                        | Replace with a search-as-you-type picker before the data grows                                                                                   | 🟢 Low    |
+| 13  | **Display time zone is fixed to Africa/Cairo**              | CRM timestamps render in one zone until users carry a preference                                                                                                                                                        | Read the zone from the user's profile once it is stored                                                                                          | 🟢 Low    |
+| 14  | **Every opportunity needs a company**                       | Required by the written spec and the schema (`account_id NOT NULL`); a deal with no company yet cannot be recorded                                                                                                      | Owner to confirm; relaxing it is a migration plus form changes                                                                                   | 🟢 Low    |
 
 Add real debt here as it accrues, with why it was accepted and the trigger to repay it. A
 TODO in code without a row here is invisible debt.

@@ -3,6 +3,11 @@ import { PrismaClient } from "@prisma/client";
 import { config as loadEnv } from "dotenv";
 import { PERMISSION_CATALOGUE, findDuplicatePermissionKeys } from "../modules/catalogue";
 import {
+  CRM_SALES_PERMISSIONS,
+  CRM_SALES_ROLE,
+} from "../modules/crm/contracts/permissions";
+import { DEFAULT_STAGES } from "../modules/crm/domain/pipeline";
+import {
   IAM_PERMISSIONS,
   PLATFORM_PERMISSIONS,
   SYSTEM_ROLES,
@@ -77,6 +82,12 @@ const ROLE_DEFINITIONS: Record<
       PLATFORM_PERMISSIONS.AUDIT_READ,
       PLATFORM_PERMISSIONS.AUDIT_EXPORT,
     ],
+  },
+  [CRM_SALES_ROLE]: {
+    name: "Sales",
+    description:
+      "Works leads, contacts, companies and opportunities, and logs activity. Cannot change how the pipeline is configured.",
+    permissions: [...CRM_SALES_PERMISSIONS],
   },
   [SYSTEM_ROLES.EMPLOYEE]: {
     name: "Employee",
@@ -169,6 +180,18 @@ async function main(): Promise<void> {
 
     process.stdout.write(`  ${key}: ${permissions.length} permissions\n`);
   }
+
+  process.stdout.write("Seeding CRM pipeline stages...\n");
+  for (const stage of DEFAULT_STAGES) {
+    // Create only: once a stage exists it is configuration an administrator may
+    // have renamed or re-weighted, and a re-seed must not overwrite that.
+    await prisma.crmOpportunityStage.upsert({
+      where: { key: stage.key },
+      create: { ...stage },
+      update: {},
+    });
+  }
+  process.stdout.write(`  ${DEFAULT_STAGES.length} stages\n`);
 
   process.stdout.write("Seeding security policies…\n");
   const policies: { key: string; value: unknown; description: string }[] = [

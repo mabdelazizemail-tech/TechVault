@@ -3,6 +3,7 @@ import {
   IAM_PERMISSION_DEFINITIONS,
   PLATFORM_PERMISSION_DEFINITIONS,
 } from "@/platform/iam/permissions";
+import { CRM_PERMISSION_DEFINITIONS } from "@/modules/crm/contracts/permissions";
 
 /**
  * The permission composition root.
@@ -21,7 +22,7 @@ export const PERMISSION_CATALOGUE: readonly PermissionDefinition[] = [
   ...IAM_PERMISSION_DEFINITIONS,
   ...PLATFORM_PERMISSION_DEFINITIONS,
   // Phase 3: ...ECM_PERMISSION_DEFINITIONS,
-  // Phase 5: ...CRM_PERMISSION_DEFINITIONS,
+  ...CRM_PERMISSION_DEFINITIONS,
   // Phase 6: ...ERP_PERMISSION_DEFINITIONS,
   // Phase 7: ...HRIS_PERMISSION_DEFINITIONS,
   // Phase 8: ...INNOVATION_PERMISSION_DEFINITIONS,

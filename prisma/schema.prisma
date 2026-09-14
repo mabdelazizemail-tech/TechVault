@@ -23,6 +23,6 @@ datasource db {
 
   // One Postgres schema per module. Add a schema here only together with the
   // module that owns it — an unowned schema is an architecture violation.
-  // Later phases add: "ecm", "crm", "erp", "hris", "innovation", "bi".
-  schemas = ["iam", "platform"]
+  // Later phases add: "ecm", "erp", "hris", "innovation", "bi".
+  schemas = ["iam", "platform", "crm"]
 }

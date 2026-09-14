@@ -81,8 +81,8 @@ model OrganizationalUnit {
   updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
   deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
 
-  parent      OrganizationalUnit?  @relation("OrgUnitHierarchy", fields: [parentId], references: [id], onDelete: Restrict)
-  children    OrganizationalUnit[] @relation("OrgUnitHierarchy")
+  parent      OrganizationalUnit?   @relation("OrgUnitHierarchy", fields: [parentId], references: [id], onDelete: Restrict)
+  children    OrganizationalUnit[]  @relation("OrgUnitHierarchy")
   users       User[]
   userRoles   UserRole[]
   userGrants  UserPermissionGrant[]
@@ -102,12 +102,12 @@ model OrganizationalUnit {
 /// A verified Supabase session whose User row is missing or `isActive = false`
 /// is treated as unauthenticated.
 model User {
-  id       String  @id @db.Uuid
-  email    String  @unique
-  fullName String? @map("full_name")
+  id        String  @id @db.Uuid
+  email     String  @unique
+  fullName  String? @map("full_name")
   /// UI language preference — "en" or "ar" (ADR-009).
-  locale   String  @default("en")
-  isActive Boolean @default(true) @map("is_active")
+  locale    String  @default("en")
+  isActive  Boolean @default(true) @map("is_active")
   orgUnitId String? @map("org_unit_id") @db.Uuid
 
   /// Reference to the HRIS employee record for this person. Plain ID column with
@@ -121,14 +121,24 @@ model User {
   createdBy   String?   @map("created_by") @db.Uuid
   updatedBy   String?   @map("updated_by") @db.Uuid
 
-  orgUnit            OrganizationalUnit?   @relation(fields: [orgUnitId], references: [id], onDelete: SetNull)
-  roles              UserRole[]
-  grants             UserPermissionGrant[]
-  groupMemberships   GroupMember[]
-  loginHistory       LoginHistory[]
-  apiTokens          ApiToken[]
-  delegationsGiven   DelegationGrant[]     @relation("DelegationFrom")
-  delegationsGot     DelegationGrant[]     @relation("DelegationTo")
+  orgUnit          OrganizationalUnit?   @relation(fields: [orgUnitId], references: [id], onDelete: SetNull)
+  roles            UserRole[]
+  grants           UserPermissionGrant[]
+  groupMemberships GroupMember[]
+  loginHistory     LoginHistory[]
+  apiTokens        ApiToken[]
+  delegationsGiven DelegationGrant[]     @relation("DelegationFrom")
+  delegationsGot   DelegationGrant[]     @relation("DelegationTo")
+
+  // CRM ownership and assignment (crm.prisma). Real foreign keys to iam.users are
+  // allowed for identity references (CLAUDE.md §8.3). Relation fields only —
+  // they add no columns to this table.
+  crmAccountsOwned      CrmAccount[]     @relation("CrmAccountOwner")
+  crmContactsOwned      CrmContact[]     @relation("CrmContactOwner")
+  crmLeadsOwned         CrmLead[]        @relation("CrmLeadOwner")
+  crmOpportunitiesOwned CrmOpportunity[] @relation("CrmOpportunityOwner")
+  crmActivitiesAssigned CrmActivity[]    @relation("CrmActivityAssignee")
+  crmActivitiesCreated  CrmActivity[]    @relation("CrmActivityCreator")
 
   @@index([orgUnitId])
   @@index([hrisEmployeeId])
@@ -234,21 +244,21 @@ model RolePermission {
 
 /// A role assignment, optionally narrowed to a scope.
 model UserRole {
-  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId    String    @map("user_id") @db.Uuid
-  roleId    String    @map("role_id") @db.Uuid
-  scopeType ScopeType @default(GLOBAL) @map("scope_type")
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId         String    @map("user_id") @db.Uuid
+  roleId         String    @map("role_id") @db.Uuid
+  scopeType      ScopeType @default(GLOBAL) @map("scope_type")
   /// Required when scopeType = ORG_UNIT, otherwise null.
-  scopeOrgUnitId String? @map("scope_org_unit_id") @db.Uuid
+  scopeOrgUnitId String?   @map("scope_org_unit_id") @db.Uuid
   /// Optional validity window — used by time-boxed access and delegation.
-  startsAt DateTime? @map("starts_at") @db.Timestamptz(6)
-  endsAt   DateTime? @map("ends_at") @db.Timestamptz(6)
+  startsAt       DateTime? @map("starts_at") @db.Timestamptz(6)
+  endsAt         DateTime? @map("ends_at") @db.Timestamptz(6)
 
   grantedAt DateTime @default(now()) @map("granted_at") @db.Timestamptz(6)
   grantedBy String?  @map("granted_by") @db.Uuid
 
-  user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  role        Role                @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role         Role                @relation(fields: [roleId], references: [id], onDelete: Cascade)
   scopeOrgUnit OrganizationalUnit? @relation(fields: [scopeOrgUnitId], references: [id], onDelete: Cascade)
 
   @@unique([userId, roleId, scopeType, scopeOrgUnitId])
@@ -362,10 +372,10 @@ model GroupRole {
 
 /// API tokens are hashed at rest and shown to the user exactly once (§11.8).
 model ApiToken {
-  id   String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name String
+  id        String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name      String
   /// First few characters, for identification in lists. Not a secret.
-  prefix String
+  prefix    String
   /// SHA-256 of the token. The plaintext is never stored and cannot be recovered.
   tokenHash String @unique @map("token_hash")
 
@@ -400,8 +410,8 @@ model DelegationGrant {
   roleId     String? @map("role_id") @db.Uuid
   reason     String
 
-  startsAt DateTime  @map("starts_at") @db.Timestamptz(6)
-  endsAt   DateTime  @map("ends_at") @db.Timestamptz(6)
+  startsAt  DateTime  @map("starts_at") @db.Timestamptz(6)
+  endsAt    DateTime  @map("ends_at") @db.Timestamptz(6)
   revokedAt DateTime? @map("revoked_at") @db.Timestamptz(6)
 
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)

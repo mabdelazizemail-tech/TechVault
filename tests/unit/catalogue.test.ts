@@ -86,3 +86,16 @@ describe("navigation", () => {
     }
   });
 });
+
+describe("crm navigation", () => {
+  it("only references catalogued CRM permissions, now that the module is built", () => {
+    const catalogued = new Set(PERMISSION_CATALOGUE.map((p) => p.key));
+    const crm = NAV_SECTIONS.find((section) => section.key === "crm");
+
+    expect(crm).toBeDefined();
+    expect(catalogued.has(crm?.permission ?? "")).toBe(true);
+    for (const item of crm?.items ?? []) {
+      expect(catalogued.has(item.permission), item.permission).toBe(true);
+    }
+  });
+});

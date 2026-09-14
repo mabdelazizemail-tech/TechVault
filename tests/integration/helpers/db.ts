@@ -1,9 +1,7 @@
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
-import {
-  IAM_PERMISSION_DEFINITIONS,
-  PLATFORM_PERMISSION_DEFINITIONS,
-} from "@/platform/iam/permissions";
+import { PERMISSION_CATALOGUE } from "@/modules/catalogue";
+import { DEFAULT_STAGES } from "@/modules/crm/domain/pipeline";
 
 /**
  * Integration-test database helpers (CLAUDE.md §20).
@@ -65,6 +63,13 @@ export async function teardownDatabase(): Promise<void> {
  * makes an accidental truncation of a future table visible in review.
  */
 const TABLES = [
+  "crm.activities",
+  "crm.opportunity_contacts",
+  "crm.leads",
+  "crm.opportunities",
+  "crm.contacts",
+  "crm.accounts",
+  "crm.opportunity_stages",
   "platform.audit_log",
   "platform.event_outbox",
   "iam.user_permission_grants",
@@ -94,7 +99,7 @@ export async function resetDatabase(): Promise<void> {
 /** Seeds the permission catalogue the way `prisma/seed.ts` does. */
 export async function seedPermissions(): Promise<void> {
   const prisma = testPrisma();
-  const definitions = [...IAM_PERMISSION_DEFINITIONS, ...PLATFORM_PERMISSION_DEFINITIONS];
+  const definitions = PERMISSION_CATALOGUE;
 
   await prisma.permission.createMany({
     data: definitions.map((definition) => ({
@@ -196,5 +201,12 @@ export async function grantRole(
       scopeType: scope.scopeType ?? "GLOBAL",
       scopeOrgUnitId: scope.scopeOrgUnitId ?? null,
     },
+  });
+}
+
+/** Seeds the default CRM pipeline stages, as `prisma/seed.ts` does. */
+export async function seedStages(): Promise<void> {
+  await testPrisma().crmOpportunityStage.createMany({
+    data: DEFAULT_STAGES.map((stage) => ({ ...stage })),
   });
 }

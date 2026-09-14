@@ -220,7 +220,9 @@ export function PageHeader({
   return (
     <div className="flex flex-wrap items-end justify-between gap-4 pb-3.5">
       <div className="min-w-0">
-        <h1 className="text-foreground text-[34px]">{title}</h1>
+        <h1 className="text-foreground text-[34px]" dir="auto">
+          {title}
+        </h1>
         {description !== undefined && (
           <p className="text-foreground-muted mt-1 max-w-3xl text-[12.5px]">
             {description}

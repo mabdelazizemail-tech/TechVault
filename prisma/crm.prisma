@@ -1,0 +1,412 @@
+// CRM — Customer Relationship Management.  Owner: modules/crm.  Schema: "crm".
+//
+// The authoritative customer record for the whole platform lives here: ERP bills
+// an account by storing `crm_account_id`, it keeps no customer table of its own
+// (CLAUDE.md §6.1, §26).
+//
+// Models are prefixed `Crm` because Prisma model and enum names share one
+// namespace across every schema — ERP will need its own "Account" (ledger
+// account) and it must not collide with this one.
+//
+// Pipeline stages are ROWS (`CrmOpportunityStage`), never an enum: a new stage is
+// data, not a deploy (§6.1).
+//
+// Money is multi-currency: every amount carries its currency, and totals are
+// computed PER CURRENCY. Summing EGP and USD into one figure is never correct.
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+/// Currencies the CRM accepts. Adding one is a deliberate migration, because
+/// every total and report groups by it.
+enum CrmCurrency {
+  EGP
+  USD
+
+  @@schema("crm")
+}
+
+enum CrmLeadStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  CONVERTED
+  DISQUALIFIED
+
+  @@schema("crm")
+}
+
+enum CrmLeadSource {
+  WEBSITE
+  REFERRAL
+  LINKEDIN
+  ADVERTISEMENT
+  EVENT
+  COLD_OUTREACH
+  PARTNER
+  OTHER
+
+  @@schema("crm")
+}
+
+enum CrmPurchaseTimeline {
+  IMMEDIATE
+  WITHIN_3_MONTHS
+  WITHIN_6_MONTHS
+  WITHIN_12_MONTHS
+  OVER_12_MONTHS
+  UNKNOWN
+
+  @@schema("crm")
+}
+
+enum CrmDecisionMaker {
+  YES
+  NO
+  UNKNOWN
+
+  @@schema("crm")
+}
+
+/// How a deal is sold: directly, or through a channel partner.
+enum CrmSalesChannel {
+  DIRECT
+  INDIRECT
+
+  @@schema("crm")
+}
+
+/// What a stage means for the opportunity in it. Only OPEN stages count toward
+/// the pipeline; WON and LOST are terminal.
+enum CrmStageKind {
+  OPEN
+  WON
+  LOST
+
+  @@schema("crm")
+}
+
+enum CrmOpportunityStatus {
+  OPEN
+  WON
+  LOST
+
+  @@schema("crm")
+}
+
+enum CrmPriority {
+  LOW
+  MEDIUM
+  HIGH
+
+  @@schema("crm")
+}
+
+enum CrmLostReason {
+  PRICE
+  COMPETITOR
+  NO_BUDGET
+  TIMING
+  NO_DECISION
+  PRODUCT_FIT
+  OTHER
+
+  @@schema("crm")
+}
+
+/// One unified activity system. Tasks and notes are activities; status and stage
+/// changes are system-written activities, so every timeline is a single query.
+enum CrmActivityType {
+  CALL
+  EMAIL
+  MEETING
+  TASK
+  NOTE
+  STATUS_CHANGE
+  STAGE_CHANGE
+
+  @@schema("crm")
+}
+
+// ---------------------------------------------------------------------------
+// Accounts and contacts
+// ---------------------------------------------------------------------------
+
+/// A company. Name uniqueness (case-insensitive, among live rows) is enforced by
+/// a partial unique index in the migration, so lead conversion cannot create a
+/// duplicate account even under a race.
+model CrmAccount {
+  id          String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String
+  website     String?
+  industry    String?
+  companySize String? @map("company_size")
+  country     String?
+  city        String?
+  phone       String?
+  description String?
+  ownerId     String? @map("owner_id") @db.Uuid
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+
+  owner          User?            @relation("CrmAccountOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  contacts       CrmContact[]
+  opportunities  CrmOpportunity[]
+  activities     CrmActivity[]
+  convertedLeads CrmLead[]        @relation("CrmLeadConvertedAccount")
+
+  @@index([ownerId])
+  @@index([name])
+  @@index([deletedAt])
+  @@map("accounts")
+  @@schema("crm")
+}
+
+/// A person. Email uniqueness (case-insensitive, among live rows) is enforced by a
+/// partial unique index, which is what lets conversion reuse an existing contact.
+model CrmContact {
+  id        String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  firstName String  @map("first_name")
+  lastName  String  @map("last_name")
+  jobTitle  String? @map("job_title")
+  email     String?
+  phone     String?
+  country   String?
+  city      String?
+  accountId String? @map("account_id") @db.Uuid
+  ownerId   String? @map("owner_id") @db.Uuid
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+
+  account        CrmAccount?             @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  owner          User?                   @relation("CrmContactOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  opportunities  CrmOpportunityContact[]
+  activities     CrmActivity[]
+  convertedLeads CrmLead[]               @relation("CrmLeadConvertedContact")
+
+  @@index([accountId])
+  @@index([ownerId])
+  @@index([lastName, firstName])
+  @@index([deletedAt])
+  @@map("contacts")
+  @@schema("crm")
+}
+
+// ---------------------------------------------------------------------------
+// Leads
+// ---------------------------------------------------------------------------
+
+/// A prospect not yet converted. Conversion creates or reuses an account and a
+/// contact and optionally creates an opportunity; the lead keeps its history and
+/// points at what it became.
+model CrmLead {
+  id          String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  firstName   String        @map("first_name")
+  lastName    String        @map("last_name")
+  company     String
+  jobTitle    String?       @map("job_title")
+  email       String?
+  phone       String?
+  website     String?
+  source      CrmLeadSource
+  industry    String?
+  companySize String?       @map("company_size")
+  country     String?
+  city        String?
+
+  // Qualification
+  interest        String?
+  /// Minor units, in `currency`. Never a float (CLAUDE.md §8.4).
+  budgetMinor     Int?                 @map("budget_minor")
+  currency        CrmCurrency          @default(EGP)
+  timeline        CrmPurchaseTimeline?
+  decisionMaker   CrmDecisionMaker?    @map("decision_maker")
+  currentSolution String?              @map("current_solution")
+  painPoint       String?              @map("pain_point")
+  /// 0–100, checked by a database constraint.
+  score           Int                  @default(0)
+
+  status          CrmLeadStatus @default(NEW)
+  statusChangedAt DateTime      @default(now()) @map("status_changed_at") @db.Timestamptz(6)
+  ownerId         String?       @map("owner_id") @db.Uuid
+
+  convertedAt            DateTime? @map("converted_at") @db.Timestamptz(6)
+  convertedAccountId     String?   @map("converted_account_id") @db.Uuid
+  convertedContactId     String?   @map("converted_contact_id") @db.Uuid
+  convertedOpportunityId String?   @map("converted_opportunity_id") @db.Uuid
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+
+  owner                User?           @relation("CrmLeadOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  convertedAccount     CrmAccount?     @relation("CrmLeadConvertedAccount", fields: [convertedAccountId], references: [id], onDelete: SetNull)
+  convertedContact     CrmContact?     @relation("CrmLeadConvertedContact", fields: [convertedContactId], references: [id], onDelete: SetNull)
+  convertedOpportunity CrmOpportunity? @relation("CrmLeadConvertedOpportunity", fields: [convertedOpportunityId], references: [id], onDelete: SetNull)
+  activities           CrmActivity[]
+
+  @@index([status])
+  @@index([ownerId])
+  @@index([source])
+  @@index([createdAt])
+  @@index([deletedAt])
+  @@map("leads")
+  @@schema("crm")
+}
+
+// ---------------------------------------------------------------------------
+// Opportunities
+// ---------------------------------------------------------------------------
+
+/// A pipeline stage. Configuration data: reordering, renaming or adding a stage is
+/// a row change, not a deploy.
+model CrmOpportunityStage {
+  id                 String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  key                String       @unique
+  name               String
+  position           Int
+  kind               CrmStageKind @default(OPEN)
+  /// Suggested probability (0–100) applied when an opportunity enters the stage.
+  defaultProbability Int          @default(0) @map("default_probability")
+  isActive           Boolean      @default(true) @map("is_active")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  opportunities CrmOpportunity[]
+
+  @@index([position])
+  @@map("opportunity_stages")
+  @@schema("crm")
+}
+
+model CrmOpportunity {
+  id          String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String
+  accountId   String               @map("account_id") @db.Uuid
+  stageId     String               @map("stage_id") @db.Uuid
+  status      CrmOpportunityStatus @default(OPEN)
+  /// Minor units, in `currency`. Never a float (CLAUDE.md §8.4).
+  amountMinor Int                  @map("amount_minor")
+  currency    CrmCurrency          @default(EGP)
+  closeDate   DateTime             @map("close_date") @db.Date
+  /// 0–100, checked by a database constraint.
+  probability Int                  @default(0)
+  priority    CrmPriority          @default(MEDIUM)
+  channel     CrmSalesChannel      @default(DIRECT)
+  /// The channel partner for an INDIRECT deal (required then, by constraint).
+  partnerName String?              @map("partner_name")
+  source      CrmLeadSource?
+  product     String?
+  description String?
+  ownerId     String?              @map("owner_id") @db.Uuid
+
+  stageChangedAt DateTime       @default(now()) @map("stage_changed_at") @db.Timestamptz(6)
+  wonAt          DateTime?      @map("won_at") @db.Timestamptz(6)
+  lostAt         DateTime?      @map("lost_at") @db.Timestamptz(6)
+  lostReason     CrmLostReason? @map("lost_reason")
+  closeNotes     String?        @map("close_notes")
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+
+  account     CrmAccount              @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  stage       CrmOpportunityStage     @relation(fields: [stageId], references: [id], onDelete: Restrict)
+  owner       User?                   @relation("CrmOpportunityOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  contacts    CrmOpportunityContact[]
+  activities  CrmActivity[]
+  sourceLeads CrmLead[]               @relation("CrmLeadConvertedOpportunity")
+
+  @@index([stageId])
+  @@index([accountId])
+  @@index([ownerId])
+  @@index([status, closeDate])
+  @@index([deletedAt])
+  @@map("opportunities")
+  @@schema("crm")
+}
+
+/// Contacts involved in an opportunity. At most one primary per opportunity,
+/// enforced by a partial unique index in the migration.
+model CrmOpportunityContact {
+  opportunityId String   @map("opportunity_id") @db.Uuid
+  contactId     String   @map("contact_id") @db.Uuid
+  isPrimary     Boolean  @default(false) @map("is_primary")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  opportunity CrmOpportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+  contact     CrmContact     @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@id([opportunityId, contactId])
+  @@index([contactId])
+  @@map("opportunity_contacts")
+  @@schema("crm")
+}
+
+// ---------------------------------------------------------------------------
+// Activities (calls, emails, meetings, tasks, notes, system changes)
+// ---------------------------------------------------------------------------
+
+/// Every activity links to at least one CRM record (database CHECK constraint).
+/// Activities are append-mostly: correct by adding, not by rewriting history
+/// (§6.1). System-written STATUS_CHANGE and STAGE_CHANGE rows are never edited.
+model CrmActivity {
+  id              String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  type            CrmActivityType
+  subject         String
+  body            String?
+  occurredAt      DateTime        @default(now()) @map("occurred_at") @db.Timestamptz(6)
+  durationMinutes Int?            @map("duration_minutes")
+
+  // Task fields — null for every other type.
+  dueAt       DateTime?    @map("due_at") @db.Timestamptz(6)
+  completedAt DateTime?    @map("completed_at") @db.Timestamptz(6)
+  priority    CrmPriority?
+  assigneeId  String?      @map("assignee_id") @db.Uuid
+
+  leadId        String? @map("lead_id") @db.Uuid
+  accountId     String? @map("account_id") @db.Uuid
+  contactId     String? @map("contact_id") @db.Uuid
+  opportunityId String? @map("opportunity_id") @db.Uuid
+
+  /// Structured detail for system activities, e.g. `{ fromStage, toStage }`.
+  /// Never sensitive values.
+  metadata Json?
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+
+  lead        CrmLead?        @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  account     CrmAccount?     @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  contact     CrmContact?     @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  opportunity CrmOpportunity? @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+  assignee    User?           @relation("CrmActivityAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  creator     User?           @relation("CrmActivityCreator", fields: [createdBy], references: [id], onDelete: SetNull)
+
+  @@index([leadId, occurredAt])
+  @@index([accountId, occurredAt])
+  @@index([contactId, occurredAt])
+  @@index([opportunityId, occurredAt])
+  @@index([type, dueAt])
+  @@index([assigneeId])
+  @@index([deletedAt])
+  @@map("activities")
+  @@schema("crm")
+}

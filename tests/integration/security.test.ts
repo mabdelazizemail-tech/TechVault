@@ -24,13 +24,13 @@ describe.skipIf(!hasTestDatabase)("database security controls (integration)", ()
   });
 
   describe("row-level security", () => {
-    it("is enabled on every table in the iam and platform schemas", async () => {
+    it("is enabled on every table in the iam, platform and crm schemas", async () => {
       const rows = await testPrisma().$queryRawUnsafe<
         { schemaname: string; tablename: string; rowsecurity: boolean }[]
       >(
         `select schemaname, tablename, rowsecurity
            from pg_tables
-          where schemaname in ('iam', 'platform')
+          where schemaname in ('iam', 'platform', 'crm')
           order by schemaname, tablename`,
       );
 
@@ -48,7 +48,7 @@ describe.skipIf(!hasTestDatabase)("database security controls (integration)", ()
       const policies = await testPrisma().$queryRawUnsafe<{ count: bigint }[]>(
         `select count(*)::bigint as count
            from pg_policies
-          where schemaname in ('iam', 'platform')`,
+          where schemaname in ('iam', 'platform', 'crm')`,
       );
 
       // Deny-by-default is the point: RLS enabled with no policy means no access.

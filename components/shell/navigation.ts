@@ -1,3 +1,4 @@
+import { CRM_PERMISSIONS } from "@/modules/crm/contracts/permissions";
 import { IAM_PERMISSIONS, PLATFORM_PERMISSIONS } from "@/platform/iam/permissions";
 
 /**
@@ -19,6 +20,8 @@ export type NavItem = {
   href: string;
   /** The permission required to see this entry. */
   permission: string;
+  /** Highlight only on an exact path match — for a section's own landing page. */
+  exact?: boolean;
 };
 
 export type NavSection = {
@@ -40,16 +43,37 @@ export const NAV_SECTIONS: readonly NavSection[] = [
   {
     key: "crm",
     label: "CRM",
-    permission: "crm.module.access",
+    permission: CRM_PERMISSIONS.ACCESS,
     items: [
-      { label: "Accounts", href: "/crm/accounts", permission: "crm.account.read" },
-      { label: "Contacts", href: "/crm/contacts", permission: "crm.contact.read" },
-      { label: "Leads", href: "/crm/leads", permission: "crm.lead.read" },
+      {
+        label: "Dashboard",
+        href: "/crm",
+        permission: CRM_PERMISSIONS.ACCESS,
+        exact: true,
+      },
+      { label: "Leads", href: "/crm/leads", permission: CRM_PERMISSIONS.LEAD_READ },
       {
         label: "Opportunities",
         href: "/crm/opportunities",
-        permission: "crm.opportunity.read",
+        permission: CRM_PERMISSIONS.OPPORTUNITY_READ,
       },
+      {
+        label: "Companies",
+        href: "/crm/accounts",
+        permission: CRM_PERMISSIONS.ACCOUNT_READ,
+      },
+      {
+        label: "Contacts",
+        href: "/crm/contacts",
+        permission: CRM_PERMISSIONS.CONTACT_READ,
+      },
+      {
+        label: "Activities",
+        href: "/crm/activities",
+        permission: CRM_PERMISSIONS.ACTIVITY_READ,
+      },
+      { label: "Tasks", href: "/crm/tasks", permission: CRM_PERMISSIONS.ACTIVITY_READ },
+      { label: "Notes", href: "/crm/notes", permission: CRM_PERMISSIONS.ACTIVITY_READ },
     ],
   },
   {

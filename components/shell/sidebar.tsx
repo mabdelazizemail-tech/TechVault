@@ -40,6 +40,7 @@ const SECTION_ICONS: Record<string, LucideIcon> = {
 export function Sidebar({ sections }: { sections: readonly NavSection[] }) {
   const pathname = usePathname();
   const isWithin = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
+  const matches = (item: { href: string }) => isWithin(item.href);
 
   return (
     <nav
@@ -59,7 +60,7 @@ export function Sidebar({ sections }: { sections: readonly NavSection[] }) {
           </li>
 
           {sections.map((section) => {
-            const isActive = section.items.some((item) => isWithin(item.href));
+            const isActive = section.items.some((item) => matches(item));
             const first = section.items[0];
             if (first === undefined) return null;
 
@@ -75,7 +76,10 @@ export function Sidebar({ sections }: { sections: readonly NavSection[] }) {
                 {isActive && (
                   <ul className="pt-0.5 pb-2">
                     {section.items.map((item) => {
-                      const isCurrent = isWithin(item.href);
+                      const isCurrent =
+                        item.exact === true
+                          ? pathname === item.href
+                          : isWithin(item.href);
                       return (
                         <li key={item.href}>
                           <Link

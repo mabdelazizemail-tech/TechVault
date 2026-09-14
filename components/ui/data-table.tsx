@@ -59,6 +59,12 @@ export type DataTableProps<TRow> = {
   emptyAction?: ReactNode;
   /** Rendered when a row is clickable; receives the row. */
   rowHref?: (row: TRow) => string;
+  /**
+   * Row selection for bulk actions. Each checkbox joins the caller's
+   * `<form id={formId}>` through the `form` attribute, so the table stays a Server
+   * Component and the bulk-action form reads the selection from its own FormData.
+   */
+  selection?: { formId: string; name: string; rowLabel: (row: TRow) => string };
 };
 
 export function DataTable<TRow>({
@@ -73,6 +79,7 @@ export function DataTable<TRow>({
   emptyDescription = "No records match the current filters.",
   emptyAction,
   rowHref,
+  selection,
 }: DataTableProps<TRow>) {
   if (rows.length === 0) {
     return (
@@ -91,6 +98,19 @@ export function DataTable<TRow>({
         <table className="w-full border-collapse text-sm">
           <thead className="bg-surface sticky top-0 z-10">
             <tr>
+              {selection !== undefined && (
+                <th
+                  scope="col"
+                  className="border-border-strong w-10 border-b-2 px-3 py-2"
+                >
+                  <input
+                    type="checkbox"
+                    aria-label="Select all rows on this page"
+                    data-select-all={selection.formId}
+                    className="accent-primary size-4 cursor-pointer align-middle"
+                  />
+                </th>
+              )}
               {columns.map((column) => (
                 <th
                   key={column.key}
@@ -123,6 +143,18 @@ export function DataTable<TRow>({
                 key={rowKey(row)}
                 className="border-border hover:bg-surface-hover border-b last:border-0"
               >
+                {selection !== undefined && (
+                  <td className="px-3 py-2 align-middle">
+                    <input
+                      type="checkbox"
+                      form={selection.formId}
+                      name={selection.name}
+                      value={rowKey(row)}
+                      aria-label={`Select ${selection.rowLabel(row)}`}
+                      className="accent-primary size-4 cursor-pointer align-middle"
+                    />
+                  </td>
+                )}
                 {columns.map((column) => (
                   <td
                     key={column.key}
@@ -211,7 +243,8 @@ function SortLink<TRow>({
   );
 }
 
-function Pagination({
+/** Pagination links as URL state; also used by lists that are not tables. */
+export function Pagination({
   page,
   basePath,
   searchParams,

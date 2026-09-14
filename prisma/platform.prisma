@@ -68,15 +68,15 @@ model AuditLog {
 /// arrive in Phase 2. Until then events accumulate as a visible backlog —
 /// which is a deliberate, inspectable state, not lost data.
 model EventOutbox {
-  id         String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   /// "<module>.<Entity><PastTenseVerb>", e.g. "iam.RoleAssigned".
-  name       String
-  version    Int          @default(1)
-  occurredAt DateTime     @default(now()) @map("occurred_at") @db.Timestamptz(6)
-  actorId    String?      @map("actor_id") @db.Uuid
+  name          String
+  version       Int      @default(1)
+  occurredAt    DateTime @default(now()) @map("occurred_at") @db.Timestamptz(6)
+  actorId       String?  @map("actor_id") @db.Uuid
   /// Entity IDs and the few fields subscribers need. NEVER sensitive data (§10).
-  payload    Json
-  correlationId String?   @map("correlation_id")
+  payload       Json
+  correlationId String?  @map("correlation_id")
 
   status      OutboxStatus @default(PENDING)
   attempts    Int          @default(0)
