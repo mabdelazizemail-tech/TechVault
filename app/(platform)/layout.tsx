@@ -3,7 +3,11 @@ import { Header } from "@/components/shell/header";
 import { Sidebar } from "@/components/shell/sidebar";
 import { UserMenu } from "@/components/shell/user-menu";
 import { NAV_SECTIONS, navigationPermissionKeys } from "@/components/shell/navigation";
+import { ToastProvider } from "@/components/ui/toast";
 import { signOut } from "@/app/auth/actions";
+import { MESSAGING_PERMISSIONS } from "@/modules/messaging/contracts/permissions";
+import { MessagingProvider } from "@/modules/messaging/ui/messaging-provider";
+import { Messenger } from "@/modules/messaging/ui/messenger/messenger";
 import { requireUser } from "@/platform/auth/current-user";
 import { canAll } from "@/platform/authz/authz";
 
@@ -26,7 +30,11 @@ export default async function PlatformLayout({
 
   // One batched evaluation against the request-cached permission set, rather than
   // a round trip per menu entry.
-  const permitted = await canAll({ id: user.id }, navigationPermissionKeys());
+  const permitted = await canAll({ id: user.id }, [
+    ...navigationPermissionKeys(),
+    MESSAGING_PERMISSIONS.ACCESS,
+  ]);
+  const hasMessaging = permitted[MESSAGING_PERMISSIONS.ACCESS] === true;
 
   const sections = NAV_SECTIONS.filter(
     (section) => permitted[section.permission] === true,
@@ -38,7 +46,7 @@ export default async function PlatformLayout({
     // A section whose every entry is hidden is noise, not navigation.
     .filter((section) => section.items.length > 0);
 
-  return (
+  const shell = (
     <div className="bg-canvas flex h-dvh flex-col overflow-hidden">
       <Header
         userMenu={
@@ -59,5 +67,21 @@ export default async function PlatformLayout({
         </main>
       </div>
     </div>
+  );
+
+  // The Messenger lives here, in the layout Next.js keeps mounted across
+  // navigation, so open chats survive moving between pages. It exists only for
+  // people who may use it, and connects to Realtime once the page is idle.
+  return (
+    <ToastProvider>
+      {hasMessaging ? (
+        <MessagingProvider me={{ id: user.id, name: user.fullName ?? user.email }}>
+          {shell}
+          <Messenger />
+        </MessagingProvider>
+      ) : (
+        shell
+      )}
+    </ToastProvider>
   );
 }

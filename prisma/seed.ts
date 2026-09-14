@@ -7,6 +7,7 @@ import {
   CRM_SALES_ROLE,
 } from "../modules/crm/contracts/permissions";
 import { DEFAULT_STAGES } from "../modules/crm/domain/pipeline";
+import { MESSAGING_MEMBER_PERMISSIONS } from "../modules/messaging/contracts/permissions";
 import {
   IAM_PERMISSIONS,
   PLATFORM_PERMISSIONS,
@@ -87,13 +88,13 @@ const ROLE_DEFINITIONS: Record<
     name: "Sales",
     description:
       "Works leads, contacts, companies and opportunities, and logs activity. Cannot change how the pipeline is configured.",
-    permissions: [...CRM_SALES_PERMISSIONS],
+    permissions: [...CRM_SALES_PERMISSIONS, ...MESSAGING_MEMBER_PERMISSIONS],
   },
   [SYSTEM_ROLES.EMPLOYEE]: {
     name: "Employee",
     description:
-      "The baseline role every member of staff receives. Grants no administrative access; module access is added by assigning further roles.",
-    permissions: [],
+      "The baseline role every member of staff receives: messaging with colleagues, and no administrative access. Module access is added by assigning further roles.",
+    permissions: [...MESSAGING_MEMBER_PERMISSIONS],
   },
 };
 

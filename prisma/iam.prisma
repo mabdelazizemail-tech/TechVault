@@ -140,6 +140,12 @@ model User {
   crmActivitiesAssigned CrmActivity[]    @relation("CrmActivityAssignee")
   crmActivitiesCreated  CrmActivity[]    @relation("CrmActivityCreator")
 
+  // Messaging (messaging.prisma). Relation fields only.
+  msgParticipations MsgParticipant[] @relation("MsgParticipantUser")
+  msgMessagesSent   MsgMessage[]     @relation("MsgMessageSender")
+  msgAttachments    MsgAttachment[]  @relation("MsgAttachmentAttacher")
+  msgPresence       MsgPresence?     @relation("MsgPresenceUser")
+
   @@index([orgUnitId])
   @@index([hrisEmployeeId])
   @@index([isActive])

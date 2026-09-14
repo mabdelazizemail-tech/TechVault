@@ -12,7 +12,7 @@ import next from "eslint-config-next/core-web-vitals";
  */
 
 /** Every domain module. Adding a module here is what turns on its boundary rules. */
-const MODULES = ["iam", "crm", "erp", "ecm", "hris", "innovation", "bi"];
+const MODULES = ["iam", "crm", "erp", "ecm", "hris", "innovation", "bi", "messaging"];
 
 /** Paths inside a module that are private to it. */
 const PRIVATE_SEGMENTS = ["services", "repositories", "events"];

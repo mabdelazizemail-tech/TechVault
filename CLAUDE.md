@@ -1814,6 +1814,36 @@ accounts needs `SUPABASE_SECRET_KEY` on the server and the set-password URL in S
 Supabase's default email sender is rate-limited. _Revisit when:_ HRIS provisions accounts from
 `hris.EmployeeCreated`, or deleted addresses must become reusable.
 
+**ADR-020 — Messaging: database-owned delivery signals, Realtime for ephemera, ECM-gated attachments.** _Context:_ the
+owner asked for internal one-to-one chat with presence, typing, delivery/read status, unread counts and document
+sharing, without polling, without heartbeat writes, and without weakening ADR-002/015. The browser may not read
+business data through Supabase, and no document store exists yet (ECM, Phase 3). _Decision:_ (1) A `messaging` module
+and schema: `conversations` (DIRECT now, GROUP reserved; one direct conversation per pair via a unique sorted
+`direct_key`), `conversation_participants` (per-person `last_delivered_at`/`last_read_at` watermarks — message status
+is derived, never stored per message), `messages` (soft delete, client-chosen id as idempotency key),
+`message_attachments` (`ecm_document_id` only, nothing copied) and `user_presence` (`last_seen_at` only). (2) Content
+is read and written only through Server Actions that check the feature permission and participation. (3) Delivery:
+AFTER INSERT/UPDATE triggers call `realtime.send` to the private topic `messaging:user:<id>` with ids only; the client
+then fetches through a Server Action. A rolled-back write is never announced and a Realtime outage cannot block a
+send. (4) Presence (`messaging:presence`) and typing (`messaging:conversation:<id>`) are Realtime only and never touch
+a table; `last_seen_at` is written on connect and on page hide, at most once a minute. (5) Realtime authorization is
+RLS on `realtime.messages` through one definer-rights function, `messaging.realtime_topic_allowed`; `authenticated`
+gets USAGE on the schema and EXECUTE on that function, and no table privilege. (6) Triggers enforce what must hold even
+for the owner connection: a sender must be an active participant; an attachment's sharer must be the message author, an
+active participant, and able to read the document according to ECM's future contract function
+`ecm.user_can_read_document(user, document)` — absent today, so attaching fails closed; attachments are immutable.
+Viewers are re-checked against ECM with their own permissions when opening a document: sharing grants nothing.
+(7) RLS on every messaging table is participant-only with no grants (the ADR-015 posture). (8) Sending writes no audit
+row and no outbox event (the message row is the record); starting a conversation writes both. (9) The Realtime client
+is imported after the page is idle, so no route ships it in its entry JavaScript. (10) The UI is a floating
+Messenger mounted in the platform layout — launcher, panel, up to three chat windows by width, chat heads for
+minimised chats, one full-screen chat on phones — not a page; the panel and windows are a separate chunk loaded on
+first use. Window state is plain React state (the layout persists across navigation) mirrored to sessionStorage. _Consequences:_ no polling, one
+UPDATE per read however many messages it covers, and chat history survives deactivation and deletion. Document sharing
+is unavailable until ECM publishes its contract function; presence reveals online user ids to any active account; a
+message costs one extra round trip after its signal. _Revisit when:_ ECM ships (add the picker, cards and viewer link),
+group chat is built (receipts already generalise), or Realtime connection quotas bind.
+
 ---
 
 ## 28. Current Implementation Status
@@ -1905,6 +1935,23 @@ writer) and needs nothing from Phases 2–4 to work; what it gives up by going f
 | Data        | ✅ Migration applied to the local test database and to Supabase; `npm run db:seed` adds the `sales` role, CRM permissions and the 7 stages; `npm run db:seed:crm` loaded demo data into Supabase (8 companies, 15 contacts, 15 leads, 12 opportunities, 46 activities); on 2026-09-14 the owner had all CRM records removed (verified 0 rows in every CRM data table; the 7 stages, users, roles and audit log kept). Do not rerun `db:seed:crm` against Supabase without asking.                                                                                                                                                                        |
 | **Missing** | Browser walk-through of the full workflow against Supabase: **pending** (needs a signed-in session). No Playwright CRM spec. Dashboard figures query transactional tables (§6.7 wants BI rollups). Events are written but never delivered (no dispatcher, §29 #1). No ECM document links. No Arabic strings.                                                                                                                                                                                                                                                                                                                                             |
 
+### 🟡 Messaging module — built 2026-09-14, at the owner's request
+
+Design decisions are in ADR-020. Migration `20260914105751_messaging_module` is applied to the local test database and,
+with the owner's approval on 2026-09-14, to Supabase, followed by `npm run db:seed` (51 permissions; messaging granted to
+platform-admin, sales and employee). Verified by direct query on Supabase: RLS on all 5 tables with 9 policies, 5 triggers,
+the two `realtime.messages` policies for `authenticated` only, and no table privilege for `anon` or `authenticated`.
+Order matters on any other database — migrate, then seed; the seed grants the permission that switches the feature on.
+The code is **not yet committed or deployed**, so production does not show Messages.
+
+| Area        | State |
+| ----------- | ----- |
+| Data model  | ✅ `messaging` schema with 5 tables; CHECKs on message shape and length; unique direct key; participation trigger; fail-closed document-access trigger; immutable attachments; participant-only RLS; Realtime policies on `realtime.messages` (Supabase only, guarded). `prisma migrate diff` reports no drift. |
+| Services    | ✅ Server-side people search (20 results), race-safe direct conversations, inbox with unread counts in one statement, keyset pages of 50, idempotent send, delivered/read watermarks, throttled last seen. Permission first and participation on every call. |
+| UI          | ✅ Floating Messenger in the platform layout (the earlier full-page `/messages` screen was replaced at the owner's request): launcher with unread badge; panel with chats and server-side people search; multiple chat windows (1 on tablets, 2–3 on wider screens), minimise to chat heads with unread badges, close, restore; one full-screen chat on phones; state survives navigation and reloads (sessionStorage). Bubbles, day separators, unread divider, optimistic send with retry, sent/delivered/read marks, typing indicator, Active now / Active 5m ago, earlier messages on scroll, emoji palette, drafts kept per chat; a new message elsewhere opens a chat head and a toast. The panel and windows are a lazily loaded chunk; the Realtime client loads after idle. |
+| Tests       | ✅ 20 integration tests (both permission directions, participation 404s, dedupe including concurrent first contact, pagination, concurrent send order, idempotent retry, receipts, deactivation, triggers from the owner connection, the ECM seam with a stand-in function, RLS as a non-owning role) and 17 unit tests. |
+| **Missing** | Document sharing: the paperclip, document picker, document cards and viewer link (§29 #17). Browser walk-through against Supabase (§29 #18). No Playwright spec. No message edit or delete UI (the columns exist). |
+
 ### 📋 Not started
 
 The five remaining domain modules (ERP, ECM, HRIS, Innovation, BI). Their navigation entries and
@@ -1966,6 +2013,10 @@ Open debt and risk:
 | 14  | **Every opportunity needs a company**                       | Required by the written spec and the schema (`account_id NOT NULL`); a deal with no company yet cannot be recorded                                                                                                                                | Owner to confirm; relaxing it is a migration plus form changes                                                                                   | 🟢 Low    |
 | 15  | **User administration needs configuration to be complete**  | Creating, re-addressing and deleting sign-in accounts need `SUPABASE_SECRET_KEY` on the server; invitation and reset links need `<APP_URL>/auth/set-password` in Supabase's redirect allow list; Supabase's built-in email sender is rate-limited | Owner adds the key and redirect URLs; configure custom SMTP in Supabase before inviting many users                                               | 🟡 Medium |
 | 16  | **No browser test of the user administration screens**      | The services are covered by 20 integration tests, but the dialogs and menus have not been exercised in a signed-in browser                                                                                                                        | Add a Playwright spec that signs in as an administrator and walks add → edit → roles → deactivate → delete                                       | 🟢 Low    |
+| 17  | **Document sharing in chat waits for ECM**                  | Attachments have their schema, RLS and triggers, but no document store exists, so the picker, cards and viewer link are not built and attaching fails closed (ADR-020) | Build ECM core (Phase 3) with `ecm.user_can_read_document(uuid, uuid)`, then add the chat picker and cards | 🟡 Medium |
+| 18  | **Messaging not yet exercised in a browser against Supabase** | Services, triggers and RLS are covered by integration tests on local Postgres; Realtime delivery, presence and typing need the migration applied to Supabase and two signed-in users | Owner applies the migration, then the seed, then walks the browser scenarios | 🟡 Medium |
+| 19  | **Presence is visible to every active account**             | Realtime policies cannot evaluate the permission model, so any active account may join `messaging:presence` and learn which user ids are online (no names, no content) | Acceptable for one organisation; scope presence per org unit if that changes | 🟢 Low    |
+| 20  | **Realtime connection quotas**                              | Every signed-in user with Messages holds one Realtime socket, and Supabase plans cap concurrent connections | Check the plan limit against headcount before rollout | 🟢 Low    |
 
 Add real debt here as it accrues, with why it was accepted and the trigger to repay it. A
 TODO in code without a row here is invisible debt.
