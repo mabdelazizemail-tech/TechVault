@@ -14,7 +14,7 @@ export default function SetPasswordPage() {
     <main className="bg-canvas grid min-h-dvh place-items-center px-6 py-12">
       <div className="w-full max-w-[380px]">
         <div className="mb-8 flex items-center gap-3">
-          <span className="bg-primary text-primary-foreground grid size-[30px] place-items-center text-sm font-extrabold">
+          <span className="bg-brand text-brand-foreground grid size-[30px] place-items-center text-sm font-bold">
             TV
           </span>
           <span className="text-foreground text-lg font-extrabold tracking-[-0.01em]">

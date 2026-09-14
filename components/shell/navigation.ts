@@ -47,7 +47,7 @@ export const NAV_SECTIONS: readonly NavSection[] = [
     permission: CRM_PERMISSIONS.ACCESS,
     items: [
       {
-        label: "Dashboard",
+        label: "CRM dashboard",
         href: "/crm",
         permission: CRM_PERMISSIONS.ACCESS,
         exact: true,

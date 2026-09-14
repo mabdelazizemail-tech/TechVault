@@ -14,9 +14,9 @@ import { cn } from "@/lib/cn";
  */
 
 export const controlClasses =
-  "bg-surface-sunken text-foreground caret-primary w-full border px-2.5 py-1.5 text-sm " +
-  "placeholder:text-foreground-subtle hover:border-foreground/45 " +
-  "focus-visible:border-primary focus-visible:outline-offset-0 disabled:cursor-not-allowed disabled:opacity-45";
+  "bg-surface text-foreground w-full border-2 px-3 py-1.5 text-sm " +
+  "placeholder:text-foreground-subtle hover:border-foreground-subtle " +
+  "focus-visible:border-foreground focus-visible:outline-offset-0 disabled:cursor-not-allowed disabled:opacity-45";
 
 export type Option = { value: string; label: string };
 

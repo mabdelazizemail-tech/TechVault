@@ -66,7 +66,7 @@ export default async function CrmDashboardPage() {
 
       <section
         aria-label="Key figures"
-        className="bg-border border-border mb-4 grid grid-cols-2 gap-px border lg:grid-cols-5"
+        className="mb-4 grid grid-cols-2 gap-4 lg:grid-cols-5"
       >
         <Kpi
           label="Leads"
@@ -254,12 +254,10 @@ function Kpi({
 }) {
   const body = (
     <>
-      <p className="text-foreground-muted text-[10.5px] tracking-[0.08em] uppercase">
-        {label}
-      </p>
+      <p className="label-caps">{label}</p>
       <p
         className={cn(
-          "text-[28px] leading-none font-extrabold tracking-[-0.02em] tabular-nums",
+          "mt-1 text-3xl leading-none font-bold tracking-tight tabular-nums",
           tone === "success" ? "text-success" : "text-foreground",
         )}
       >
@@ -273,10 +271,10 @@ function Kpi({
           {formatMoney(total.amountMinor, total.currency)}
         </p>
       ))}
-      {note !== undefined && <p className="text-foreground-subtle text-[11px]">{note}</p>}
+      {note !== undefined && <p className="text-foreground-muted text-xs">{note}</p>}
     </>
   );
-  const classes = cn("bg-surface flex min-w-0 flex-col gap-1.5 px-4 py-3", className);
+  const classes = cn("panel flex min-w-0 flex-col gap-1.5 p-4", className);
   return href === undefined ? (
     <div className={classes}>{body}</div>
   ) : (

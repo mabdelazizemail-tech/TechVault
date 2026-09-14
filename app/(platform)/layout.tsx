@@ -1,5 +1,6 @@
-import { Breadcrumbs } from "@/components/shell/breadcrumbs";
+import { Brand } from "@/components/shell/brand";
 import { Header } from "@/components/shell/header";
+import { MobileNav } from "@/components/shell/mobile-nav";
 import { Sidebar } from "@/components/shell/sidebar";
 import { UserMenu } from "@/components/shell/user-menu";
 import { NAV_SECTIONS, navigationPermissionKeys } from "@/components/shell/navigation";
@@ -14,9 +15,9 @@ import { canAll } from "@/platform/authz/authz";
 /**
  * The authenticated platform shell (CLAUDE.md §16.2).
  *
- * Every module renders inside this: a full-width header, the sidebar beneath it,
- * and a content column that opens with the breadcrumb trail — the layout of the
- * TechVault design.
+ * Every module renders inside this: the sidebar with the brand at the inline start,
+ * and beside it the header (breadcrumbs, theme, user menu) over a scrolling content
+ * column. Below `lg` the sidebar becomes a drawer opened from the header.
  *
  * Navigation is filtered on the SERVER: the browser never receives the list of
  * modules this user may not reach. Hiding a link is a usability decision, not a
@@ -47,23 +48,26 @@ export default async function PlatformLayout({
     .filter((section) => section.items.length > 0);
 
   const shell = (
-    <div className="bg-canvas flex h-dvh flex-col overflow-hidden">
-      <Header
-        userMenu={
-          <UserMenu fullName={user.fullName} email={user.email} onSignOut={signOut} />
-        }
-      />
+    <div className="bg-canvas flex h-dvh overflow-hidden">
+      <aside className="bg-surface rule-e hidden w-(--spacing-sidebar) shrink-0 flex-col lg:flex">
+        <div className="rule-b flex h-(--spacing-header) shrink-0 items-center px-4">
+          <Brand />
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          <Sidebar sections={sections} />
+        </div>
+      </aside>
 
-      <div className="flex min-h-0 flex-1">
-        <Sidebar sections={sections} />
-
-        <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
-          <div className="shrink-0 px-6 pt-3.5 pb-2">
-            <Breadcrumbs />
-          </div>
-          <div className="animate-tv-fade min-h-0 flex-1 overflow-y-auto px-6 pb-8">
-            {children}
-          </div>
+      <div className="flex min-w-0 flex-1 flex-col">
+        <Header
+          mobileNav={<MobileNav sections={sections} />}
+          userMenu={
+            <UserMenu fullName={user.fullName} email={user.email} onSignOut={signOut} />
+          }
+        />
+        <main className="min-h-0 flex-1 overflow-y-auto">
+          {/* Bottom padding keeps the last row clear of the Messenger launcher. */}
+          <div className="animate-tv-fade px-4 pt-6 pb-24 sm:px-6">{children}</div>
         </main>
       </div>
     </div>

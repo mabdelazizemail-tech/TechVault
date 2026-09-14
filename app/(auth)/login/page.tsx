@@ -27,7 +27,7 @@ export default async function LoginPage({
         className="bg-primary text-primary-foreground hidden min-w-0 flex-col justify-between p-12 lg:flex"
       >
         <div className="flex items-center gap-3">
-          <span className="bg-primary-foreground text-primary grid size-[30px] place-items-center text-sm font-extrabold">
+          <span className="bg-brand text-brand-foreground grid size-[30px] place-items-center text-sm font-bold">
             TV
           </span>
           <span className="text-lg font-extrabold tracking-[-0.01em]">TechVault</span>

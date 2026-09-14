@@ -3,8 +3,8 @@ import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { cn } from "@/lib/cn";
 
 /**
- * The button primitive (CLAUDE.md §16.3), in the Modernist style: square, heavy
- * type, the label flush left. Always a real `<button>` (§17.5).
+ * The button primitive (CLAUDE.md §16.3): square, bold, ink for the primary action
+ * and a 2px outline for the rest. Always a real `<button>` (§17.5).
  */
 
 export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
@@ -12,19 +12,21 @@ export type ButtonSize = "sm" | "md";
 
 const VARIANT_CLASSES: Record<ButtonVariant, string> = {
   primary:
-    "bg-primary text-primary-foreground hover:bg-primary-hover active:bg-primary-pressed border border-transparent",
-  secondary:
-    "bg-transparent text-foreground border border-border-strong hover:bg-surface-hover",
+    "bg-primary text-primary-foreground hover:bg-primary-hover active:bg-primary-pressed border-2 border-transparent",
+  secondary: "bg-surface text-foreground border-2 border-border hover:bg-surface-hover",
   ghost:
-    "bg-transparent text-primary-ink border border-transparent hover:bg-primary/10 px-1",
+    "bg-transparent text-primary-ink border-2 border-transparent hover:bg-surface-hover px-1.5",
   danger:
-    "bg-danger text-primary-foreground hover:bg-danger-hover border border-transparent",
+    "bg-danger text-primary-foreground hover:bg-danger-hover border-2 border-transparent",
 };
 
 const SIZE_CLASSES: Record<ButtonSize, string> = {
-  sm: "min-h-7 px-2.5 py-1 text-[13px] gap-1.5",
-  md: "min-h-9 px-3.5 py-2 text-sm gap-1.5",
+  sm: "min-h-8 px-2.5 py-1 text-[13px] gap-1.5",
+  md: "min-h-10 px-4 py-2 text-sm gap-2",
 };
+
+const BASE_CLASSES =
+  "inline-flex items-center justify-center leading-tight font-bold whitespace-nowrap transition-colors duration-150";
 
 export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: ButtonVariant;
@@ -53,9 +55,8 @@ export function Button({
       disabled={disabled === true || isPending}
       aria-busy={isPending || undefined}
       className={cn(
-        "inline-flex cursor-pointer items-center justify-start leading-tight font-extrabold whitespace-nowrap",
-        "transition-colors duration-150",
-        "disabled:cursor-not-allowed disabled:opacity-45",
+        BASE_CLASSES,
+        "cursor-pointer disabled:cursor-not-allowed disabled:opacity-45",
         VARIANT_CLASSES[variant],
         SIZE_CLASSES[size],
         className,
@@ -100,8 +101,7 @@ export function ButtonLink({
     <Link
       href={href}
       className={cn(
-        "inline-flex items-center justify-start leading-tight font-extrabold whitespace-nowrap",
-        "transition-colors duration-150",
+        BASE_CLASSES,
         VARIANT_CLASSES[variant],
         SIZE_CLASSES[size],
         className,

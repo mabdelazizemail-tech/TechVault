@@ -2,8 +2,8 @@ import type { HTMLAttributes, InputHTMLAttributes, ReactNode } from "react";
 import { cn } from "@/lib/cn";
 
 /**
- * Small shared primitives (CLAUDE.md §16.3), in the Modernist style: flat panels,
- * square corners, flush-left type, rules doing the organising.
+ * Small shared primitives (CLAUDE.md §16.3): bordered panels, square corners,
+ * 2px rules, small uppercase labels.
  *
  * No business logic and no data access — enforced by the lint boundary on
  * components/ui.
@@ -15,7 +15,7 @@ import { cn } from "@/lib/cn";
 
 export function Panel({ className, children, ...props }: HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={cn("border-border bg-surface border", className)} {...props}>
+    <div className={cn("panel", className)} {...props}>
       {children}
     </div>
   );
@@ -34,15 +34,19 @@ export function PanelHeader({
   actions?: ReactNode;
 }) {
   return (
-    <div className="border-border flex items-start justify-between gap-4 border-b px-4 pt-3 pb-2.5">
+    <div className="rule-b flex items-center justify-between gap-3 px-4 py-3">
       <div className="min-w-0">
-        {kicker !== undefined && <p className="kicker text-primary-ink">{kicker}</p>}
-        <h2 className="text-foreground mt-0.5 truncate text-base">{title}</h2>
+        {kicker !== undefined && <p className="label-caps">{kicker}</p>}
+        <h2 className="text-foreground truncate text-sm font-bold tracking-tight uppercase">
+          {title}
+        </h2>
         {description !== undefined && (
           <p className="text-foreground-muted mt-0.5 text-xs">{description}</p>
         )}
       </div>
-      {actions !== undefined && <div className="flex shrink-0 gap-2">{actions}</div>}
+      {actions !== undefined && (
+        <div className="flex shrink-0 items-center gap-2">{actions}</div>
+      )}
     </div>
   );
 }
@@ -53,12 +57,13 @@ export function PanelHeader({
 
 export type BadgeTone = "neutral" | "success" | "warning" | "danger" | "info";
 
+/** The outline stays neutral; the tone colours the label, which always says it. */
 const BADGE_TONES: Record<BadgeTone, string> = {
-  neutral: "bg-surface-sunken text-foreground-muted",
-  success: "bg-success-subtle text-success",
-  warning: "bg-warning-subtle text-warning",
-  danger: "bg-danger-subtle text-danger",
-  info: "bg-info-subtle text-info",
+  neutral: "text-foreground",
+  success: "text-success",
+  warning: "text-warning",
+  danger: "text-danger",
+  info: "text-info",
 };
 
 export function Badge({
@@ -73,7 +78,7 @@ export function Badge({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 px-2.5 py-0.5 text-[11px] tracking-[0.02em] whitespace-nowrap",
+        "border-border inline-flex items-center gap-1 border-2 px-2 py-0.5 text-[11px] font-bold tracking-wide whitespace-nowrap uppercase",
         BADGE_TONES[tone],
         className,
       )}
@@ -110,10 +115,10 @@ export function TextInput({
   return (
     <div className="flex flex-col gap-1">
       {/* A label always exists and is always tied to its input (§17.5). */}
-      <label htmlFor={inputId} className="text-foreground-muted text-xs">
+      <label htmlFor={inputId} className="text-foreground text-xs font-semibold">
         {label}
         {required === true && (
-          <span aria-hidden="true" className="text-primary ms-0.5">
+          <span aria-hidden="true" className="text-danger ms-0.5">
             *
           </span>
         )}
@@ -128,15 +133,15 @@ export function TextInput({
             .join(" ") || undefined
         }
         className={cn(
-          "bg-surface-sunken text-foreground caret-primary min-h-9 w-full border px-2.5 py-1.5 text-sm",
-          "placeholder:text-foreground-subtle hover:border-foreground/45 focus-visible:border-primary focus-visible:outline-offset-0",
+          "bg-surface text-foreground min-h-10 w-full border-2 px-3 py-2 text-sm",
+          "placeholder:text-foreground-subtle hover:border-foreground-subtle focus-visible:border-foreground focus-visible:outline-offset-0",
           error !== undefined ? "border-danger" : "border-border-strong",
           className,
         )}
         {...props}
       />
       {hint !== undefined && (
-        <p id={hintId} className="text-foreground-subtle text-xs">
+        <p id={hintId} className="text-foreground-muted text-xs">
           {hint}
         </p>
       )}
@@ -155,7 +160,7 @@ export function TextInput({
 
 /**
  * Every list needs a real empty state explaining what the thing is and offering
- * the action that creates one (CLAUDE.md §17.4). Flush left, per the design.
+ * the action that creates one (CLAUDE.md §17.4).
  */
 export function EmptyState({
   title,
@@ -167,9 +172,9 @@ export function EmptyState({
   action?: ReactNode;
 }) {
   return (
-    <div className="flex flex-col items-start gap-1 px-4 py-9">
-      <p className="text-foreground text-[15px] font-extrabold">{title}</p>
-      <p className="text-foreground-muted max-w-[46ch] text-[13px]">{description}</p>
+    <div className="flex flex-col items-start gap-1 px-4 py-8">
+      <p className="text-foreground text-base font-bold">{title}</p>
+      <p className="text-foreground-muted max-w-[52ch] text-sm">{description}</p>
       {action !== undefined && <div className="mt-3">{action}</div>}
     </div>
   );
@@ -191,11 +196,11 @@ export function ErrorState({
   action?: ReactNode;
 }) {
   return (
-    <div className="flex flex-col items-start gap-1 px-4 py-9">
-      <p className="text-danger text-[15px] font-extrabold">{title}</p>
-      <p className="text-foreground-muted max-w-[56ch] text-[13px]">{message}</p>
+    <div className="flex flex-col items-start gap-1 px-4 py-8">
+      <p className="text-danger text-base font-bold">{title}</p>
+      <p className="text-foreground-muted max-w-[60ch] text-sm">{message}</p>
       {traceId !== undefined && (
-        <p className="text-foreground-subtle text-xs">
+        <p className="text-foreground-muted text-xs">
           Reference: <code className="font-mono">{traceId}</code>
         </p>
       )}
@@ -208,6 +213,10 @@ export function ErrorState({
 /* Page header                                                                */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * The band at the top of a screen: title, one line of context, primary actions. It
+ * runs edge to edge across the content column, cancelling the layout's padding.
+ */
 export function PageHeader({
   title,
   description,
@@ -218,20 +227,49 @@ export function PageHeader({
   actions?: ReactNode;
 }) {
   return (
-    <div className="flex flex-wrap items-end justify-between gap-4 pb-3.5">
+    <div className="bg-surface rule-b -mx-4 -mt-6 mb-6 flex flex-wrap items-end justify-between gap-4 px-4 py-5 sm:-mx-6 sm:px-6">
       <div className="min-w-0">
-        <h1 className="text-foreground text-[34px]" dir="auto">
+        <h1 className="text-foreground text-2xl font-bold tracking-tight" dir="auto">
           {title}
         </h1>
         {description !== undefined && (
-          <p className="text-foreground-muted mt-1 max-w-3xl text-[12.5px]">
-            {description}
-          </p>
+          <p className="text-foreground-muted mt-1 max-w-2xl text-sm">{description}</p>
         )}
       </div>
       {actions !== undefined && (
         <div className="flex flex-wrap items-center gap-2">{actions}</div>
       )}
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Key figure                                                                 */
+/* -------------------------------------------------------------------------- */
+
+/** One number on a dashboard: a caption, the figure, and a line of context. */
+export function StatCard({
+  label,
+  value,
+  note,
+  className,
+  children,
+}: {
+  label: string;
+  value: ReactNode;
+  note?: ReactNode;
+  className?: string;
+  /** Extra lines under the figure, such as totals per currency. */
+  children?: ReactNode;
+}) {
+  return (
+    <div className={cn("panel min-w-0 p-4", className)}>
+      <p className="label-caps">{label}</p>
+      <p className="text-foreground mt-2 truncate text-3xl font-bold tracking-tight tabular-nums">
+        {value}
+      </p>
+      {children}
+      {note !== undefined && <p className="text-foreground-muted mt-1 text-xs">{note}</p>}
     </div>
   );
 }

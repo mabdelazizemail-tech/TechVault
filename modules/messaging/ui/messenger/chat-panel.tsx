@@ -89,7 +89,7 @@ export function ChatPanel({
           type="button"
           onClick={actions.closePanel}
           aria-label="Close messages"
-          className="text-foreground-muted hover:bg-surface-hover hover:text-foreground grid size-8 cursor-pointer place-items-center rounded-full"
+          className="text-foreground-muted hover:bg-surface-hover hover:text-foreground grid size-8 cursor-pointer place-items-center"
         >
           <X aria-hidden="true" size={18} />
         </button>
@@ -114,7 +114,7 @@ export function ChatPanel({
             autoComplete="off"
             maxLength={100}
             autoFocus
-            className="bg-surface-sunken text-foreground placeholder:text-foreground-subtle focus-visible:border-primary border-border min-h-9 w-full rounded-full border ps-9 pe-3 text-sm focus-visible:outline-offset-0"
+            className="bg-surface-sunken text-foreground placeholder:text-foreground-subtle focus-visible:border-primary border-border min-h-9 w-full border ps-9 pe-3 text-sm focus-visible:outline-offset-0"
           />
         </div>
       </div>
@@ -147,11 +147,7 @@ export function ChatPanel({
                         aria-busy={opening === person.id || undefined}
                         className="hover:bg-surface-hover flex w-full cursor-pointer items-center gap-2.5 px-3 py-2 text-start disabled:cursor-wait"
                       >
-                        <Avatar
-                          name={person.name}
-                          online={onlineIds.has(person.id)}
-                          className="rounded-full"
-                        />
+                        <Avatar name={person.name} online={onlineIds.has(person.id)} />
                         <span className="min-w-0 flex-1">
                           <span
                             dir="auto"
@@ -192,7 +188,7 @@ export function ChatPanel({
               <ul aria-busy="true" className="animate-pulse">
                 {[0, 1, 2].map((index) => (
                   <li key={index} className="flex items-center gap-2.5 px-3 py-2.5">
-                    <span className="bg-surface-sunken size-10 rounded-full" />
+                    <span className="bg-surface-sunken size-10" />
                     <span className="flex flex-1 flex-col gap-1.5">
                       <span className="bg-surface-sunken h-3 w-32" />
                       <span className="bg-surface-sunken h-2.5 w-44" />
@@ -261,7 +257,7 @@ const ConversationRow = memo(function ConversationRow({
         <Avatar
           name={counterpart.name}
           online={counterpart.isActive ? isOnline : undefined}
-          className="size-10 rounded-full"
+          className="size-10"
         />
         <span className="min-w-0 flex-1">
           <span
@@ -295,7 +291,7 @@ const ConversationRow = memo(function ConversationRow({
         {unreadCount > 0 && (
           <span
             aria-label={`${unreadCount} unread`}
-            className="bg-primary text-primary-foreground grid h-5 min-w-5 shrink-0 place-items-center rounded-full px-1.5 text-[11px] font-extrabold"
+            className="bg-primary text-primary-foreground grid h-5 min-w-5 shrink-0 place-items-center px-1.5 text-[11px] font-extrabold"
           >
             {unreadCount > 99 ? "99+" : unreadCount}
           </span>

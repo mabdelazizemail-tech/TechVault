@@ -166,7 +166,7 @@ const ChatHead = memo(function ChatHead({
         onClick={() => onOpen(conversationId)}
         title={name}
         aria-label={`Open chat with ${name}${unread > 0 ? `, ${unread} unread` : ""}`}
-        className="bg-surface-raised text-foreground border-border-strong hover:bg-surface-hover grid size-12 cursor-pointer place-items-center rounded-full border-2 text-sm font-extrabold shadow-[0_8px_20px_color-mix(in_srgb,#2d2b2b_24%,transparent)]"
+        className="bg-surface-raised text-foreground border-border-strong hover:bg-surface-hover grid size-12 cursor-pointer place-items-center border-2 text-sm font-extrabold shadow-[0_8px_20px_color-mix(in_srgb,#2d2b2b_24%,transparent)]"
       >
         {initialsOf(name)}
       </button>
@@ -174,7 +174,7 @@ const ChatHead = memo(function ChatHead({
         <span
           aria-hidden="true"
           className={cn(
-            "border-surface absolute end-0 bottom-0 size-3.5 rounded-full border-2",
+            "border-surface absolute end-0 bottom-0 size-3.5 border-2",
             isOnline ? "bg-success" : "bg-foreground-subtle",
           )}
         />
@@ -182,7 +182,7 @@ const ChatHead = memo(function ChatHead({
       {unread > 0 && (
         <span
           aria-hidden="true"
-          className="bg-primary text-primary-foreground absolute -end-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full px-1 text-[11px] font-extrabold"
+          className="bg-primary text-primary-foreground absolute -end-1 -top-1 grid h-5 min-w-5 place-items-center px-1 text-[11px] font-extrabold"
         >
           {unread > 99 ? "99+" : unread}
         </span>
@@ -191,7 +191,7 @@ const ChatHead = memo(function ChatHead({
         type="button"
         onClick={() => onClose(conversationId)}
         aria-label={`Close chat with ${name}`}
-        className="bg-foreground text-surface absolute -start-1 -top-1 hidden size-5 cursor-pointer place-items-center rounded-full group-focus-within:grid group-hover:grid"
+        className="bg-foreground text-surface absolute -start-1 -top-1 hidden size-5 cursor-pointer place-items-center group-focus-within:grid group-hover:grid"
       >
         <X aria-hidden="true" size={12} />
       </button>

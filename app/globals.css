@@ -1,55 +1,59 @@
 @import "tailwindcss";
 
 /**
- * TechVault design tokens (CLAUDE.md §17.1), taken from the TechVault design
- * project: the Modernist system (`design/extracted/_ds/.../styles.css`) plus its
- * runtime theme layer (`tv-tokens.css`).
+ * TechVault design tokens (CLAUDE.md §17.1), from the TechVault redesign in Lovable
+ * (September 2026).
  *
- * The system is flat and architectural: Archivo throughout, zero corner radius,
- * strong rules instead of shadows, one red accent used sparingly for the primary
- * action and small emphasis. Components reference the SEMANTIC names below, never
- * a hex value, so the dark theme is a token swap.
+ * Flat and architectural: Archivo throughout, zero corner radius, 2px rules instead
+ * of shadows, neutral ink for primary actions and the active navigation, and one red
+ * used sparingly for the brand mark, the Messenger launcher, links in panel headers,
+ * focus rings and danger. Components reference the SEMANTIC names below, never a
+ * colour value, so the dark theme is a token swap.
  */
 
 @theme {
   /* Ground and surfaces -------------------------------------------------- */
-  --color-canvas: #f3f2f2;
-  --color-surface: #ffffff;
-  --color-surface-raised: #ffffff;
-  --color-surface-sunken: #eae9e9;
-  --color-surface-hover: color-mix(in srgb, #201e1d 6%, transparent);
-  --color-surface-selected: #eae9e9;
+  --color-canvas: oklch(98.5% 0 0);
+  --color-surface: oklch(100% 0 0);
+  --color-surface-raised: oklch(100% 0 0);
+  --color-surface-sunken: oklch(95.5% 0 0);
+  --color-surface-hover: oklch(95% 0 0);
+  --color-surface-selected: oklch(93% 0 0);
 
   /* Ink ------------------------------------------------------------------ */
-  --color-foreground: #201e1d;
-  --color-foreground-muted: color-mix(in srgb, #201e1d 74%, transparent);
-  --color-foreground-subtle: color-mix(in srgb, #201e1d 64%, transparent);
-  --color-foreground-inverse: #f3f2f2;
+  --color-foreground: oklch(16% 0 0);
+  --color-foreground-muted: oklch(44% 0 0);
+  --color-foreground-subtle: oklch(52% 0 0);
+  --color-foreground-inverse: oklch(100% 0 0);
 
-  /* Rules: a hairline for cell edges, a strong rule between major regions. */
-  --color-border: color-mix(in srgb, #201e1d 16%, transparent);
-  --color-border-strong: color-mix(in srgb, #201e1d 40%, transparent);
-  --color-border-focus: #ec3013;
+  /* Rules: 2px in the neutral line colour between regions and panels. */
+  --color-border: oklch(88% 0 0);
+  --color-border-strong: oklch(78% 0 0);
+  --color-border-focus: oklch(53% 0.21 27.5);
 
-  /* Accent --------------------------------------------------------------- */
-  --color-primary: #ec3013;
-  --color-primary-hover: #dd2b0f;
-  --color-primary-pressed: #ae1800;
-  --color-primary-ink: #ae1800;
-  --color-primary-subtle: #ffe0d9;
-  --color-primary-foreground: #f3f2f2;
+  /* Primary: ink. The active nav item, primary buttons, avatars. */
+  --color-primary: oklch(16% 0 0);
+  --color-primary-hover: oklch(30% 0 0);
+  --color-primary-pressed: oklch(8% 0 0);
+  /* Text-weight accent: links in panel headers, kickers, emphasis. */
+  --color-primary-ink: oklch(50% 0.2 27.5);
+  --color-primary-subtle: oklch(95% 0 0);
+  --color-primary-foreground: oklch(100% 0 0);
+
+  /* Brand red: the TV mark and the Messenger launcher. */
+  --color-brand: oklch(53% 0.21 27.5);
+  --color-brand-foreground: oklch(100% 0 0);
 
   /* Status --------------------------------------------------------------- */
-  --color-success: #1d6b3f;
-  --color-success-subtle: #dceee3;
-  --color-warning: #8a5a00;
-  --color-warning-subtle: #f6e8c8;
-  --color-danger: #ae1800;
-  --color-danger-hover: #7c1405;
-  --color-danger-subtle: #ffe0d9;
-  /* The system is mono: informational tags read as ink on a neutral fill. */
-  --color-info: #201e1d;
-  --color-info-subtle: #eae9e9;
+  --color-success: oklch(45% 0.11 155);
+  --color-success-subtle: oklch(95% 0.03 155);
+  --color-warning: oklch(50% 0.11 75);
+  --color-warning-subtle: oklch(95% 0.04 85);
+  --color-danger: oklch(53% 0.21 27.5);
+  --color-danger-hover: oklch(45% 0.19 27.5);
+  --color-danger-subtle: oklch(95% 0.03 27.5);
+  --color-info: oklch(45% 0.09 245);
+  --color-info-subtle: oklch(95% 0.02 245);
 
   /* Shape: no corner is ever rounded. */
   --radius-control: 0px;
@@ -59,80 +63,83 @@
   --font-sans: var(--font-archivo), system-ui, "Noto Sans Arabic", sans-serif;
 
   /* Layout ---------------------------------------------------------------- */
-  --spacing-sidebar: 15rem;
-  --spacing-header: 54px;
+  --spacing-sidebar: 16rem;
+  --spacing-header: 4rem;
 }
 
-/* Dark ground — values from tv-tokens.css `[data-tv-theme="dark"]`. Applied for a
-   system dark preference unless the user chose light, and always when they chose
-   dark. Tokens are redefined here; no component owns a dark-only colour. */
+/* Dark ground. Applied for a system dark preference unless the user chose light,
+   and always when they chose dark. Tokens only; no component owns a dark colour. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --color-canvas: #161514;
-    --color-surface: #1d1b1a;
-    --color-surface-raised: #1d1b1a;
-    --color-surface-sunken: #232120;
-    --color-surface-hover: color-mix(in srgb, #f1efee 8%, transparent);
-    --color-surface-selected: #232120;
-    --color-foreground: #f1efee;
-    --color-foreground-muted: color-mix(in srgb, #f1efee 76%, transparent);
-    --color-foreground-subtle: color-mix(in srgb, #f1efee 66%, transparent);
-    --color-foreground-inverse: #161514;
-    --color-border: color-mix(in srgb, #f1efee 13%, transparent);
-    --color-border-strong: color-mix(in srgb, #f1efee 34%, transparent);
-    --color-border-focus: #ff563c;
-    --color-primary: #ff563c;
-    --color-primary-hover: #ff9783;
-    --color-primary-pressed: #ffc4b8;
-    --color-primary-ink: #ff9783;
-    --color-primary-subtle: #4d170e;
-    --color-primary-foreground: #161514;
-    --color-success: #6fd39b;
-    --color-success-subtle: #17301f;
-    --color-warning: #e0b25f;
-    --color-warning-subtle: #332713;
-    --color-danger: #ff9783;
-    --color-danger-hover: #ffc4b8;
-    --color-danger-subtle: #3d1409;
-    --color-info: #f1efee;
-    --color-info-subtle: #2b2928;
+    --color-canvas: oklch(16% 0 0);
+    --color-surface: oklch(21% 0 0);
+    --color-surface-raised: oklch(21% 0 0);
+    --color-surface-sunken: oklch(25% 0 0);
+    --color-surface-hover: oklch(27% 0 0);
+    --color-surface-selected: oklch(30% 0 0);
+    --color-foreground: oklch(97% 0 0);
+    --color-foreground-muted: oklch(72% 0 0);
+    --color-foreground-subtle: oklch(64% 0 0);
+    --color-foreground-inverse: oklch(16% 0 0);
+    --color-border: oklch(33% 0 0);
+    --color-border-strong: oklch(45% 0 0);
+    --color-border-focus: oklch(62% 0.21 27.5);
+    --color-primary: oklch(97% 0 0);
+    --color-primary-hover: oklch(86% 0 0);
+    --color-primary-pressed: oklch(78% 0 0);
+    --color-primary-ink: oklch(70% 0.17 27.5);
+    --color-primary-subtle: oklch(27% 0 0);
+    --color-primary-foreground: oklch(16% 0 0);
+    --color-brand: oklch(62% 0.21 27.5);
+    --color-brand-foreground: oklch(14% 0 0);
+    --color-success: oklch(68% 0.13 155);
+    --color-success-subtle: oklch(26% 0.04 155);
+    --color-warning: oklch(78% 0.14 75);
+    --color-warning-subtle: oklch(26% 0.04 75);
+    --color-danger: oklch(68% 0.19 27.5);
+    --color-danger-hover: oklch(76% 0.15 27.5);
+    --color-danger-subtle: oklch(27% 0.06 27.5);
+    --color-info: oklch(72% 0.1 245);
+    --color-info-subtle: oklch(26% 0.03 245);
   }
 }
 
 :root[data-theme="dark"] {
-  --color-canvas: #161514;
-  --color-surface: #1d1b1a;
-  --color-surface-raised: #1d1b1a;
-  --color-surface-sunken: #232120;
-  --color-surface-hover: color-mix(in srgb, #f1efee 8%, transparent);
-  --color-surface-selected: #232120;
-  --color-foreground: #f1efee;
-  --color-foreground-muted: color-mix(in srgb, #f1efee 76%, transparent);
-  --color-foreground-subtle: color-mix(in srgb, #f1efee 66%, transparent);
-  --color-foreground-inverse: #161514;
-  --color-border: color-mix(in srgb, #f1efee 13%, transparent);
-  --color-border-strong: color-mix(in srgb, #f1efee 34%, transparent);
-  --color-border-focus: #ff563c;
-  --color-primary: #ff563c;
-  --color-primary-hover: #ff9783;
-  --color-primary-pressed: #ffc4b8;
-  --color-primary-ink: #ff9783;
-  --color-primary-subtle: #4d170e;
-  --color-primary-foreground: #161514;
-  --color-success: #6fd39b;
-  --color-success-subtle: #17301f;
-  --color-warning: #e0b25f;
-  --color-warning-subtle: #332713;
-  --color-danger: #ff9783;
-  --color-danger-hover: #ffc4b8;
-  --color-danger-subtle: #3d1409;
-  --color-info: #f1efee;
-  --color-info-subtle: #2b2928;
+  --color-canvas: oklch(16% 0 0);
+  --color-surface: oklch(21% 0 0);
+  --color-surface-raised: oklch(21% 0 0);
+  --color-surface-sunken: oklch(25% 0 0);
+  --color-surface-hover: oklch(27% 0 0);
+  --color-surface-selected: oklch(30% 0 0);
+  --color-foreground: oklch(97% 0 0);
+  --color-foreground-muted: oklch(72% 0 0);
+  --color-foreground-subtle: oklch(64% 0 0);
+  --color-foreground-inverse: oklch(16% 0 0);
+  --color-border: oklch(33% 0 0);
+  --color-border-strong: oklch(45% 0 0);
+  --color-border-focus: oklch(62% 0.21 27.5);
+  --color-primary: oklch(97% 0 0);
+  --color-primary-hover: oklch(86% 0 0);
+  --color-primary-pressed: oklch(78% 0 0);
+  --color-primary-ink: oklch(70% 0.17 27.5);
+  --color-primary-subtle: oklch(27% 0 0);
+  --color-primary-foreground: oklch(16% 0 0);
+  --color-brand: oklch(62% 0.21 27.5);
+  --color-brand-foreground: oklch(14% 0 0);
+  --color-success: oklch(68% 0.13 155);
+  --color-success-subtle: oklch(26% 0.04 155);
+  --color-warning: oklch(78% 0.14 75);
+  --color-warning-subtle: oklch(26% 0.04 75);
+  --color-danger: oklch(68% 0.19 27.5);
+  --color-danger-hover: oklch(76% 0.15 27.5);
+  --color-danger-subtle: oklch(27% 0.06 27.5);
+  --color-info: oklch(72% 0.1 245);
+  --color-info-subtle: oklch(26% 0.03 245);
 }
 
 @layer base {
   html {
-    font-size: 14px;
+    font-size: 16px;
     -webkit-text-size-adjust: 100%;
   }
 
@@ -140,16 +147,16 @@
     background-color: var(--color-canvas);
     color: var(--color-foreground);
     font-family: var(--font-sans);
-    line-height: 1.55;
+    line-height: 1.5;
   }
 
   h1,
   h2,
   h3,
   h4 {
-    font-weight: 800;
-    line-height: 1.12;
-    letter-spacing: -0.015em;
+    font-weight: 700;
+    line-height: 1.15;
+    letter-spacing: -0.025em;
   }
 
   /* Numbers line up down a column. */
@@ -159,7 +166,7 @@
   }
 
   ::selection {
-    background: color-mix(in srgb, var(--color-primary) 30%, transparent);
+    background: color-mix(in srgb, var(--color-brand) 25%, transparent);
   }
 
   /* Themed focus ring on every interactive element — never the browser default
@@ -191,6 +198,25 @@
   }
 }
 
+@layer components {
+  /* A bordered surface: the card of the design system. */
+  .panel {
+    border: 2px solid var(--color-border);
+    background-color: var(--color-surface);
+  }
+
+  /* 2px rules between regions, on logical sides so RTL mirrors them. */
+  .rule-b {
+    border-block-end: 2px solid var(--color-border);
+  }
+  .rule-t {
+    border-block-start: 2px solid var(--color-border);
+  }
+  .rule-e {
+    border-inline-end: 2px solid var(--color-border);
+  }
+}
+
 @layer utilities {
   .sr-only-focusable:not(:focus):not(:focus-within) {
     position: absolute;
@@ -201,10 +227,21 @@
     white-space: nowrap;
   }
 
+  /* The small uppercase label: KPI captions, sidebar groups, column heads. */
+  .label-caps {
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-foreground-muted);
+  }
+
   /* Kicker: the small uppercase label above a title. */
   .kicker {
-    font-size: 10px;
-    letter-spacing: 0.1em;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
   }
 

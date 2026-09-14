@@ -32,12 +32,12 @@ export function ThemeToggle() {
         document.documentElement.dataset.theme = next;
         document.cookie = `${THEME_COOKIE}=${next}; path=/; max-age=${ONE_YEAR_SECONDS}; samesite=lax`;
       }}
-      className="text-foreground hover:bg-surface-hover flex size-9 shrink-0 cursor-pointer items-center justify-center"
+      className="text-foreground hover:bg-surface-hover shrink-0 cursor-pointer p-2"
     >
       {theme === "dark" ? (
-        <Sun aria-hidden="true" size={17} strokeWidth={2} />
+        <Sun aria-hidden="true" className="size-5" />
       ) : (
-        <Moon aria-hidden="true" size={17} strokeWidth={2} />
+        <Moon aria-hidden="true" className="size-5" />
       )}
     </button>
   );

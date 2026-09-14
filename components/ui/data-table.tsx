@@ -99,10 +99,7 @@ export function DataTable<TRow>({
           <thead className="bg-surface sticky top-0 z-10">
             <tr>
               {selection !== undefined && (
-                <th
-                  scope="col"
-                  className="border-border-strong w-10 border-b-2 px-3 py-2"
-                >
+                <th scope="col" className="border-border w-10 border-b-2 px-4 py-2.5">
                   <input
                     type="checkbox"
                     aria-label="Select all rows on this page"
@@ -118,7 +115,7 @@ export function DataTable<TRow>({
                   style={column.width !== undefined ? { width: column.width } : undefined}
                   aria-sort={ariaSortFor(column, sort)}
                   className={cn(
-                    "border-border-strong text-foreground-muted border-b-2 px-3 py-2 text-[11px] font-normal tracking-[0.08em] whitespace-nowrap uppercase",
+                    "border-border label-caps border-b-2 px-4 py-2.5 whitespace-nowrap",
                     column.align === "end" ? "text-end" : "text-start",
                     column.hideOnMobile === true && "hidden md:table-cell",
                   )}
@@ -144,7 +141,7 @@ export function DataTable<TRow>({
                 className="border-border hover:bg-surface-hover border-b last:border-0"
               >
                 {selection !== undefined && (
-                  <td className="px-3 py-2 align-middle">
+                  <td className="px-4 py-3 align-middle">
                     <input
                       type="checkbox"
                       form={selection.formId}
@@ -159,7 +156,7 @@ export function DataTable<TRow>({
                   <td
                     key={column.key}
                     className={cn(
-                      "text-foreground px-3 py-2 align-middle",
+                      "text-foreground px-4 py-3 align-middle",
                       column.align === "end" ? "text-end tabular-nums" : "text-start",
                       column.hideOnMobile === true && "hidden md:table-cell",
                     )}
@@ -167,7 +164,7 @@ export function DataTable<TRow>({
                     {rowHref !== undefined && column.key === columns[0]?.key ? (
                       <Link
                         href={rowHref(row)}
-                        className="text-foreground font-extrabold underline-offset-3 hover:underline"
+                        className="text-foreground font-semibold underline-offset-3 hover:underline"
                       >
                         {column.cell(row)}
                       </Link>
@@ -260,7 +257,7 @@ export function Pagination({
   return (
     <nav
       aria-label="Pagination"
-      className="border-border-strong text-foreground-muted flex items-center justify-between gap-4 border-t-2 px-3 py-2 text-xs"
+      className="rule-t text-foreground-muted flex items-center justify-between gap-4 px-4 py-2.5 text-xs"
     >
       <span>
         {firstRow}–{lastRow} of {page.total}
@@ -303,7 +300,10 @@ function PageLink({
 }) {
   if (disabled) {
     return (
-      <span aria-disabled="true" className="px-2 py-1 opacity-45">
+      <span
+        aria-disabled="true"
+        className="border-border border-2 px-2.5 py-1 font-bold opacity-45"
+      >
         {label}
       </span>
     );
@@ -312,7 +312,7 @@ function PageLink({
   return (
     <Link
       href={`${basePath}${buildQuery(searchParams, { page: String(targetPage) })}`}
-      className="text-primary-ink hover:bg-primary/10 px-2 py-1 font-extrabold"
+      className="border-border text-foreground hover:bg-surface-hover border-2 px-2.5 py-1 font-bold"
     >
       {label}
     </Link>

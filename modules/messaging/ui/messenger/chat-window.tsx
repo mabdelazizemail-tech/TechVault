@@ -146,9 +146,9 @@ export function ChatWindow({
             <span className="sr-only" role="status">
               Loading conversation…
             </span>
-            <div className="bg-surface-sunken h-8 w-44 rounded-2xl" />
-            <div className="bg-surface-sunken h-10 w-52 self-end rounded-2xl" />
-            <div className="bg-surface-sunken h-8 w-36 rounded-2xl" />
+            <div className="bg-surface-sunken h-8 w-44" />
+            <div className="bg-surface-sunken h-10 w-52 self-end" />
+            <div className="bg-surface-sunken h-8 w-36" />
           </div>
         ) : (
           <>
@@ -202,7 +202,7 @@ function WindowHeader({
             actions.openPanel();
           }}
           aria-label="Back to chats"
-          className="text-foreground-muted hover:bg-surface-hover grid size-9 cursor-pointer place-items-center rounded-full"
+          className="text-foreground-muted hover:bg-surface-hover grid size-9 cursor-pointer place-items-center"
         >
           <ArrowLeft aria-hidden="true" size={18} />
         </button>
@@ -229,7 +229,7 @@ function WindowHeader({
           onClick={onMinimize}
           aria-label={`Minimise chat with ${name}`}
           title="Minimise"
-          className="text-foreground-muted hover:bg-surface-hover hover:text-foreground grid size-8 cursor-pointer place-items-center rounded-full"
+          className="text-foreground-muted hover:bg-surface-hover hover:text-foreground grid size-8 cursor-pointer place-items-center"
         >
           <Minus aria-hidden="true" size={17} />
         </button>
@@ -239,7 +239,7 @@ function WindowHeader({
         onClick={onClose}
         aria-label={`Close chat with ${name}`}
         title="Close"
-        className="text-foreground-muted hover:bg-surface-hover hover:text-foreground grid size-8 cursor-pointer place-items-center rounded-full"
+        className="text-foreground-muted hover:bg-surface-hover hover:text-foreground grid size-8 cursor-pointer place-items-center"
       >
         <X aria-hidden="true" size={17} />
       </button>
@@ -627,7 +627,6 @@ function ChatBody({
           <Avatar
             name={counterpart.name}
             online={counterpart.isActive ? isOnline : undefined}
-            className="rounded-full"
           />
         }
         compact={compact}
@@ -660,7 +659,7 @@ function ChatBody({
 
         {messages.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center gap-2 px-4 text-center">
-            <Avatar name={counterpart.name} className="size-14 rounded-full text-base" />
+            <Avatar name={counterpart.name} className="size-14 text-base" />
             <p dir="auto" className="text-foreground text-[14px] font-extrabold">
               {counterpart.name}
             </p>
@@ -720,7 +719,7 @@ function ChatBody({
           >
             <span
               aria-hidden="true"
-              className="bg-surface-sunken inline-flex gap-0.5 rounded-full px-2 py-1.5"
+              className="bg-surface-sunken inline-flex gap-0.5 px-2 py-1.5"
             >
               <span className="bg-foreground-subtle size-1.5 animate-bounce rounded-full" />
               <span className="bg-foreground-subtle size-1.5 animate-bounce rounded-full [animation-delay:120ms]" />
@@ -805,7 +804,7 @@ const MessageBubble = memo(function MessageBubble({
       <div
         title={formatTime(message.createdAt)}
         className={cn(
-          "max-w-[85%] rounded-2xl px-3 py-1.5 text-[13.5px] leading-snug",
+          "max-w-[85%] px-3 py-1.5 text-[13.5px] leading-snug",
           mine
             ? "bg-primary text-primary-foreground"
             : "bg-surface-sunken text-foreground",
@@ -960,13 +959,13 @@ function Composer({
           }}
           onBlur={() => onTyping("stop")}
           onKeyDown={onKeyDown}
-          className="bg-surface-sunken text-foreground placeholder:text-foreground-subtle focus-visible:border-primary border-border max-h-28 min-h-9 flex-1 resize-none rounded-2xl border px-3 py-1.5 text-sm focus-visible:outline-offset-0"
+          className="bg-surface-sunken text-foreground placeholder:text-foreground-subtle focus-visible:border-primary border-border max-h-28 min-h-9 flex-1 resize-none border px-3 py-1.5 text-sm focus-visible:outline-offset-0"
         />
         <button
           type="submit"
           disabled={draft.trim() === ""}
           aria-label="Send message"
-          className="text-primary-ink hover:bg-surface-hover grid size-9 shrink-0 cursor-pointer place-items-center rounded-full disabled:cursor-not-allowed disabled:opacity-40"
+          className="text-primary-ink hover:bg-surface-hover grid size-9 shrink-0 cursor-pointer place-items-center disabled:cursor-not-allowed disabled:opacity-40"
         >
           <SendHorizontal aria-hidden="true" size={19} />
         </button>

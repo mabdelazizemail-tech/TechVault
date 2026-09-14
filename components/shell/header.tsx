@@ -1,56 +1,36 @@
-import Link from "next/link";
 import type { ReactNode } from "react";
+import { Breadcrumbs } from "./breadcrumbs";
 import { ThemeToggle } from "./theme-toggle";
 
 /**
- * The platform header (CLAUDE.md §16.2): brand, theme switch, user menu. Identical
- * across every module.
+ * The platform header (CLAUDE.md §16.2): the menu button on small screens, where
+ * you are, the theme switch and the user menu. Identical across every module.
  *
- * The design also places global search, "Create", the AI assistant, tasks and
- * notifications here. Those features do not exist yet, so they are slots rather
- * than inert buttons — a control that does nothing is decorative UI (§17.6).
+ * Global search and notifications are slots rather than inert buttons: those
+ * features do not exist yet, and a control that does nothing is decorative UI
+ * (§17.6).
  */
 export function Header({
+  mobileNav,
   userMenu,
   search,
   notifications,
 }: {
+  mobileNav: ReactNode;
   userMenu: ReactNode;
   search?: ReactNode;
   notifications?: ReactNode;
 }) {
   return (
-    <header className="border-border-strong bg-surface flex h-(--spacing-header) shrink-0 items-center gap-3.5 border-b-2 px-4">
-      <Link
-        href="/dashboard"
-        className="text-foreground flex shrink-0 items-center gap-2.5"
-      >
-        <span
-          aria-hidden="true"
-          className="bg-primary text-primary-foreground grid size-[26px] place-items-center text-xs font-extrabold"
-        >
-          TV
-        </span>
-        <span className="text-base font-extrabold tracking-[-0.01em]">TechVault</span>
-      </Link>
-
-      {search !== undefined && (
-        <>
-          <Divider />
-          {search}
-        </>
-      )}
-
-      <div className="flex-1" />
-
+    <header className="bg-surface rule-b z-30 flex h-(--spacing-header) shrink-0 items-center gap-3 px-4">
+      {mobileNav}
+      <div className="min-w-0 flex-1">
+        <Breadcrumbs />
+      </div>
+      {search}
       {notifications}
       <ThemeToggle />
-      <Divider />
       {userMenu}
     </header>
   );
-}
-
-function Divider() {
-  return <span aria-hidden="true" className="bg-border h-6 w-px shrink-0" />;
 }

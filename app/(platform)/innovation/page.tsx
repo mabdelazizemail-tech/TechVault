@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Panel, PanelHeader } from "@/components/ui/primitives";
+import { PageHeader, Panel, PanelHeader } from "@/components/ui/primitives";
 import { INNOVATION_PERMISSIONS } from "@/modules/innovation/contracts/permissions";
 import {
   getOverview,
@@ -91,154 +91,153 @@ export default async function ThinkTankPage() {
   ].filter((card) => rights[card.permission] === true);
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-foreground text-[34px]">The Think Tank</h1>
-          <p className="text-foreground-muted mt-1 text-[13px]">
-            Innovation &amp; Knowledge Management
-          </p>
-        </div>
-        {canSubmit && (
-          <SubmitIdeaButton
-            categories={ideaCategories}
-            filesEnabled={isFileStorageAvailable()}
-          />
+    <div>
+      <PageHeader
+        title="The Think Tank"
+        description="Innovation & Knowledge Management — ideas, what we know, and the projects they become."
+        actions={
+          canSubmit ? (
+            <SubmitIdeaButton
+              categories={ideaCategories}
+              filesEnabled={isFileStorageAvailable()}
+            />
+          ) : undefined
+        }
+      />
+      <div className="flex flex-col gap-6">
+        {rights[INNOVATION_PERMISSIONS.ASSISTANT_ACCESS] === true && (
+          <form action="/innovation/ask" method="get" role="search" className="max-w-3xl">
+            <label className="bg-surface border-border-strong focus-within:border-primary flex items-center gap-3 border-2 px-4">
+              <span className="sr-only">Ask anything about our knowledge</span>
+              <Search
+                aria-hidden="true"
+                size={19}
+                className="text-foreground-muted shrink-0"
+              />
+              <input
+                type="search"
+                name="q"
+                placeholder="Ask anything about our knowledge…"
+                maxLength={500}
+                className="text-foreground placeholder:text-foreground-subtle min-h-12 flex-1 bg-transparent text-[15px] focus-visible:outline-none"
+              />
+            </label>
+          </form>
         )}
-      </div>
 
-      {rights[INNOVATION_PERMISSIONS.ASSISTANT_ACCESS] === true && (
-        <form action="/innovation/ask" method="get" role="search" className="max-w-3xl">
-          <label className="bg-surface border-border-strong focus-within:border-primary flex items-center gap-3 border-2 px-4">
-            <span className="sr-only">Ask anything about our knowledge</span>
-            <Search
-              aria-hidden="true"
-              size={19}
-              className="text-foreground-muted shrink-0"
-            />
-            <input
-              type="search"
-              name="q"
-              placeholder="Ask anything about our knowledge…"
-              maxLength={500}
-              className="text-foreground placeholder:text-foreground-subtle min-h-12 flex-1 bg-transparent text-[15px] focus-visible:outline-none"
-            />
-          </label>
-        </form>
-      )}
-
-      <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {cards.map(({ href, title, Icon, count, description }) => (
-          <li key={href}>
-            <Link
-              href={href}
-              className="bg-surface border-border hover:border-primary group flex h-full flex-col gap-3 border-2 p-5 transition-colors"
-            >
-              <span className="bg-primary text-primary-foreground grid size-11 place-items-center">
-                <Icon aria-hidden="true" size={22} />
-              </span>
-              <span>
-                <span className="text-foreground block text-[19px] font-extrabold">
-                  {title}
+        <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {cards.map(({ href, title, Icon, count, description }) => (
+            <li key={href}>
+              <Link
+                href={href}
+                className="bg-surface border-border hover:border-primary group flex h-full flex-col gap-3 border-2 p-5 transition-colors"
+              >
+                <span className="bg-primary text-primary-foreground grid size-11 place-items-center">
+                  <Icon aria-hidden="true" size={22} />
                 </span>
-                <span className="text-foreground-subtle text-[12px]">{count}</span>
-              </span>
-              <span className="text-foreground-muted text-[13px]">{description}</span>
-              <span className="text-primary-ink mt-auto text-[13px] font-extrabold">
-                Open <span aria-hidden="true">→</span>
-              </span>
-            </Link>
-          </li>
-        ))}
-      </ul>
+                <span>
+                  <span className="text-foreground block text-[19px] font-extrabold">
+                    {title}
+                  </span>
+                  <span className="text-foreground-subtle text-[12px]">{count}</span>
+                </span>
+                <span className="text-foreground-muted text-[13px]">{description}</span>
+                <span className="text-primary-ink mt-auto text-[13px] font-extrabold">
+                  Open <span aria-hidden="true">→</span>
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ul>
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        <Panel className="overflow-hidden lg:col-span-2">
-          <PanelHeader title="Recent activity" />
-          {overview.recent.length === 0 ? (
-            <p className="text-foreground-muted px-4 py-6 text-[13px]">
-              Nothing yet. Submit the first idea or add something you know.
-            </p>
-          ) : (
-            <ul>
-              {overview.recent.map((entry) => {
-                const { label, Icon } = ACTIVITY[entry.kind];
-                return (
-                  <li
-                    key={`${entry.kind}-${entry.id}`}
-                    className="border-border border-b last:border-0"
-                  >
-                    <Link
-                      href={entry.href}
-                      className="hover:bg-surface-hover flex items-center gap-3 px-4 py-2.5"
+        <div className="grid gap-4 lg:grid-cols-3">
+          <Panel className="overflow-hidden lg:col-span-2">
+            <PanelHeader title="Recent activity" />
+            {overview.recent.length === 0 ? (
+              <p className="text-foreground-muted px-4 py-6 text-[13px]">
+                Nothing yet. Submit the first idea or add something you know.
+              </p>
+            ) : (
+              <ul>
+                {overview.recent.map((entry) => {
+                  const { label, Icon } = ACTIVITY[entry.kind];
+                  return (
+                    <li
+                      key={`${entry.kind}-${entry.id}`}
+                      className="border-border border-b last:border-0"
                     >
-                      <Icon
-                        aria-hidden="true"
-                        size={16}
-                        className="text-foreground-muted shrink-0"
-                      />
-                      <span className="min-w-0 flex-1">
-                        <span className="text-foreground-subtle block text-[11px] font-extrabold tracking-[0.04em] uppercase">
-                          {label}
+                      <Link
+                        href={entry.href}
+                        className="hover:bg-surface-hover flex items-center gap-3 px-4 py-2.5"
+                      >
+                        <Icon
+                          aria-hidden="true"
+                          size={16}
+                          className="text-foreground-muted shrink-0"
+                        />
+                        <span className="min-w-0 flex-1">
+                          <span className="text-foreground-subtle block text-[11px] font-extrabold tracking-[0.04em] uppercase">
+                            {label}
+                          </span>
+                          <span
+                            dir="auto"
+                            className="text-foreground block truncate text-[13.5px]"
+                          >
+                            {entry.title}
+                          </span>
                         </span>
+                        <time
+                          dateTime={entry.at.toISOString()}
+                          className="text-foreground-subtle shrink-0 text-[11.5px]"
+                        >
+                          {formatRelative(entry.at)}
+                        </time>
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </Panel>
+
+          <Panel className="overflow-hidden">
+            <PanelHeader title="Trending ideas" />
+            {overview.trending.length === 0 ? (
+              <p className="text-foreground-muted px-4 py-6 text-[13px]">
+                No votes this month yet. Vote for the ideas you like.
+              </p>
+            ) : (
+              <ol>
+                {overview.trending.map((idea, index) => (
+                  <li key={idea.id} className="border-border border-b last:border-0">
+                    <Link
+                      href={`/innovation/ideas/${idea.id}`}
+                      className="hover:bg-surface-hover flex items-start gap-3 px-4 py-2.5"
+                    >
+                      <span className="text-foreground-subtle w-4 shrink-0 text-[13px] font-extrabold tabular-nums">
+                        {index + 1}
+                      </span>
+                      <span className="min-w-0 flex-1">
                         <span
                           dir="auto"
-                          className="text-foreground block truncate text-[13.5px]"
+                          className="text-foreground block text-[13.5px] font-semibold"
                         >
-                          {entry.title}
+                          {idea.title}
+                        </span>
+                        <span className="text-foreground-muted mt-0.5 flex items-center gap-2 text-[11.5px]">
+                          <TrendingUp aria-hidden="true" size={12} />
+                          {plural(idea.voteCount, "vote")} ·{" "}
+                          {plural(idea.commentCount, "comment")}
                         </span>
                       </span>
-                      <time
-                        dateTime={entry.at.toISOString()}
-                        className="text-foreground-subtle shrink-0 text-[11.5px]"
-                      >
-                        {formatRelative(entry.at)}
-                      </time>
+                      <IdeaStatusBadge status={idea.status} />
                     </Link>
                   </li>
-                );
-              })}
-            </ul>
-          )}
-        </Panel>
-
-        <Panel className="overflow-hidden">
-          <PanelHeader title="Trending ideas" />
-          {overview.trending.length === 0 ? (
-            <p className="text-foreground-muted px-4 py-6 text-[13px]">
-              No votes this month yet. Vote for the ideas you like.
-            </p>
-          ) : (
-            <ol>
-              {overview.trending.map((idea, index) => (
-                <li key={idea.id} className="border-border border-b last:border-0">
-                  <Link
-                    href={`/innovation/ideas/${idea.id}`}
-                    className="hover:bg-surface-hover flex items-start gap-3 px-4 py-2.5"
-                  >
-                    <span className="text-foreground-subtle w-4 shrink-0 text-[13px] font-extrabold tabular-nums">
-                      {index + 1}
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span
-                        dir="auto"
-                        className="text-foreground block text-[13.5px] font-semibold"
-                      >
-                        {idea.title}
-                      </span>
-                      <span className="text-foreground-muted mt-0.5 flex items-center gap-2 text-[11.5px]">
-                        <TrendingUp aria-hidden="true" size={12} />
-                        {plural(idea.voteCount, "vote")} ·{" "}
-                        {plural(idea.commentCount, "comment")}
-                      </span>
-                    </span>
-                    <IdeaStatusBadge status={idea.status} />
-                  </Link>
-                </li>
-              ))}
-            </ol>
-          )}
-        </Panel>
+                ))}
+              </ol>
+            )}
+          </Panel>
+        </div>
       </div>
     </div>
   );

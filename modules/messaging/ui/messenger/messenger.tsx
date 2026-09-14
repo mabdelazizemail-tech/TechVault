@@ -1,6 +1,6 @@
 "use client";
 
-import { MessageCircle } from "lucide-react";
+import { MessageSquare } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useEffect } from "react";
 import { useToast } from "@/components/ui/toast";
@@ -76,13 +76,13 @@ function MessengerLauncher() {
         aria-controls="messenger-panel"
         aria-label={count > 0 ? `Messages, ${count} unread` : "Messages"}
         title="Messages"
-        className="bg-primary text-primary-foreground hover:bg-primary-hover active:bg-primary-pressed fixed end-4 bottom-4 z-40 grid size-14 cursor-pointer place-items-center rounded-full shadow-[0_12px_32px_color-mix(in_srgb,#2d2b2b_30%,transparent)]"
+        className="bg-brand text-brand-foreground border-border fixed end-4 bottom-4 z-40 grid size-14 cursor-pointer place-items-center border-2 hover:brightness-95 active:brightness-90"
       >
-        <MessageCircle aria-hidden="true" size={24} />
+        <MessageSquare aria-hidden="true" className="size-6" />
         {count > 0 && (
           <span
             aria-hidden="true"
-            className="bg-surface text-primary-ink border-primary absolute -end-1 -top-1 grid h-6 min-w-6 place-items-center rounded-full border-2 px-1 text-[11px] font-extrabold"
+            className="bg-primary text-primary-foreground border-surface absolute -end-1 -top-1 grid h-5 min-w-5 place-items-center border-2 px-1 text-[11px] font-bold"
           >
             {count > 99 ? "99+" : count}
           </span>

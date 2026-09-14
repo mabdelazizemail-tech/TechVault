@@ -78,7 +78,7 @@ export function EmojiPicker({ onPick }: { onPick: (emoji: string) => void }) {
         aria-label="Insert emoji"
         aria-expanded={open}
         aria-controls={paletteId}
-        className="text-primary-ink hover:bg-surface-hover grid size-9 cursor-pointer place-items-center rounded-full"
+        className="text-primary-ink hover:bg-surface-hover grid size-9 cursor-pointer place-items-center"
       >
         <Smile aria-hidden="true" size={19} />
       </button>
@@ -98,7 +98,7 @@ export function EmojiPicker({ onPick }: { onPick: (emoji: string) => void }) {
                 setOpen(false);
               }}
               aria-label={`Insert ${emoji}`}
-              className="hover:bg-surface-hover grid size-8 cursor-pointer place-items-center rounded text-lg"
+              className="hover:bg-surface-hover grid size-8 cursor-pointer place-items-center text-lg"
             >
               {emoji}
             </button>

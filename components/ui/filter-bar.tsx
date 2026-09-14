@@ -105,7 +105,7 @@ export function FilterBar({
 
       <button
         type="submit"
-        className="border-border-strong text-foreground hover:bg-surface-hover min-h-9 cursor-pointer border px-3 text-sm font-extrabold"
+        className="border-border bg-surface text-foreground hover:bg-surface-hover min-h-9 cursor-pointer border-2 px-3 text-sm font-bold"
       >
         Apply
       </button>

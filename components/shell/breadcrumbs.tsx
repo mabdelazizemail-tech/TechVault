@@ -76,10 +76,13 @@ export function Breadcrumbs() {
   );
   const segments = pathname.split("/").filter((segment) => segment !== "");
 
-  const trail = [{ href: "/dashboard", label: "TechVault" }];
+  // Where you are, from the module down; on the dashboard itself, just "Dashboard".
+  const trail: { href: string; label: string }[] = [];
   segments.forEach((segment, index) => {
-    // The dashboard IS the root; listing it again would read "TechVault / Dashboard".
-    if (segment === "dashboard") return;
+    if (segment === "dashboard" && index === 0) {
+      trail.push({ href: "/dashboard", label: "Dashboard" });
+      return;
+    }
     const parent = segments[index - 1] ?? "";
     trail.push({
       href: `/${segments.slice(0, index + 1).join("/")}`,
@@ -91,17 +94,24 @@ export function Breadcrumbs() {
 
   return (
     <nav aria-label="Breadcrumb" className="min-w-0">
-      <ol className="text-foreground-muted flex flex-wrap items-center gap-[7px] text-[11.5px]">
+      <ol className="text-foreground-muted flex min-w-0 items-center gap-2 text-sm">
         {trail.map((crumb, index) => {
           const isLast = index === trail.length - 1;
           return (
-            <li key={crumb.href} className="flex min-w-0 items-center gap-[7px]">
+            <li
+              key={crumb.href}
+              className={
+                isLast
+                  ? "flex min-w-0 items-center gap-2"
+                  : "hidden min-w-0 items-center gap-2 sm:flex"
+              }
+            >
               {isLast ? (
                 <span
                   aria-current="page"
                   title={crumb.label}
                   dir="auto"
-                  className="text-foreground truncate font-extrabold"
+                  className="text-foreground truncate font-semibold"
                 >
                   {crumb.label}
                 </span>
