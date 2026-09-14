@@ -1775,6 +1775,20 @@ every Prisma upgrade, and if it regresses, remove the generator flag (behaviour 
 slower). Moving the database would require moving the function region with it. _Revisit when:_
 `relationJoins` reaches GA (drop the flag), or the database region changes.
 
+**ADR-018 — Verify the session once with the Auth server, then locally.** _Context:_ every page made two
+Supabase Auth round trips: `proxy.ts` and `getCurrentUser` both called `auth.getUser()`. The project signs
+tokens with an asymmetric ES256 key (published JWKS). _Decision:_ `proxy.ts` keeps `getUser()` — it runs on
+every matched request (pages, Server Actions, route handlers), refreshes the session and catches revoked
+sessions. `getCurrentUser` now uses `getClaims()` via `platform/auth/verify-token.ts`, which verifies the
+token signature against the public keys and its expiry locally; the keys are cached per process for 10
+minutes (public data, safe to share), and an unknown key id or a symmetric token makes `getClaims` go to the
+Auth server itself. The IAM `is_active` check still runs on every request. `lib/prisma.ts` sizes the pool from
+the URL: 10 on the transaction pooler (6543), 2 otherwise. _Consequences:_ one Auth round trip per page
+instead of two; negative unit tests prove a token signed by another key, altered, expired or without a subject
+is rejected. Revocation is enforced by the proxy check on the same request, so a route excluded from the proxy
+matcher must not rely on `getCurrentUser` alone. _Revisit when:_ the proxy matcher excludes a dynamic route,
+or the project returns to symmetric JWT signing.
+
 ---
 
 ## 28. Current Implementation Status
@@ -1925,9 +1939,6 @@ Open debt and risk:
 | 12  | **CRM pickers load capped option lists**                    | Company and contact selects load at most 200 / 300 options; a larger CRM needs type-ahead search                                                                                                                        | Replace with a search-as-you-type picker before the data grows                                                                                   | 🟢 Low    |
 | 13  | **Display time zone is fixed to Africa/Cairo**              | CRM timestamps render in one zone until users carry a preference                                                                                                                                                        | Read the zone from the user's profile once it is stored                                                                                          | 🟢 Low    |
 | 14  | **Every opportunity needs a company**                       | Required by the written spec and the schema (`account_id NOT NULL`); a deal with no company yet cannot be recorded                                                                                                      | Owner to confirm; relaxing it is a migration plus form changes                                                                                   | 🟢 Low    |
-
-| 15 | **Two Supabase Auth round trips per page** | `proxy.ts` and `getCurrentUser` each call `auth.getUser()`, a network call to Supabase Auth; measured in the ADR-017 audit, not changed because it is the token-verification control | Consider verifying the JWT locally (`getClaims` with asymmetric signing keys) in one of the two places, with a security review | 🟢 Low |
-| 16 | **Production pool capped at 2 connections per instance** | Set to survive the session pooler's 15-client cap; a page's parallel queries queue behind it (measured: dashboard data 2.8 s at 10 vs 5.1 s at 2 before co-location) | Once Vercel's `DATABASE_URL` is confirmed on the transaction pooler (6543), raise the cap | 🟢 Low |
 
 Add real debt here as it accrues, with why it was accepted and the trigger to repay it. A
 TODO in code without a row here is invisible debt.
