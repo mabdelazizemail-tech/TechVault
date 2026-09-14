@@ -1331,7 +1331,11 @@ contain any of them. Log the entity **ID**, not the entity.
 ✅ A Supabase project is provisioned (`yobzdfdqonzjbeuvnqox`, eu-west-1, PostgreSQL 17.6)
 with 4 migrations applied (schema, uuid defaults, unique indexes, RLS — ADR-015) and the
 seed run.
-📋 Nothing is deployed to a hosting environment yet.
+🟡 Deployed to Vercel (project `tech-vault`, Git-connected to `github.com/mabdelazizemail-tech/TechVault`,
+`main` → Production, `vercel.json` sets the Next.js framework). The build succeeds with no secrets
+(the Prisma client is created on first use), but **the project has no environment variables yet**,
+so every request fails at runtime with a 500 until the §23 variables are added in the Vercel
+dashboard and the deployment is redeployed. Deployment URLs sit behind Vercel Deployment Protection.
 
 **Environments:** `local` (developer machine, local or branch Supabase) → `preview` (per
 pull request, isolated data, **never** production data) → `production`. Never point a
