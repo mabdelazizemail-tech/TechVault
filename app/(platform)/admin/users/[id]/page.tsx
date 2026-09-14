@@ -13,7 +13,7 @@ import {
   listUserAdminOptions,
   type UserDetail,
 } from "@/platform/iam/services/user-admin-service";
-import { UserRowActions } from "../user-row-actions";
+import { UserDialogsHost, UserRowActions } from "../user-row-actions";
 import { UsersAdminProvider } from "../users-admin-context";
 
 export const metadata: Metadata = { title: "User details" };
@@ -251,6 +251,7 @@ export default async function UserDetailPage({
           </div>
         </div>
       </div>
+      <UserDialogsHost />
     </UsersAdminProvider>
   );
 }

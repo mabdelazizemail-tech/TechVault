@@ -8,7 +8,7 @@ import { IAM_PERMISSIONS } from "@/platform/iam/permissions";
 import { listUserAdminOptions } from "@/platform/iam/services/user-admin-service";
 import { listUsers, type UserListItem } from "@/platform/iam/services/user-service";
 import { UserFilters, type UserFilterValues } from "./user-filters";
-import { AddUserButton, UserRowActions } from "./user-row-actions";
+import { AddUserButton, UserDialogsHost, UserRowActions } from "./user-row-actions";
 import { UsersAdminProvider } from "./users-admin-context";
 
 export const metadata: Metadata = { title: "Users" };
@@ -117,6 +117,7 @@ export default async function UsersPage({
           />
         </Panel>
       </div>
+      <UserDialogsHost />
     </UsersAdminProvider>
   );
 }

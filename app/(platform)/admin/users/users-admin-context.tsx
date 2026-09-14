@@ -2,6 +2,7 @@
 
 import { createContext, useContext, type ReactNode } from "react";
 import { ToastProvider } from "@/components/ui/toast";
+import { UserDialogStateProvider } from "./user-dialog-state";
 import type { UserAdminOptions } from "@/platform/iam/services/user-admin-service";
 
 /**
@@ -41,7 +42,9 @@ export function UsersAdminProvider({
 }) {
   return (
     <UsersAdminContext.Provider value={value}>
-      <ToastProvider>{children}</ToastProvider>
+      <ToastProvider>
+        <UserDialogStateProvider>{children}</UserDialogStateProvider>
+      </ToastProvider>
     </UsersAdminContext.Provider>
   );
 }
