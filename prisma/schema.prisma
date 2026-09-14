@@ -15,7 +15,8 @@
 //     except to iam.users(id) for audit columns
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["relationJoins"]
 }
 
 datasource db {

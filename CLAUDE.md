@@ -1757,6 +1757,19 @@ recorded until rule (5) is relaxed. _Revisit when:_ activity volume makes the si
 (partition by `occurred_at`), reporting needs exchange rates (add a rates table and convert explicitly,
 for reporting only), or the owner wants company-less deals.
 
+**ADR-017 — Join-based relation loading and co-located compute.** _Context:_ a measured audit on
+2026-09-14 found that Postgres execution was negligible (~0.4 ms per statement) and that page time was
+network round trips: every statement cost ~80 ms because Vercel functions ran in `iad1` (Washington)
+against Supabase in `eu-west-1`, and Prisma loaded nested relations one query per level, so the
+per-request permission set took 21 statements in ~13 sequential rounds (1.06–1.13 s). _Decision:_
+(1) enable Prisma's `relationJoins` preview feature, which loads nested relations in one SQL
+statement; the permission set became 1 statement (95 ms) and the full unit, authz and integration
+suites pass unchanged; (2) pin Vercel functions to `dub1` (`vercel.json` `regions`), the same AWS
+region as the database. _Consequences:_ we depend on a Prisma preview feature — re-run the suites on
+every Prisma upgrade, and if it regresses, remove the generator flag (behaviour is identical, only
+slower). Moving the database would require moving the function region with it. _Revisit when:_
+`relationJoins` reaches GA (drop the flag), or the database region changes.
+
 ---
 
 ## 28. Current Implementation Status
