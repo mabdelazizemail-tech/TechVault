@@ -47,6 +47,7 @@ export {
   listTimeline,
   logActivity,
   setTaskCompleted,
+  updateActivity,
   type ActivityView,
 } from "../services/activity-service";
 

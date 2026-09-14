@@ -6,7 +6,8 @@ import { can, type Actor } from "@/platform/authz/authz";
 import { listDirectory } from "@/platform/iam/services/directory-service";
 import { logger, newCorrelationId } from "@/platform/observability/logger";
 import { CRM_PERMISSIONS } from "../contracts/permissions";
-import { listAccountOptions, listContactOptions } from "../contracts/service";
+import { listAccountOptions, listContactOptions, searchCrm } from "../contracts/service";
+import type { SearchHit } from "../contracts/types";
 
 /**
  * Option lists for the CRM dialogs, loaded when a dialog first opens instead of
@@ -78,6 +79,24 @@ export async function loadContactFormOptionsAction(): Promise<
       accountsIfPermitted(actor),
     ]);
     return { owners: ownerList, accounts };
+  });
+}
+
+/**
+ * Leads, companies, contacts and deals matching a query, for choosing what a new
+ * note is about. Scope-filtered by the CRM search service.
+ */
+export async function loadRecordMatchesAction(
+  query: string,
+): Promise<OptionsResult<SearchHit[]>> {
+  return load("crm.options.recordMatches", async (actor) => {
+    const results = await searchCrm(actor, query);
+    return [
+      ...results.leads,
+      ...results.accounts,
+      ...results.contacts,
+      ...results.opportunities,
+    ];
   });
 }
 

@@ -62,7 +62,7 @@ export default async function TasksPage({
         result={result}
         basePath="/crm/tasks"
         searchParams={params}
-        canCompleteTasks={rights[CRM_PERMISSIONS.ACTIVITY_UPDATE] === true}
+        canUpdateActivities={rights[CRM_PERMISSIONS.ACTIVITY_UPDATE] === true}
         emptyTitle={status === "done" ? "No completed tasks" : "No open tasks"}
         emptyDescription="Add a task from a record’s timeline with Add activity → Task."
       />

@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
 import { PageHeader } from "@/components/ui/primitives";
+import { CRM_PERMISSIONS } from "@/modules/crm/contracts/permissions";
 import { listActivities } from "@/modules/crm/contracts/service";
 import { ActivityList } from "@/modules/crm/ui/activity-list";
 import { FilterBar } from "@/modules/crm/ui/filter-bar";
+import { NewNoteButton } from "@/modules/crm/ui/new-note";
 import { flatParams } from "@/modules/crm/ui/page-helpers";
 import { getActor } from "@/platform/auth/current-user";
+import { canAll } from "@/platform/authz/authz";
 
 export const metadata: Metadata = { title: "Notes" };
 
@@ -18,13 +21,18 @@ export default async function NotesPage({
   const actor = await getActor();
   const mine = params.mine === "1";
 
-  const result = await listActivities(actor, params, { view: "notes", mine });
+  const [result, rights] = await Promise.all([
+    listActivities(actor, params, { view: "notes", mine }),
+    canAll(actor, [CRM_PERMISSIONS.ACTIVITY_CREATE, CRM_PERMISSIONS.ACTIVITY_UPDATE]),
+  ]);
+  const canCreate = rights[CRM_PERMISSIONS.ACTIVITY_CREATE] === true;
 
   return (
     <div>
       <PageHeader
         title="Notes"
         description="What people wrote down about leads, companies, contacts and deals, newest first."
+        actions={canCreate ? <NewNoteButton currentUserId={actor.id} /> : undefined}
       />
       <FilterBar
         basePath="/crm/notes"
@@ -44,9 +52,13 @@ export default async function NotesPage({
         result={result}
         basePath="/crm/notes"
         searchParams={params}
-        canCompleteTasks={false}
+        canUpdateActivities={rights[CRM_PERMISSIONS.ACTIVITY_UPDATE] === true}
         emptyTitle="No notes yet"
-        emptyDescription="Add a note from a record’s timeline with Add activity → Note."
+        emptyDescription={
+          canCreate
+            ? "Write the first one with New note, or from a record’s timeline with Add activity → Note."
+            : "Notes written about leads, companies, contacts and deals appear here."
+        }
       />
     </div>
   );

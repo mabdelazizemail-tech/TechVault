@@ -63,7 +63,7 @@ export default async function ActivitiesPage({
         result={result}
         basePath="/crm/activities"
         searchParams={params}
-        canCompleteTasks={rights[CRM_PERMISSIONS.ACTIVITY_UPDATE] === true}
+        canUpdateActivities={rights[CRM_PERMISSIONS.ACTIVITY_UPDATE] === true}
         emptyTitle="No activity matches"
         emptyDescription="Try clearing the filters. New activity is logged from a record’s timeline."
       />

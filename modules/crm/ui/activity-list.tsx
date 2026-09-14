@@ -8,14 +8,14 @@ export function ActivityList({
   result,
   basePath,
   searchParams,
-  canCompleteTasks,
+  canUpdateActivities,
   emptyTitle,
   emptyDescription,
 }: {
   result: Paginated<ActivityDto>;
   basePath: string;
   searchParams: Record<string, string | undefined>;
-  canCompleteTasks: boolean;
+  canUpdateActivities: boolean;
   emptyTitle: string;
   emptyDescription: string;
 }) {
@@ -30,7 +30,7 @@ export function ActivityList({
               <TimelineItem
                 key={activity.id}
                 activity={activity}
-                canCompleteTasks={canCompleteTasks}
+                canUpdateActivities={canUpdateActivities}
               />
             ))}
           </ol>

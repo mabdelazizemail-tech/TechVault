@@ -1,13 +1,17 @@
 import type { Prisma } from "@prisma/client";
 import { BusinessRuleError, NotFoundError } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
-import { recordAudit } from "@/platform/audit/audit";
+import { diffForAudit, recordAudit } from "@/platform/audit/audit";
 import { type Actor, requirePermission, scopeFilter } from "@/platform/authz/authz";
 import { scopeWhere } from "@/platform/authz/prisma-filter";
 import { publish } from "@/platform/events/publish";
 import { CRM_EVENTS } from "../contracts/events";
 import { CRM_PERMISSIONS } from "../contracts/permissions";
-import { activitySchema, listParamsSchema } from "../contracts/schemas";
+import {
+  activitySchema,
+  activityUpdateSchema,
+  listParamsSchema,
+} from "../contracts/schemas";
 import {
   ACTIVITY_TYPE_LABELS,
   type ActivityDto,
@@ -234,6 +238,106 @@ export async function logActivity(actor: Actor, rawInput: unknown): Promise<Acti
   });
 
   return toActivityDto(created);
+}
+
+/**
+ * Corrects a call, email, meeting, note or task: its subject, text and timing and,
+ * for a task, its due date, priority and assignee.
+ *
+ * What an activity is about cannot change — its type and linked records stay as
+ * logged — and the CRM's own status and stage entries cannot be edited at all, so
+ * the timeline remains a trustworthy history. Every edit is audited with the fields
+ * it changed; the note text itself is recorded only as changed, so the audit trail
+ * does not become a second copy of every note.
+ */
+export async function updateActivity(
+  actor: Actor,
+  activityId: string,
+  rawInput: unknown,
+): Promise<ActivityDto> {
+  if (!isUuid(activityId)) throw new NotFoundError("activity");
+  const existing = await prisma.crmActivity.findFirst({
+    where: { id: activityId, deletedAt: null },
+    select: {
+      type: true,
+      subject: true,
+      body: true,
+      occurredAt: true,
+      durationMinutes: true,
+      dueAt: true,
+      priority: true,
+      assigneeId: true,
+      createdBy: true,
+      creator: { select: userRefSelect },
+    },
+  });
+  if (existing === null) throw new NotFoundError("activity");
+
+  const target = toScopeTarget(existing.createdBy, existing.creator);
+  await assertCanRead(actor, CRM_PERMISSIONS.ACTIVITY_READ, target, "activity");
+  await requirePermission(actor, CRM_PERMISSIONS.ACTIVITY_UPDATE, target);
+  if (existing.type === "STATUS_CHANGE" || existing.type === "STAGE_CHANGE") {
+    throw new BusinessRuleError(
+      "Status and stage changes are recorded by the CRM and cannot be edited.",
+    );
+  }
+
+  const input = parseInput(activityUpdateSchema, rawInput);
+  const isTask = existing.type === "TASK";
+  const hasDuration = existing.type === "CALL" || existing.type === "MEETING";
+
+  const before = {
+    subject: existing.subject,
+    body: existing.body,
+    occurredAt: existing.occurredAt,
+    durationMinutes: existing.durationMinutes,
+    dueAt: existing.dueAt,
+    priority: existing.priority,
+    assigneeId: existing.assigneeId,
+  };
+  const after = {
+    subject: input.subject,
+    body: input.body,
+    occurredAt: isTask ? existing.occurredAt : (input.occurredAt ?? existing.occurredAt),
+    durationMinutes: hasDuration
+      ? (input.durationMinutes ?? null)
+      : existing.durationMinutes,
+    dueAt: isTask ? input.dueAt : existing.dueAt,
+    priority: isTask
+      ? (input.priority ?? existing.priority ?? "MEDIUM")
+      : existing.priority,
+    assigneeId: isTask ? (input.assigneeId ?? existing.assigneeId) : existing.assigneeId,
+  };
+  const changes = diffForAudit(before, after, ["body"]);
+
+  const updated = await prisma.$transaction(async (tx) => {
+    if (Object.keys(changes).length === 0) {
+      return tx.crmActivity.findUniqueOrThrow({
+        where: { id: activityId },
+        select: activitySelect,
+      });
+    }
+    const row = await tx.crmActivity.update({
+      where: { id: activityId },
+      data: { ...after, updatedBy: actor.id },
+      select: activitySelect,
+    });
+    await recordAudit(
+      {
+        ...auditFields(actor),
+        action: "crm.activity.updated",
+        module: CRM_MODULE,
+        entityType: "CrmActivity",
+        entityId: activityId,
+        summary: `Edited ${ACTIVITY_TYPE_LABELS[existing.type].toLowerCase()}: ${input.subject}`,
+        changes,
+      },
+      tx,
+    );
+    return row;
+  });
+
+  return toActivityDto(updated);
 }
 
 /** Marks a task done, or reopens it. */

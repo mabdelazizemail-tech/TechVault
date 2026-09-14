@@ -18,6 +18,7 @@ import {
   listTimeline,
   logActivity,
   moveOpportunity,
+  updateActivity,
   searchCrm,
   getCrmDashboard,
 } from "@/modules/crm/contracts/service";
@@ -492,6 +493,105 @@ describe.skipIf(!hasTestDatabase)("CRM workflow (integration)", () => {
           .filter((row) => row.stage.key !== "lead")
           .every((row) => row.count === 0 && row.totals.length === 0),
       ).toBe(true);
+    });
+  });
+
+  describe("editing activities", () => {
+    it("lets a salesperson correct a note, auditing what changed but not the note text", async () => {
+      const { leadId } = await createLead({ id: rep.id }, wizard());
+      const note = await logActivity(
+        { id: rep.id },
+        { type: "NOTE", subject: "Frist call", body: "Wants a demo", leadId },
+      );
+
+      const edited = await updateActivity({ id: rep.id }, note.id, {
+        subject: "First call",
+        body: "Wants a demo next week",
+      });
+
+      expect(edited.subject).toBe("First call");
+      expect(edited.body).toBe("Wants a demo next week");
+      expect(edited.type).toBe("NOTE");
+      expect(edited.related.map((ref) => ref.id)).toEqual([leadId]);
+
+      const audit = await testPrisma().auditLog.findFirstOrThrow({
+        where: { action: "crm.activity.updated", entityId: note.id },
+      });
+      expect(audit.changes).toEqual({
+        subject: { from: "Frist call", to: "First call" },
+        body: { from: "[changed]", to: "[changed]" },
+      });
+    });
+
+    it("corrects a task's due date and priority", async () => {
+      const { leadId } = await createLead({ id: rep.id }, wizard());
+      const task = await logActivity(
+        { id: rep.id },
+        { type: "TASK", subject: "Send pricing", priority: "LOW", leadId },
+      );
+
+      const edited = await updateActivity({ id: rep.id }, task.id, {
+        subject: "Send pricing",
+        dueAt: "2026-10-01T09:00:00.000Z",
+        priority: "HIGH",
+      });
+
+      expect(edited.priority).toBe("HIGH");
+      expect(edited.dueAt?.toISOString()).toBe("2026-10-01T09:00:00.000Z");
+      expect(edited.assignee?.id).toBe(rep.id);
+    });
+
+    it("writes nothing when nothing changed", async () => {
+      const { leadId } = await createLead({ id: rep.id }, wizard());
+      const note = await logActivity(
+        { id: rep.id },
+        { type: "NOTE", subject: "Same", body: "Same", leadId },
+      );
+      await updateActivity({ id: rep.id }, note.id, { subject: "Same", body: "Same" });
+      expect(
+        await testPrisma().auditLog.count({ where: { action: "crm.activity.updated" } }),
+      ).toBe(0);
+    });
+
+    it("refuses to edit the CRM's own status and stage entries", async () => {
+      const { leadId } = await createLead({ id: rep.id }, wizard());
+      const [statusEntry] = await listTimeline(
+        { id: rep.id },
+        { kind: "lead", id: leadId },
+      );
+      await expect(
+        updateActivity({ id: rep.id }, statusEntry?.id ?? "", { subject: "Rewritten" }),
+      ).rejects.toThrow(BusinessRuleError);
+    });
+
+    it("hides another person's note from an OWN-scoped salesperson and from outsiders", async () => {
+      const { leadId } = await createLead({ id: rep.id }, wizard());
+      const note = await logActivity(
+        { id: rep.id },
+        { type: "NOTE", subject: "Private", leadId },
+      );
+
+      await expect(
+        updateActivity({ id: ownRep.id }, note.id, { subject: "Mine now" }),
+      ).rejects.toThrow(NotFoundError);
+      await expect(
+        updateActivity({ id: outsider.id }, note.id, { subject: "Mine now" }),
+      ).rejects.toThrow(NotFoundError);
+      expect(
+        (await testPrisma().crmActivity.findUniqueOrThrow({ where: { id: note.id } }))
+          .subject,
+      ).toBe("Private");
+    });
+
+    it("requires a subject", async () => {
+      const { leadId } = await createLead({ id: rep.id }, wizard());
+      const note = await logActivity(
+        { id: rep.id },
+        { type: "NOTE", subject: "x", leadId },
+      );
+      await expect(
+        updateActivity({ id: rep.id }, note.id, { subject: "   " }),
+      ).rejects.toThrow(ValidationError);
     });
   });
 

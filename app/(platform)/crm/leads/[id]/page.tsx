@@ -245,7 +245,7 @@ export default async function LeadPage({ params }: { params: Promise<{ id: strin
           <ActivityTimeline
             activities={timeline}
             currentRecordId={lead.id}
-            canCompleteTasks={rights[CRM_PERMISSIONS.ACTIVITY_UPDATE] === true}
+            canUpdateActivities={rights[CRM_PERMISSIONS.ACTIVITY_UPDATE] === true}
           />
         </Panel>
       </div>

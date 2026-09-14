@@ -17,9 +17,10 @@ import {
   LOGGABLE_ACTIVITY_TYPES,
   PRIORITIES,
   PRIORITY_LABELS,
+  type ActivityDto,
   type LoggableActivityType,
 } from "../contracts/types";
-import { logActivityAction } from "./actions";
+import { logActivityAction, updateActivityAction } from "./actions";
 import { OptionsGate, useLazyOptions } from "./lazy-options";
 import { loadOwnerOptionsAction } from "./option-actions";
 
@@ -27,6 +28,8 @@ import { loadOwnerOptionsAction } from "./option-actions";
  * "+ Add Activity": logs a call, email, meeting, task or note against the records
  * passed in `links`, in a slide-over so the timeline stays visible. The assignee
  * list loads the first time the slide-over opens, not with the page.
+ *
+ * The same form edits an existing activity (see edit-activity.tsx).
  */
 
 export type ActivityLinks = {
@@ -36,10 +39,12 @@ export type ActivityLinks = {
   opportunityId?: string;
 };
 
-function nowLocalInput(): string {
-  const date = new Date();
-  date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
-  return date.toISOString().slice(0, 16);
+/** `datetime-local` wants local wall-clock time without a zone. */
+function toLocalInput(date: Date | null): string {
+  if (date === null) return "";
+  const copy = new Date(date);
+  copy.setMinutes(copy.getMinutes() - copy.getTimezoneOffset());
+  return copy.toISOString().slice(0, 16);
 }
 
 /** `datetime-local` values carry no zone; convert in the browser, where the zone is known. */
@@ -47,6 +52,10 @@ function localInputToIso(value: string): string | null {
   if (value === "") return null;
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
+}
+
+export function isLoggableType(type: string): type is LoggableActivityType {
+  return (LOGGABLE_ACTIVITY_TYPES as readonly string[]).includes(type);
 }
 
 export function AddActivityButton({
@@ -84,7 +93,7 @@ export function AddActivityButton({
           {({ owners }) => (
             <ActivityForm
               key={formKey}
-              links={links}
+              mode={{ kind: "create", links }}
               owners={owners}
               currentUserId={currentUserId}
               defaultType={defaultType}
@@ -97,27 +106,43 @@ export function AddActivityButton({
   );
 }
 
-function ActivityForm({
-  links,
+export type ActivityFormMode =
+  /** Log a new activity; `types` narrows the choice (a note-only form, say). */
+  | { kind: "create"; links: ActivityLinks; types?: readonly LoggableActivityType[] }
+  /** Correct an existing activity; its type and links are fixed. */
+  | { kind: "edit"; activity: ActivityDto };
+
+export function ActivityForm({
+  mode,
   owners,
   currentUserId,
   defaultType,
   onDone,
 }: {
-  links: ActivityLinks;
+  mode: ActivityFormMode;
   owners: { id: string; name: string }[];
   currentUserId: string;
   defaultType: LoggableActivityType;
   onDone: () => void;
 }) {
-  const [type, setType] = useState<LoggableActivityType>(defaultType);
-  const [subject, setSubject] = useState("");
-  const [body, setBody] = useState("");
-  const [occurredAt, setOccurredAt] = useState(nowLocalInput);
-  const [duration, setDuration] = useState("");
-  const [dueAt, setDueAt] = useState("");
-  const [priority, setPriority] = useState("MEDIUM");
-  const [assigneeId, setAssigneeId] = useState(currentUserId);
+  const editing = mode.kind === "edit" ? mode.activity : null;
+  const initialType =
+    editing !== null && isLoggableType(editing.type) ? editing.type : defaultType;
+
+  const [type, setType] = useState<LoggableActivityType>(initialType);
+  const [subject, setSubject] = useState(editing?.subject ?? "");
+  const [body, setBody] = useState(editing?.body ?? "");
+  const [occurredAt, setOccurredAt] = useState(() =>
+    toLocalInput(editing?.occurredAt ?? new Date()),
+  );
+  const [duration, setDuration] = useState(
+    editing?.durationMinutes != null ? String(editing.durationMinutes) : "",
+  );
+  const [dueAt, setDueAt] = useState(() => toLocalInput(editing?.dueAt ?? null));
+  const [priority, setPriority] = useState<string>(editing?.priority ?? "MEDIUM");
+  const [assigneeId, setAssigneeId] = useState(
+    editing !== null ? (editing.assignee?.id ?? "") : currentUserId,
+  );
   const [errors, setErrors] = useState<Record<string, string[]>>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -125,6 +150,17 @@ function ActivityForm({
   const isTask = type === "TASK";
   const hasDuration = type === "CALL" || type === "MEETING";
   const error = (key: string) => errors[key]?.[0];
+  const typeChoices =
+    mode.kind === "create" ? (mode.types ?? LOGGABLE_ACTIVITY_TYPES) : [];
+
+  // A task assigned to someone no longer in the directory keeps its assignee.
+  const assigneeOptions = owners.map((owner) => ({ value: owner.id, label: owner.name }));
+  if (
+    editing?.assignee != null &&
+    !assigneeOptions.some((option) => option.value === editing.assignee?.id)
+  ) {
+    assigneeOptions.unshift({ value: editing.assignee.id, label: editing.assignee.name });
+  }
 
   return (
     <form
@@ -134,8 +170,7 @@ function ActivityForm({
         event.preventDefault();
         setFormError(null);
         startTransition(async () => {
-          const result = await logActivityAction({
-            type,
+          const fields = {
             subject,
             body,
             occurredAt: isTask ? null : localInputToIso(occurredAt),
@@ -143,8 +178,11 @@ function ActivityForm({
             dueAt: isTask ? localInputToIso(dueAt) : null,
             priority: isTask ? priority : "",
             assigneeId: isTask ? assigneeId : "",
-            ...links,
-          });
+          };
+          const result =
+            mode.kind === "create"
+              ? await logActivityAction({ type, ...fields, ...mode.links })
+              : await updateActivityAction(mode.activity.id, fields);
           if (result.ok) {
             onDone();
           } else {
@@ -154,16 +192,18 @@ function ActivityForm({
         });
       }}
     >
-      <PillGroup
-        name="activity-type"
-        legend="Type"
-        options={LOGGABLE_ACTIVITY_TYPES.map((value) => ({
-          value,
-          label: ACTIVITY_TYPE_LABELS[value],
-        }))}
-        value={type}
-        onValueChange={(value) => setType(value as LoggableActivityType)}
-      />
+      {typeChoices.length > 1 && (
+        <PillGroup
+          name="activity-type"
+          legend="Type"
+          options={typeChoices.map((value) => ({
+            value,
+            label: ACTIVITY_TYPE_LABELS[value],
+          }))}
+          value={type}
+          onValueChange={(value) => setType(value as LoggableActivityType)}
+        />
+      )}
 
       <Field
         label={type === "NOTE" ? "Title" : "Subject"}
@@ -233,7 +273,7 @@ function ActivityForm({
               id="activity-assignee"
               value={assigneeId}
               onChange={(event) => setAssigneeId(event.target.value)}
-              options={owners.map((owner) => ({ value: owner.id, label: owner.name }))}
+              options={assigneeOptions}
             />
           </Field>
         </div>
@@ -277,7 +317,11 @@ function ActivityForm({
           Cancel
         </Button>
         <Button type="submit" variant="primary" isPending={isPending}>
-          {isPending ? "Saving…" : `Save ${ACTIVITY_TYPE_LABELS[type].toLowerCase()}`}
+          {isPending
+            ? "Saving…"
+            : editing !== null
+              ? "Save changes"
+              : `Save ${ACTIVITY_TYPE_LABELS[type].toLowerCase()}`}
         </Button>
       </DialogActions>
     </form>

@@ -160,7 +160,7 @@ export default async function ContactPage({
           <ActivityTimeline
             activities={timeline}
             currentRecordId={contact.id}
-            canCompleteTasks={rights[CRM_PERMISSIONS.ACTIVITY_UPDATE] === true}
+            canUpdateActivities={rights[CRM_PERMISSIONS.ACTIVITY_UPDATE] === true}
           />
         </Panel>
       </div>

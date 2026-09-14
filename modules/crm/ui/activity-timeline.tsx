@@ -19,6 +19,7 @@ import {
 import { PriorityBadge } from "./badges";
 import { formatDateTime, formatRelative, isPast } from "./format";
 import { recordHref } from "./links";
+import { EditActivityButton } from "./edit-activity";
 import { TaskToggle } from "./task-toggle";
 
 /**
@@ -39,13 +40,14 @@ const TYPE_ICON: Record<ActivityType, LucideIcon> = {
 export function ActivityTimeline({
   activities,
   currentRecordId,
-  canCompleteTasks,
+  canUpdateActivities,
   emptyAction,
 }: {
   activities: ActivityDto[];
   /** Hidden from the "related" chips, since the reader is already on it. */
   currentRecordId?: string;
-  canCompleteTasks: boolean;
+  /** Holds `crm.activity.update`: may complete tasks and edit entries (re-checked on the server). */
+  canUpdateActivities: boolean;
   emptyAction?: React.ReactNode;
 }) {
   if (activities.length === 0) {
@@ -65,7 +67,7 @@ export function ActivityTimeline({
           key={activity.id}
           activity={activity}
           currentRecordId={currentRecordId}
-          canCompleteTasks={canCompleteTasks}
+          canUpdateActivities={canUpdateActivities}
         />
       ))}
     </ol>
@@ -75,11 +77,11 @@ export function ActivityTimeline({
 export function TimelineItem({
   activity,
   currentRecordId,
-  canCompleteTasks,
+  canUpdateActivities,
 }: {
   activity: ActivityDto;
   currentRecordId?: string;
-  canCompleteTasks: boolean;
+  canUpdateActivities: boolean;
 }) {
   const Icon = TYPE_ICON[activity.type];
   const isSystem = activity.type === "STATUS_CHANGE" || activity.type === "STAGE_CHANGE";
@@ -115,13 +117,18 @@ export function TimelineItem({
           >
             {activity.subject}
           </p>
-          <time
-            dateTime={activity.occurredAt.toISOString()}
-            title={formatDateTime(activity.occurredAt)}
-            className="text-foreground-subtle shrink-0 text-[11px]"
-          >
-            {formatDateTime(activity.occurredAt)}
-          </time>
+          <span className="flex shrink-0 items-center gap-1">
+            <time
+              dateTime={activity.occurredAt.toISOString()}
+              title={formatDateTime(activity.occurredAt)}
+              className="text-foreground-subtle text-[11px]"
+            >
+              {formatDateTime(activity.occurredAt)}
+            </time>
+            {canUpdateActivities && !isSystem && (
+              <EditActivityButton activity={activity} />
+            )}
+          </span>
         </div>
 
         <p className="text-foreground-muted mt-0.5 text-[11.5px]">
@@ -141,7 +148,7 @@ export function TimelineItem({
 
         {isTask && (
           <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
-            {canCompleteTasks ? (
+            {canUpdateActivities ? (
               <TaskToggle
                 activityId={activity.id}
                 completed={isDone}

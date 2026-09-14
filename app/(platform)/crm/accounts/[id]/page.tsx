@@ -257,7 +257,7 @@ export default async function AccountPage({
             <ActivityTimeline
               activities={timeline}
               currentRecordId={account.id}
-              canCompleteTasks={rights[CRM_PERMISSIONS.ACTIVITY_UPDATE] === true}
+              canUpdateActivities={rights[CRM_PERMISSIONS.ACTIVITY_UPDATE] === true}
             />
           </Panel>
         </div>

@@ -266,7 +266,7 @@ export default async function OpportunityPage({
           <ActivityTimeline
             activities={timeline}
             currentRecordId={opportunity.id}
-            canCompleteTasks={rights[CRM_PERMISSIONS.ACTIVITY_UPDATE] === true}
+            canUpdateActivities={rights[CRM_PERMISSIONS.ACTIVITY_UPDATE] === true}
           />
         </Panel>
       </div>

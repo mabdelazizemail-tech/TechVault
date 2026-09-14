@@ -293,24 +293,34 @@ const optionalDateTime = (message: string) =>
     )
     .refine((value) => value === null || !Number.isNaN(value.getTime()), { message });
 
-export const activitySchema = z
-  .object({
+/** What an activity says and when — everything a person may later correct. */
+const activityFields = z.object({
+  subject: requiredText("Subject"),
+  body: optionalText(8000),
+  occurredAt: optionalDateTime("Choose a valid date and time."),
+  durationMinutes: z.preprocess(
+    blankToUndefined,
+    z.coerce
+      .number()
+      .int()
+      .min(0)
+      .max(24 * 60)
+      .optional(),
+  ),
+  dueAt: optionalDateTime("Choose a valid due date."),
+  priority: optionalEnum(PRIORITIES),
+  assigneeId: optionalUuid,
+});
+
+/**
+ * Editing an activity. Its type and the records it is linked to are not part of
+ * this schema: what an activity is about never changes after it is logged.
+ */
+export const activityUpdateSchema = activityFields;
+
+export const activitySchema = activityFields
+  .extend({
     type: z.enum(LOGGABLE_ACTIVITY_TYPES),
-    subject: requiredText("Subject"),
-    body: optionalText(8000),
-    occurredAt: optionalDateTime("Choose a valid date and time."),
-    durationMinutes: z.preprocess(
-      blankToUndefined,
-      z.coerce
-        .number()
-        .int()
-        .min(0)
-        .max(24 * 60)
-        .optional(),
-    ),
-    dueAt: optionalDateTime("Choose a valid due date."),
-    priority: optionalEnum(PRIORITIES),
-    assigneeId: optionalUuid,
     leadId: optionalUuid,
     accountId: optionalUuid,
     contactId: optionalUuid,

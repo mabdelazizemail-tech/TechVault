@@ -179,6 +179,15 @@ export async function logActivityAction(
   return run("crm.activity.log", (actor) => crm.logActivity(actor, input));
 }
 
+export async function updateActivityAction(
+  activityId: string,
+  input: unknown,
+): Promise<ActionResult<ActivityDto>> {
+  return run("crm.activity.update", (actor) =>
+    crm.updateActivity(actor, activityId, input),
+  );
+}
+
 export async function setTaskCompletedAction(
   activityId: string,
   completed: boolean,

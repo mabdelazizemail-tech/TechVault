@@ -33,7 +33,7 @@ export default async function CrmDashboardPage() {
 
   const canReadLeads = rights[CRM_PERMISSIONS.LEAD_READ] === true;
   const canReadPipeline = rights[CRM_PERMISSIONS.OPPORTUNITY_READ] === true;
-  const canCompleteTasks = rights[CRM_PERMISSIONS.ACTIVITY_UPDATE] === true;
+  const canUpdateActivities = rights[CRM_PERMISSIONS.ACTIVITY_UPDATE] === true;
   const maxCount = Math.max(1, ...dashboard.stageBreakdown.map((row) => row.count));
 
   return (
@@ -190,7 +190,7 @@ export default async function CrmDashboardPage() {
                 <TimelineItem
                   key={task.id}
                   activity={task}
-                  canCompleteTasks={canCompleteTasks}
+                  canUpdateActivities={canUpdateActivities}
                 />
               ))}
             </ol>
@@ -221,7 +221,10 @@ export default async function CrmDashboardPage() {
             <ol className="lg:columns-2 lg:gap-0">
               {dashboard.recentActivity.map((activity) => (
                 <div key={activity.id} className="break-inside-avoid">
-                  <TimelineItem activity={activity} canCompleteTasks={canCompleteTasks} />
+                  <TimelineItem
+                    activity={activity}
+                    canUpdateActivities={canUpdateActivities}
+                  />
                 </div>
               ))}
             </ol>
