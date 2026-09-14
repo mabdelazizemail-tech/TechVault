@@ -6,11 +6,7 @@ import { Plus } from "lucide-react";
 import { ButtonLink } from "@/components/ui/button";
 import { PageHeader, Panel, PanelHeader } from "@/components/ui/primitives";
 import { CRM_PERMISSIONS } from "@/modules/crm/contracts/permissions";
-import {
-  getContact,
-  listAccountOptions,
-  listTimeline,
-} from "@/modules/crm/contracts/service";
+import { getContact, listTimeline } from "@/modules/crm/contracts/service";
 import { ActivityTimeline } from "@/modules/crm/ui/activity-timeline";
 import { AddActivityButton } from "@/modules/crm/ui/add-activity";
 import { ContactFormButton } from "@/modules/crm/ui/contact-form";
@@ -20,7 +16,6 @@ import { orNotFound, uuidParam } from "@/modules/crm/ui/page-helpers";
 import { RelatedOpportunities } from "@/modules/crm/ui/related-opportunities";
 import { getActor } from "@/platform/auth/current-user";
 import { canAll } from "@/platform/authz/authz";
-import { listDirectory } from "@/platform/iam/services/directory-service";
 
 export const metadata: Metadata = { title: "Contact" };
 
@@ -45,19 +40,12 @@ export default async function ContactPage({
     CRM_PERMISSIONS.ACTIVITY_CREATE,
     CRM_PERMISSIONS.ACTIVITY_UPDATE,
   ]);
-  const [contact, rights, timeline, owners, accounts] = await Promise.all([
+  const [contact, rights, timeline] = await Promise.all([
     orNotFound(getContact(actor, id)),
     rightsPromise,
     rightsPromise.then((granted) =>
       granted[CRM_PERMISSIONS.ACTIVITY_READ] === true
         ? listTimeline(actor, { kind: "contact", id })
-        : [],
-    ),
-    listDirectory(actor),
-    rightsPromise.then((granted) =>
-      granted[CRM_PERMISSIONS.CONTACT_UPDATE] === true &&
-      granted[CRM_PERMISSIONS.ACCOUNT_READ] === true
-        ? listAccountOptions(actor)
         : [],
     ),
   ]);
@@ -78,14 +66,7 @@ export default async function ContactPage({
           .join(" · ")}
         actions={
           <>
-            {canEdit && (
-              <ContactFormButton
-                contact={contact}
-                accounts={accounts}
-                owners={owners}
-                currentUserId={actor.id}
-              />
-            )}
+            {canEdit && <ContactFormButton contact={contact} currentUserId={actor.id} />}
             {contact.account !== null &&
               rights[CRM_PERMISSIONS.OPPORTUNITY_CREATE] === true && (
                 <ButtonLink
@@ -171,7 +152,6 @@ export default async function ContactPage({
               rights[CRM_PERMISSIONS.ACTIVITY_CREATE] === true ? (
                 <AddActivityButton
                   links={{ contactId: contact.id, accountId: contact.account?.id }}
-                  owners={owners}
                   currentUserId={actor.id}
                 />
               ) : undefined

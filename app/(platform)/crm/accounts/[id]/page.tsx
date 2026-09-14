@@ -19,7 +19,6 @@ import { orNotFound, uuidParam } from "@/modules/crm/ui/page-helpers";
 import { RelatedOpportunities } from "@/modules/crm/ui/related-opportunities";
 import { getActor } from "@/platform/auth/current-user";
 import { canAll } from "@/platform/authz/authz";
-import { listDirectory } from "@/platform/iam/services/directory-service";
 
 export const metadata: Metadata = { title: "Company" };
 
@@ -44,7 +43,7 @@ export default async function AccountPage({
     CRM_PERMISSIONS.ACTIVITY_CREATE,
     CRM_PERMISSIONS.ACTIVITY_UPDATE,
   ]);
-  const [account, rights, timeline, owners] = await Promise.all([
+  const [account, rights, timeline] = await Promise.all([
     orNotFound(getAccount(actor, id)),
     rightsPromise,
     rightsPromise.then((granted) =>
@@ -52,7 +51,6 @@ export default async function AccountPage({
         ? listTimeline(actor, { kind: "account", id })
         : [],
     ),
-    listDirectory(actor),
   ]);
 
   const location = [account.city, account.country]
@@ -72,11 +70,7 @@ export default async function AccountPage({
         actions={
           <>
             {rights[CRM_PERMISSIONS.ACCOUNT_UPDATE] === true && (
-              <AccountFormButton
-                account={account}
-                owners={owners}
-                currentUserId={actor.id}
-              />
+              <AccountFormButton account={account} currentUserId={actor.id} />
             )}
             {rights[CRM_PERMISSIONS.OPPORTUNITY_CREATE] === true && (
               <ButtonLink
@@ -166,7 +160,6 @@ export default async function AccountPage({
                 rights[CRM_PERMISSIONS.CONTACT_CREATE] === true ? (
                   <ContactFormButton
                     accounts={thisAccount}
-                    owners={owners}
                     currentUserId={actor.id}
                     defaultAccountId={account.id}
                     variant="secondary"
@@ -256,7 +249,6 @@ export default async function AccountPage({
                 rights[CRM_PERMISSIONS.ACTIVITY_CREATE] === true ? (
                   <AddActivityButton
                     links={{ accountId: account.id }}
-                    owners={owners}
                     currentUserId={actor.id}
                   />
                 ) : undefined

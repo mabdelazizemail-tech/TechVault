@@ -7,10 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import type { ContactDetail } from "../contracts/types";
 import { FormLoading } from "./form-loading";
+import { OptionsGate, useLazyOptions } from "./lazy-options";
+import { loadContactFormOptionsAction } from "./option-actions";
 
 /**
- * Create or edit a contact, in a slide-over. The form loads the first time the
- * slide-over opens, keeping its schema out of the page's first load.
+ * Create or edit a contact, in a slide-over. The form, owner list and company list
+ * load the first time the slide-over opens, keeping them out of the page's first
+ * load. A company page passes `accounts` to preset the only valid company.
  */
 
 const ContactForm = dynamic(
@@ -21,20 +24,19 @@ const ContactForm = dynamic(
 export function ContactFormButton({
   contact,
   accounts,
-  owners,
   currentUserId,
   defaultAccountId,
   variant,
 }: {
   contact?: ContactDetail;
-  accounts: { id: string; name: string }[];
-  owners: { id: string; name: string }[];
+  accounts?: { id: string; name: string }[];
   currentUserId: string;
   defaultAccountId?: string;
   variant?: "primary" | "secondary";
 }) {
   const [open, setOpen] = useState(false);
   const [formKey, setFormKey] = useState(0);
+  const options = useLazyOptions(loadContactFormOptionsAction, open);
   const isEdit = contact !== undefined;
 
   return (
@@ -61,15 +63,19 @@ export function ContactFormButton({
         title={isEdit ? "Edit contact" : "New contact"}
         variant="sheet"
       >
-        <ContactForm
-          key={formKey}
-          contact={contact}
-          accounts={accounts}
-          owners={owners}
-          currentUserId={currentUserId}
-          defaultAccountId={defaultAccountId}
-          onDone={() => setOpen(false)}
-        />
+        <OptionsGate state={options}>
+          {(loaded) => (
+            <ContactForm
+              key={formKey}
+              contact={contact}
+              accounts={accounts ?? loaded.accounts}
+              owners={loaded.owners}
+              currentUserId={currentUserId}
+              defaultAccountId={defaultAccountId}
+              onDone={() => setOpen(false)}
+            />
+          )}
+        </OptionsGate>
       </Dialog>
     </>
   );

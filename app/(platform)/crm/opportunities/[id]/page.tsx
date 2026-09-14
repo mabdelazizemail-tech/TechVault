@@ -8,8 +8,6 @@ import { cn } from "@/lib/cn";
 import { CRM_PERMISSIONS } from "@/modules/crm/contracts/permissions";
 import {
   getOpportunity,
-  listAccountOptions,
-  listContactOptions,
   listStages,
   listTimeline,
 } from "@/modules/crm/contracts/service";
@@ -29,7 +27,6 @@ import { orNotFound, uuidParam } from "@/modules/crm/ui/page-helpers";
 import { StageTracker } from "@/modules/crm/ui/stage-tracker";
 import { getActor } from "@/platform/auth/current-user";
 import { canAll } from "@/platform/authz/authz";
-import { listDirectory } from "@/platform/iam/services/directory-service";
 
 export const metadata: Metadata = { title: "Opportunity" };
 
@@ -54,30 +51,16 @@ export default async function OpportunityPage({
     CRM_PERMISSIONS.ACTIVITY_CREATE,
     CRM_PERMISSIONS.ACTIVITY_UPDATE,
   ]);
-  const [opportunity, rights, timeline, stages, owners, accounts, contacts] =
-    await Promise.all([
-      orNotFound(getOpportunity(actor, id)),
-      rightsPromise,
-      rightsPromise.then((granted) =>
-        granted[CRM_PERMISSIONS.ACTIVITY_READ] === true
-          ? listTimeline(actor, { kind: "opportunity", id })
-          : [],
-      ),
-      listStages(actor),
-      listDirectory(actor),
-      rightsPromise.then((granted) =>
-        granted[CRM_PERMISSIONS.OPPORTUNITY_UPDATE] === true &&
-        granted[CRM_PERMISSIONS.ACCOUNT_READ] === true
-          ? listAccountOptions(actor)
-          : [],
-      ),
-      rightsPromise.then((granted) =>
-        granted[CRM_PERMISSIONS.OPPORTUNITY_UPDATE] === true &&
-        granted[CRM_PERMISSIONS.CONTACT_READ] === true
-          ? listContactOptions(actor)
-          : [],
-      ),
-    ]);
+  const [opportunity, rights, timeline, stages] = await Promise.all([
+    orNotFound(getOpportunity(actor, id)),
+    rightsPromise,
+    rightsPromise.then((granted) =>
+      granted[CRM_PERMISSIONS.ACTIVITY_READ] === true
+        ? listTimeline(actor, { kind: "opportunity", id })
+        : [],
+    ),
+    listStages(actor),
+  ]);
   const canEdit = rights[CRM_PERMISSIONS.OPPORTUNITY_UPDATE] === true;
 
   const weighted = Math.round((opportunity.amountMinor * opportunity.probability) / 100);
@@ -99,7 +82,7 @@ export default async function OpportunityPage({
           canEdit ? (
             <EditOpportunityButton
               opportunity={opportunity}
-              options={{ accounts, contacts, stages, owners }}
+              stages={stages}
               currentUserId={actor.id}
             />
           ) : undefined
@@ -275,7 +258,6 @@ export default async function OpportunityPage({
                     accountId: opportunity.account.id,
                     contactId: contact?.id,
                   }}
-                  owners={owners}
                   currentUserId={actor.id}
                 />
               ) : undefined

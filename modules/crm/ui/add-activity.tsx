@@ -20,10 +20,13 @@ import {
   type LoggableActivityType,
 } from "../contracts/types";
 import { logActivityAction } from "./actions";
+import { OptionsGate, useLazyOptions } from "./lazy-options";
+import { loadOwnerOptionsAction } from "./option-actions";
 
 /**
  * "+ Add Activity": logs a call, email, meeting, task or note against the records
- * passed in `links`, in a slide-over so the timeline stays visible.
+ * passed in `links`, in a slide-over so the timeline stays visible. The assignee
+ * list loads the first time the slide-over opens, not with the page.
  */
 
 export type ActivityLinks = {
@@ -48,14 +51,12 @@ function localInputToIso(value: string): string | null {
 
 export function AddActivityButton({
   links,
-  owners,
   currentUserId,
   defaultType = "CALL",
   label = "Add activity",
   variant = "primary",
 }: {
   links: ActivityLinks;
-  owners: { id: string; name: string }[];
   currentUserId: string;
   defaultType?: LoggableActivityType;
   label?: string;
@@ -64,6 +65,7 @@ export function AddActivityButton({
   const [open, setOpen] = useState(false);
   // Remount the form on every open, so it always starts clean.
   const [formKey, setFormKey] = useState(0);
+  const options = useLazyOptions(loadOwnerOptionsAction, open);
 
   return (
     <>
@@ -78,14 +80,18 @@ export function AddActivityButton({
         {label}
       </Button>
       <Dialog open={open} onOpenChange={setOpen} title="Add activity" variant="sheet">
-        <ActivityForm
-          key={formKey}
-          links={links}
-          owners={owners}
-          currentUserId={currentUserId}
-          defaultType={defaultType}
-          onDone={() => setOpen(false)}
-        />
+        <OptionsGate state={options}>
+          {({ owners }) => (
+            <ActivityForm
+              key={formKey}
+              links={links}
+              owners={owners}
+              currentUserId={currentUserId}
+              defaultType={defaultType}
+              onDone={() => setOpen(false)}
+            />
+          )}
+        </OptionsGate>
       </Dialog>
     </>
   );

@@ -7,10 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import type { AccountDetail } from "../contracts/types";
 import { FormLoading } from "./form-loading";
+import { OptionsGate, useLazyOptions } from "./lazy-options";
+import { loadOwnerOptionsAction } from "./option-actions";
 
 /**
- * Create or edit a company, in a slide-over. The form loads the first time the
- * slide-over opens, keeping its schema out of the page's first load.
+ * Create or edit a company, in a slide-over. The form and its owner list load the
+ * first time the slide-over opens, keeping them out of the page's first load.
  */
 
 const AccountForm = dynamic(
@@ -20,15 +22,14 @@ const AccountForm = dynamic(
 
 export function AccountFormButton({
   account,
-  owners,
   currentUserId,
 }: {
   account?: AccountDetail;
-  owners: { id: string; name: string }[];
   currentUserId: string;
 }) {
   const [open, setOpen] = useState(false);
   const [formKey, setFormKey] = useState(0);
+  const options = useLazyOptions(loadOwnerOptionsAction, open);
   const isEdit = account !== undefined;
 
   return (
@@ -55,13 +56,17 @@ export function AccountFormButton({
         title={isEdit ? "Edit company" : "New company"}
         variant="sheet"
       >
-        <AccountForm
-          key={formKey}
-          account={account}
-          owners={owners}
-          currentUserId={currentUserId}
-          onDone={() => setOpen(false)}
-        />
+        <OptionsGate state={options}>
+          {({ owners }) => (
+            <AccountForm
+              key={formKey}
+              account={account}
+              owners={owners}
+              currentUserId={currentUserId}
+              onDone={() => setOpen(false)}
+            />
+          )}
+        </OptionsGate>
       </Dialog>
     </>
   );

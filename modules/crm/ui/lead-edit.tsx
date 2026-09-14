@@ -7,10 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import type { LeadDetail } from "../contracts/types";
 import { FormLoading } from "./form-loading";
+import { OptionsGate, useLazyOptions } from "./lazy-options";
+import { loadOwnerOptionsAction } from "./option-actions";
 
 /**
- * The lead page's Edit button and its slide-over. The form itself loads the first
- * time the slide-over opens, keeping its schema out of the page's first load.
+ * The lead page's Edit button and its slide-over. The form and its owner list
+ * both load the first time the slide-over opens, keeping them out of the page's
+ * first load.
  */
 
 const LeadEditForm = dynamic(
@@ -18,15 +21,10 @@ const LeadEditForm = dynamic(
   { ssr: false, loading: () => <FormLoading /> },
 );
 
-export function LeadEditButton({
-  lead,
-  owners,
-}: {
-  lead: LeadDetail;
-  owners: { id: string; name: string }[];
-}) {
+export function LeadEditButton({ lead }: { lead: LeadDetail }) {
   const [open, setOpen] = useState(false);
   const [formKey, setFormKey] = useState(0);
+  const options = useLazyOptions(loadOwnerOptionsAction, open);
 
   return (
     <>
@@ -40,12 +38,16 @@ export function LeadEditButton({
         Edit
       </Button>
       <Dialog open={open} onOpenChange={setOpen} title="Edit lead" variant="sheet">
-        <LeadEditForm
-          key={formKey}
-          lead={lead}
-          owners={owners}
-          onDone={() => setOpen(false)}
-        />
+        <OptionsGate state={options}>
+          {({ owners }) => (
+            <LeadEditForm
+              key={formKey}
+              lead={lead}
+              owners={owners}
+              onDone={() => setOpen(false)}
+            />
+          )}
+        </OptionsGate>
       </Dialog>
     </>
   );

@@ -3,7 +3,7 @@ import Link from "next/link";
 import { DataTable, type Column } from "@/components/ui/data-table";
 import { PageHeader, Panel } from "@/components/ui/primitives";
 import { CRM_PERMISSIONS } from "@/modules/crm/contracts/permissions";
-import { listAccountOptions, listContacts } from "@/modules/crm/contracts/service";
+import { listContacts } from "@/modules/crm/contracts/service";
 import type { ContactListItem } from "@/modules/crm/contracts/types";
 import { Avatar } from "@/modules/crm/ui/badges";
 import { ContactFormButton } from "@/modules/crm/ui/contact-form";
@@ -11,7 +11,6 @@ import { FilterBar } from "@/modules/crm/ui/filter-bar";
 import { flatParams } from "@/modules/crm/ui/page-helpers";
 import { getActor } from "@/platform/auth/current-user";
 import { canAll } from "@/platform/authz/authz";
-import { listDirectory } from "@/platform/iam/services/directory-service";
 
 export const metadata: Metadata = { title: "Contacts" };
 
@@ -38,16 +37,10 @@ export default async function ContactsPage({
   ]);
   const canCreate = rights[CRM_PERMISSIONS.CONTACT_CREATE] === true;
 
-  const [result, owners, accounts] = await Promise.all([
-    listContacts(actor, { ...params, sort, dir }),
-    listDirectory(actor),
-    canCreate && rights[CRM_PERMISSIONS.ACCOUNT_READ] === true
-      ? listAccountOptions(actor)
-      : Promise.resolve([]),
-  ]);
+  const result = await listContacts(actor, { ...params, sort, dir });
 
   const createButton = canCreate ? (
-    <ContactFormButton accounts={accounts} owners={owners} currentUserId={actor.id} />
+    <ContactFormButton currentUserId={actor.id} />
   ) : undefined;
 
   return (

@@ -24,7 +24,6 @@ import { recordHref } from "@/modules/crm/ui/links";
 import { orNotFound, uuidParam } from "@/modules/crm/ui/page-helpers";
 import { getActor } from "@/platform/auth/current-user";
 import { canAll } from "@/platform/authz/authz";
-import { listDirectory } from "@/platform/iam/services/directory-service";
 
 export const metadata: Metadata = { title: "Lead" };
 
@@ -43,7 +42,7 @@ export default async function LeadPage({ params }: { params: Promise<{ id: strin
     CRM_PERMISSIONS.ACTIVITY_CREATE,
     CRM_PERMISSIONS.ACTIVITY_UPDATE,
   ]);
-  const [lead, rights, timeline, owners] = await Promise.all([
+  const [lead, rights, timeline] = await Promise.all([
     orNotFound(getLead(actor, id)),
     rightsPromise,
     rightsPromise.then((granted) =>
@@ -51,7 +50,6 @@ export default async function LeadPage({ params }: { params: Promise<{ id: strin
         ? listTimeline(actor, { kind: "lead", id })
         : [],
     ),
-    listDirectory(actor),
   ]);
 
   const canUpdate = rights[CRM_PERMISSIONS.LEAD_UPDATE] === true;
@@ -72,7 +70,7 @@ export default async function LeadPage({ params }: { params: Promise<{ id: strin
         actions={
           canUpdate && !converted ? (
             <>
-              <LeadEditButton lead={lead} owners={owners} />
+              <LeadEditButton lead={lead} />
               <ButtonLink
                 href={`/crm/leads/${lead.id}/convert`}
                 variant="primary"
@@ -239,7 +237,6 @@ export default async function LeadPage({ params }: { params: Promise<{ id: strin
                     contactId: lead.convertedContact?.id,
                     opportunityId: lead.convertedOpportunity?.id,
                   }}
-                  owners={owners}
                   currentUserId={actor.id}
                 />
               ) : undefined

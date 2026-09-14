@@ -11,7 +11,6 @@ import { formatTotals } from "@/modules/crm/ui/format";
 import { flatParams } from "@/modules/crm/ui/page-helpers";
 import { getActor } from "@/platform/auth/current-user";
 import { canAll } from "@/platform/authz/authz";
-import { listDirectory } from "@/platform/iam/services/directory-service";
 
 export const metadata: Metadata = { title: "Companies" };
 
@@ -32,9 +31,8 @@ export default async function AccountsPage({
         ? "desc"
         : "asc";
 
-  const [result, owners, rights] = await Promise.all([
+  const [result, rights] = await Promise.all([
     listAccounts(actor, { ...params, sort, dir }),
-    listDirectory(actor),
     canAll(actor, [CRM_PERMISSIONS.ACCOUNT_CREATE]),
   ]);
   const canCreate = rights[CRM_PERMISSIONS.ACCOUNT_CREATE] === true;
@@ -44,11 +42,7 @@ export default async function AccountsPage({
       <PageHeader
         title="Companies"
         description="Organisations you sell to. Open pipeline is shown per currency and never added across currencies."
-        actions={
-          canCreate ? (
-            <AccountFormButton owners={owners} currentUserId={actor.id} />
-          ) : undefined
-        }
+        actions={canCreate ? <AccountFormButton currentUserId={actor.id} /> : undefined}
       />
 
       <FilterBar
@@ -70,9 +64,7 @@ export default async function AccountsPage({
           emptyTitle={params.q === undefined ? "No companies yet" : "No companies match"}
           emptyDescription="Companies are created when a lead converts, or directly with New company."
           emptyAction={
-            canCreate ? (
-              <AccountFormButton owners={owners} currentUserId={actor.id} />
-            ) : undefined
+            canCreate ? <AccountFormButton currentUserId={actor.id} /> : undefined
           }
         />
       </Panel>
