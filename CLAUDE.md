@@ -1375,9 +1375,15 @@ Three findings worth keeping, because each cost time to establish:
 1. **`db.<ref>.supabase.co` is IPv6-only.** It publishes an `AAAA` record and no `A` record.
    Any machine or CI runner without routable IPv6 gets `ENOTFOUND` and cannot use the direct
    connection at all. The session pooler is IPv4-reachable and is the right default.
-2. **Use the SESSION pooler (port 5432), not the transaction pooler (6543).** Session mode
-   supports prepared statements and DDL; transaction mode breaks both migrations and
-   Prisma's prepared statements.
+2. **Session pooler (5432) for migrations and local work; transaction pooler (6543) for
+   Vercel.** Session mode supports DDL, so migrations must use it. But session mode holds one
+   server connection per client and caps the project at 15 clients, and every Vercel function
+   instance opens its own pool: production hit `EMAXCONNSESSION ... pool_size: 15` on
+   2026-09-14 with two warm deployments. The runtime `DATABASE_URL` in Vercel therefore uses
+   port **6543**. Verified that day with `@prisma/adapter-pg`: plain queries, interactive
+   `$transaction`, 25 parallel queries and repeated identical statements all work in
+   transaction mode. `lib/prisma.ts` also keeps each instance's pool small (`max` 2 outside
+   development).
 3. **The pooler username is `postgres.<project-ref>`**, and the hostname generation matters:
    this project is `aws-1-eu-west-1`, and `aws-0-eu-west-1` returns
    "tenant or user not found". Take the exact string from the dashboard rather than

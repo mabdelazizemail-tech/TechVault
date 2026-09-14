@@ -18,7 +18,15 @@ import { serverEnv } from "@/platform/config/env";
  */
 function createPrismaClient(): PrismaClient {
   const env = serverEnv();
-  const adapter = new PrismaPg({ connectionString: env.databaseUrl });
+  // Supabase's pooler caps clients per project (15 in session mode), and on
+  // Vercel every function instance opens its own pool. The `pg` default of 10
+  // per instance exhausted that cap with two warm instances. Keep each pool
+  // small and release idle connections quickly; queries beyond `max` queue.
+  const adapter = new PrismaPg({
+    connectionString: env.databaseUrl,
+    max: env.appEnv === "development" ? 5 : 2,
+    idleTimeoutMillis: 5_000,
+  });
 
   return new PrismaClient({
     adapter,
