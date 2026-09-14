@@ -1,0 +1,215 @@
+// ERP — Enterprise Resource Planning.  Owner: modules/erp.  Schema: "erp".
+//
+// Phase 1 is the finance foundation only (ADR-022): the chart of accounts, cost
+// centres, accounting periods and the double-entry journal. Receivables, payables,
+// procurement, inventory, assets and projects arrive in later phases.
+//
+// Models are prefixed `Erp` because Prisma model and enum names share one namespace
+// across every schema (CRM already has its own "Account").
+//
+// Money is a BIGINT in minor units (piastres) — never a float (ADR-006). Phase 1
+// records in the functional currency, EGP, only.
+//
+// The accounting invariants are enforced by the database as well as the services:
+// a posted entry balances, lives in an open period, uses active postable accounts,
+// and can never be changed or deleted — only reversed. See the raw SQL at the end of
+// the migration that creates these tables.
+
+/// The five fundamental account classes. Genuinely fixed, so an enum.
+enum ErpAccountType {
+  ASSET
+  LIABILITY
+  EQUITY
+  REVENUE
+  EXPENSE
+
+  @@schema("erp")
+}
+
+/// The side on which an account's balance normally sits. Defaults from the type;
+/// contra accounts (e.g. accumulated depreciation) carry the opposite.
+enum ErpNormalBalance {
+  DEBIT
+  CREDIT
+
+  @@schema("erp")
+}
+
+enum ErpPeriodStatus {
+  OPEN
+  CLOSED
+
+  @@schema("erp")
+}
+
+/// DRAFT → POSTED → REVERSED. Only a draft may be edited or deleted.
+enum ErpJournalStatus {
+  DRAFT
+  POSTED
+  REVERSED
+
+  @@schema("erp")
+}
+
+model ErpAccount {
+  id            String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code          String           @unique
+  name          String
+  nameAr        String?          @map("name_ar")
+  type          ErpAccountType
+  normalBalance ErpNormalBalance @map("normal_balance")
+  parentId      String?          @map("parent_id") @db.Uuid
+  /// Headings group accounts and take no postings; only postable accounts do.
+  isPostable    Boolean          @default(true) @map("is_postable")
+  isActive      Boolean          @default(true) @map("is_active")
+  description   String?
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy String?  @map("created_by") @db.Uuid
+  updatedBy String?  @map("updated_by") @db.Uuid
+
+  parent   ErpAccount?      @relation("ErpAccountTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children ErpAccount[]     @relation("ErpAccountTree")
+  lines    ErpJournalLine[]
+
+  @@index([parentId])
+  @@index([type, code])
+  @@index([isActive])
+  @@map("accounts")
+  @@schema("erp")
+}
+
+model ErpCostCentre {
+  id       String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code     String  @unique
+  name     String
+  nameAr   String? @map("name_ar")
+  parentId String? @map("parent_id") @db.Uuid
+  isActive Boolean @default(true) @map("is_active")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy String?  @map("created_by") @db.Uuid
+  updatedBy String?  @map("updated_by") @db.Uuid
+
+  parent   ErpCostCentre?   @relation("ErpCostCentreTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children ErpCostCentre[]  @relation("ErpCostCentreTree")
+  lines    ErpJournalLine[]
+
+  @@index([parentId])
+  @@index([isActive])
+  @@map("cost_centres")
+  @@schema("erp")
+}
+
+/// An accounting period. Periods never overlap (exclusion constraint in the
+/// migration) and no fiscal-year shape is assumed.
+model ErpFiscalPeriod {
+  id         String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name       String          @unique
+  startDate  DateTime        @map("start_date") @db.Date
+  endDate    DateTime        @map("end_date") @db.Date
+  status     ErpPeriodStatus @default(OPEN)
+  closedAt   DateTime?       @map("closed_at") @db.Timestamptz(6)
+  closedBy   String?         @map("closed_by") @db.Uuid
+  reopenedAt DateTime?       @map("reopened_at") @db.Timestamptz(6)
+  reopenedBy String?         @map("reopened_by") @db.Uuid
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy String?  @map("created_by") @db.Uuid
+  updatedBy String?  @map("updated_by") @db.Uuid
+
+  closer   User?             @relation("ErpPeriodCloser", fields: [closedBy], references: [id], onDelete: Restrict)
+  reopener User?             @relation("ErpPeriodReopener", fields: [reopenedBy], references: [id], onDelete: Restrict)
+  entries  ErpJournalEntry[]
+
+  @@index([startDate])
+  @@index([status])
+  @@map("fiscal_periods")
+  @@schema("erp")
+}
+
+model ErpJournalEntry {
+  id              String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  /// JE-2026-000001, assigned when the entry is posted from a gap-free yearly counter.
+  journalNumber   String?          @unique @map("journal_number")
+  entryDate       DateTime         @map("entry_date") @db.Date
+  description     String
+  reference       String?
+  status          ErpJournalStatus @default(DRAFT)
+  /// Set when the entry is posted: the open period containing its date.
+  fiscalPeriodId  String?          @map("fiscal_period_id") @db.Uuid
+  /// Total debits (= total credits), kept in step with the lines and verified by the
+  /// database at posting, so lists show amounts without summing lines.
+  totalMinor      BigInt           @default(0) @map("total_minor")
+  /// Where an entry came from when another ERP feature raises it (e.g. an invoice in
+  /// a later phase). All three or none.
+  sourceModule    String?          @map("source_module")
+  sourceType      String?          @map("source_type")
+  sourceId        String?          @map("source_id")
+  postedAt        DateTime?        @map("posted_at") @db.Timestamptz(6)
+  postedBy        String?          @map("posted_by") @db.Uuid
+  /// On a reversal entry: the posted entry it reverses. One reversal per entry.
+  reversesEntryId String?          @unique @map("reverses_entry_id") @db.Uuid
+  reversedAt      DateTime?        @map("reversed_at") @db.Timestamptz(6)
+  reversedBy      String?          @map("reversed_by") @db.Uuid
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy String   @map("created_by") @db.Uuid
+  updatedBy String?  @map("updated_by") @db.Uuid
+
+  period   ErpFiscalPeriod? @relation(fields: [fiscalPeriodId], references: [id], onDelete: Restrict)
+  creator  User             @relation("ErpJournalCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+  poster   User?            @relation("ErpJournalPoster", fields: [postedBy], references: [id], onDelete: Restrict)
+  reverser User?            @relation("ErpJournalReverser", fields: [reversedBy], references: [id], onDelete: Restrict)
+  reverses ErpJournalEntry? @relation("ErpJournalReversal", fields: [reversesEntryId], references: [id], onDelete: Restrict)
+  reversal ErpJournalEntry? @relation("ErpJournalReversal")
+  lines    ErpJournalLine[]
+
+  @@index([status, entryDate(sort: Desc)])
+  @@index([entryDate(sort: Desc)])
+  @@index([fiscalPeriodId])
+  @@index([sourceModule, sourceType, sourceId])
+  @@index([createdBy])
+  @@map("journal_entries")
+  @@schema("erp")
+}
+
+model ErpJournalLine {
+  id             String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  journalEntryId String  @map("journal_entry_id") @db.Uuid
+  lineNo         Int     @map("line_no")
+  accountId      String  @map("account_id") @db.Uuid
+  costCentreId   String? @map("cost_centre_id") @db.Uuid
+  description    String?
+  /// Exactly one of debit and credit is above zero (CHECK in the migration).
+  debitMinor     BigInt  @default(0) @map("debit_minor")
+  creditMinor    BigInt  @default(0) @map("credit_minor")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  entry      ErpJournalEntry @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
+  account    ErpAccount      @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  costCentre ErpCostCentre?  @relation(fields: [costCentreId], references: [id], onDelete: Restrict)
+
+  @@unique([journalEntryId, lineNo])
+  @@index([accountId])
+  @@index([costCentreId])
+  @@map("journal_lines")
+  @@schema("erp")
+}
+
+/// The gap-free journal number counter, one row per calendar year of entry date.
+/// Taken inside the posting transaction, so a rolled-back posting consumes nothing.
+model ErpJournalSequence {
+  year       Int      @id
+  lastNumber Int      @default(0) @map("last_number")
+  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("journal_sequences")
+  @@schema("erp")
+}

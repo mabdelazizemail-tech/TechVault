@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useLayoutEffect, useSyncExternalStore } from "react";
-import { labelForSegment } from "./navigation";
+import { labelForPath } from "./navigation";
 
 /**
  * Breadcrumbs derived from the route (CLAUDE.md §16.2), rooted at TechVault as in
@@ -66,6 +66,11 @@ const RECORD_LABELS: Record<string, string> = {
   projects: "Project",
 };
 
+const ERP_RECORD_LABELS: Record<string, string> = {
+  accounts: "Account",
+  journals: "Journal entry",
+};
+
 export function Breadcrumbs() {
   const pathname = usePathname();
   // Re-render when a page registers or clears a record name.
@@ -84,11 +89,15 @@ export function Breadcrumbs() {
       return;
     }
     const parent = segments[index - 1] ?? "";
+    const href = `/${segments.slice(0, index + 1).join("/")}`;
+    // ERP finance has its own "accounts" — ledger accounts, not CRM companies.
+    const recordLabel =
+      segments[0] === "erp" ? ERP_RECORD_LABELS[parent] : RECORD_LABELS[parent];
     trail.push({
-      href: `/${segments.slice(0, index + 1).join("/")}`,
+      href,
       label: isIdLike(segment)
-        ? (titles.get(segment) ?? RECORD_LABELS[parent] ?? "Details")
-        : labelForSegment(segment),
+        ? (titles.get(segment) ?? recordLabel ?? "Details")
+        : labelForPath(href, segment),
     });
   });
 

@@ -7,6 +7,14 @@ import {
   CRM_SALES_ROLE,
 } from "../modules/crm/contracts/permissions";
 import { DEFAULT_STAGES } from "../modules/crm/domain/pipeline";
+import {
+  ERP_ACCOUNTANT_PERMISSIONS,
+  ERP_ACCOUNTANT_ROLE,
+  ERP_FINANCE_ADMIN_PERMISSIONS,
+  ERP_FINANCE_ADMIN_ROLE,
+} from "../modules/erp/contracts/permissions";
+import { DEFAULT_CHART } from "../modules/erp/domain/chart";
+import { DEFAULT_NORMAL_BALANCE } from "../modules/erp/contracts/types";
 import { MESSAGING_MEMBER_PERMISSIONS } from "../modules/messaging/contracts/permissions";
 import {
   INNOVATION_ADMIN_PERMISSIONS,
@@ -105,6 +113,18 @@ const ROLE_DEFINITIONS: Record<
     description:
       "Manages THE THINK TANK: reviews and assigns ideas, curates knowledge, runs projects and maintains categories.",
     permissions: [...INNOVATION_ADMIN_PERMISSIONS, ...MESSAGING_MEMBER_PERMISSIONS],
+  },
+  [ERP_FINANCE_ADMIN_ROLE]: {
+    name: "Finance administrator",
+    description:
+      "Runs ERP finance: the chart of accounts, cost centres, accounting periods (including closing and reopening them) and the journal.",
+    permissions: [...ERP_FINANCE_ADMIN_PERMISSIONS, ...MESSAGING_MEMBER_PERMISSIONS],
+  },
+  [ERP_ACCOUNTANT_ROLE]: {
+    name: "Accountant",
+    description:
+      "Records, posts and reverses journal entries and maintains accounts and cost centres. Cannot create, close or reopen accounting periods, or deactivate accounts.",
+    permissions: [...ERP_ACCOUNTANT_PERMISSIONS, ...MESSAGING_MEMBER_PERMISSIONS],
   },
   [SYSTEM_ROLES.EMPLOYEE]: {
     name: "Employee",
@@ -229,6 +249,42 @@ async function main(): Promise<void> {
       }
     }
   }
+
+  process.stdout.write("Seeding the starter chart of accounts...\n");
+  // Create only, parents before children (DEFAULT_CHART is ordered that way): finance
+  // administrators rename, restructure and deactivate accounts, and a re-seed must
+  // not undo that. No periods or cost centres are seeded — both are organisation-
+  // specific.
+  let accountsCreated = 0;
+  for (const account of DEFAULT_CHART) {
+    const existing = await prisma.erpAccount.findUnique({
+      where: { code: account.code },
+      select: { id: true },
+    });
+    if (existing !== null) continue;
+    const parent =
+      account.parentCode === null
+        ? null
+        : await prisma.erpAccount.findUnique({
+            where: { code: account.parentCode },
+            select: { id: true },
+          });
+    await prisma.erpAccount.create({
+      data: {
+        code: account.code,
+        name: account.name,
+        nameAr: account.nameAr,
+        type: account.type,
+        normalBalance: DEFAULT_NORMAL_BALANCE[account.type],
+        parentId: parent?.id ?? null,
+        isPostable: account.isPostable,
+      },
+    });
+    accountsCreated += 1;
+  }
+  process.stdout.write(
+    `  ${accountsCreated} of ${DEFAULT_CHART.length} accounts created\n`,
+  );
 
   process.stdout.write("Seeding security policies…\n");
   const policies: { key: string; value: unknown; description: string }[] = [

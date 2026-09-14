@@ -24,6 +24,11 @@ enum PermissionAction {
   DOWNLOAD
   SHARE
   ADMINISTER
+  /// Finance controls (ADR-022): each is its own grant, never implied by another.
+  POST
+  REVERSE
+  CLOSE
+  REOPEN
 
   @@schema("iam")
 }
@@ -155,6 +160,14 @@ model User {
   innovationKnowledgeOwned     InnovationKnowledgeItem[] @relation("InnovationKnowledgeOwner")
   innovationProjectsOwned      InnovationProject[]       @relation("InnovationProjectOwner")
   innovationProjectMemberships InnovationProjectMember[] @relation("InnovationProjectMember")
+
+  // ERP finance (erp.prisma). Relation fields only — who posted, reversed and
+  // closed, because "who approved this posting" must be answerable (§13.3).
+  erpJournalsCreated  ErpJournalEntry[] @relation("ErpJournalCreator")
+  erpJournalsPosted   ErpJournalEntry[] @relation("ErpJournalPoster")
+  erpJournalsReversed ErpJournalEntry[] @relation("ErpJournalReverser")
+  erpPeriodsClosed    ErpFiscalPeriod[] @relation("ErpPeriodCloser")
+  erpPeriodsReopened  ErpFiscalPeriod[] @relation("ErpPeriodReopener")
 
   @@index([orgUnitId])
   @@index([hrisEmployeeId])

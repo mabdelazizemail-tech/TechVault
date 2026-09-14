@@ -1444,7 +1444,8 @@ Phase 2  platform/jobs + platform/events dispatcher + platform/storage + notific
 Phase 3  ECM core (register → store → version → search → download, permissioned)
 Phase 4  platform/workflow + the first real approval flow
 Phase 5  CRM core (accounts, contacts, opportunities, pipeline-as-data) — 🟡 built ahead of order (§28)
-Phase 6  ERP finance core (chart of accounts, invoices, payments, double-entry)
+Phase 6  ERP finance core — 🟡 ERP Phase 1 "finance foundation" built (chart of accounts, periods,
+         cost centres, double-entry journal, §28); invoices and payments follow
 Phase 7  HRIS core (employees, org structure, sensitive-field isolation)
 Phase 8  Innovation (ideas, configurable stage workflow, voting)
 Phase 9  BI (rollups, dashboards, scheduled reports)
@@ -1873,6 +1874,40 @@ simple to use and to maintain; file features need the secret key on the server; 
 ECM's future role until ECM absorbs it; no malware scanning yet. _Revisit when:_ ECM ships (move files and knowledge
 documents into it), the workflow engine exists (if review needs routing), or Phase 3 connects AI.
 
+**ADR-022 — ERP Phase 1: a finance foundation whose ledger invariants live in the database.** _Context:_ the owner
+asked for ERP incrementally, starting with finance only: a chart of accounts, accounting periods, cost centres and a
+double-entry journal that is authorised, audited, immutable once posted and corrected only by reversal. No workflow
+engine exists yet (Phase 4), and the permission catalogue requires every key's last segment to equal its action.
+_Decision:_ (1) `modules/erp`, with finance as the internal sub-domain `services/finance/`, and schema `erp`: `accounts`
+(a tree of headings and postable accounts; normal balance defaults from the type), `cost_centres` (a tree),
+`fiscal_periods` (OPEN/CLOSED, no fiscal-year shape assumed), `journal_entries` (DRAFT → POSTED → REVERSED),
+`journal_lines` and `journal_sequences`. (2) Money is BIGINT minor units, EGP only; amounts people type are parsed
+from text without floats (at most 11 integer digits, 500 lines per entry), and services refuse any figure outside
+JavaScript's safe-integer range rather than round it. (3) The database enforces the ledger for every writer, the owner
+connection included: CHECKs (a line is exactly one of debit or credit, never negative; lifecycle columns match the
+status); a range exclusion constraint so periods never overlap; a guard trigger that creates entries as drafts, posts
+only into the open period containing the entry date (locking that period FOR SHARE, so a close and a posting cannot
+interleave), freezes a posted entry except for becoming REVERSED, never deletes one, and freezes the lines of any
+non-draft; and a DEFERRED constraint trigger that at commit requires at least two lines, debits equal to credits and
+above zero, a matching stored total, active postable accounts and active cost centres at the moment of posting, and a
+posted reversal for every reversed entry. Tree triggers keep accounts and cost centres acyclic and type-consistent,
+and fix the type of an account used in journal entries. (4) Services mirror the rules for precise messages. Posting
+locks the entry, re-validates everything, takes a gap-free `JE-YYYY-NNNNNN` from a per-year counter row inside the
+transaction — numbers are assigned at posting, so deleted drafts leave no gaps — and writes the audit record and
+`erp.JournalEntryPosted` in the same transaction. Reversal creates and posts an equal and opposite entry, marks the
+original REVERSED and publishes `erp.JournalEntryReversed`. Closing refuses while drafts are dated in the period and
+publishes `erp.PeriodClosed`; reopening needs its own permission and a reason and is audited at CRITICAL. (5)
+Permissions keep `module.resource.action`: four IAM actions — POST, REVERSE, CLOSE, REOPEN — were added to
+`iam.PermissionAction` (migration `20260914191000_finance_permission_actions`), so `erp.journal.post`,
+`erp.journal.reverse`, `erp.period.close` and `erp.period.reopen` are distinct grants and the catalogue invariant holds;
+the evaluator is unchanged. Seeded roles: `finance-admin` (everything) and `accountant` (no period create, close or
+reopen, no account deactivation). (6) No `crm_account_id`, and no receivables, payables or reporting tables, until a
+phase needs them. _Consequences:_ a service bug cannot write an unbalanced, edited or deleted ledger — integration tests
+prove it by writing straight at the tables; the triggers and the Prisma schema must change together; posting has no
+maker–checker until the workflow engine exists (§29 #26); the ledger is single-currency. _Revisit when:_ the workflow
+engine arrives (route posting approval through it), receivables or payables need foreign currency, or reporting needs
+balances (from rollups, §6.7).
+
 ---
 
 ## 28. Current Implementation Status
@@ -1996,10 +2031,27 @@ migrate, then seed, since the seed grants the permissions that show the module.
 | Tests       | ✅ 20 integration tests (storage faked; includes votes by a non-owning database role) and 12 unit tests (file signatures, search queries). |
 | **Missing** | Not applied to Supabase; `SUPABASE_SECRET_KEY` not set, so uploads and downloads are switched off until it is (§29 #21). Browser walk-through not done. Phase 2 (advanced search, relationships, notifications) and Phase 3 (AI) not started, as agreed. |
 
+### 🟡 ERP — Phase 1 "finance foundation", built 2026-09-14 at the owner's request
+
+Design decisions are in ADR-022. Migrations `20260914190000_erp_finance_foundation` and
+`20260914191000_finance_permission_actions` are applied to the local test database and, with the owner's approval on
+2026-09-14, to Supabase, followed by `npm run db:seed` (83 permissions, 18 of them ERP; roles `finance-admin` and
+`accountant`; the 13-account starter chart). Verified on Supabase by direct query: RLS on all 6 `erp` tables, the 6
+triggers (the balance check deferrable), 19 CHECK constraints and the period exclusion constraint, the four new
+`iam.PermissionAction` values, no privileges for `anon` or `authenticated`, 0 periods and 0 journal entries.
+
+| Area        | State |
+| ----------- | ----- |
+| Data model  | ✅ `erp` schema, 6 tables: accounts, cost_centres, fiscal_periods, journal_entries, journal_lines, journal_sequences. Ledger invariants enforced in the database (ADR-022). `prisma migrate diff` reports no drift. |
+| Services    | ✅ Chart of accounts (tree listing in code order, create, edit, activate/deactivate, totals, paginated activity), cost centres (tree, create, edit), periods (create without overlap, close — refused while drafts are dated inside — and reopen with a reason), journal (drafts create/edit/delete; post with server re-validation and a gap-free number; reverse with an equal and opposite posted entry), finance overview. Every write: permission → Zod → one transaction with audit record and, where others may react, an outbox event. |
+| UI          | ✅ ERP Finance navigation; dashboard; chart of accounts with search, type and status filters; account detail with totals and dated activity; journal list with search and status filter; line-entry form with running totals and a balanced/out-of-balance indicator; journal detail with post, reverse and delete-draft confirmations; periods with close and reopen; cost centres. Arabic names shown right-to-left, amounts accept Arabic digits. |
+| Tests       | ✅ 32 unit tests (amount parsing, balancing and posting rules, reversal, schemas, roles) and 23 integration tests (every rejection case, immutability through the services and straight at the tables, reversal, rollback leaves no number, audit or event, simultaneous postings, allowed/refused for post, reverse, close and reopen). `npm run verify` 203 passing; full integration suite 144 passing; build succeeds. |
+| **Missing** | The signed-in browser journey has not been run: `tests/e2e/erp-finance.spec.ts` skips without `E2E_EMAIL`/`E2E_PASSWORD` (§29 #27). No accounting period exists on Supabase yet, so nothing can be posted until a finance administrator creates one. No maker–checker (§29 #26). Receivables, payables, procurement, inventory, assets, projects, budgeting and reporting are deferred to later ERP phases, as agreed. |
+
 ### 📋 Not started
 
-The five remaining domain modules (ERP, ECM, HRIS, Innovation, BI). Their navigation entries and
-permission keys are declared but uncatalogued, so they correctly do not render.
+ECM, HRIS and BI, and ERP beyond finance. The ECM, HRIS and BI navigation entries and permission keys are declared
+but uncatalogued, so they correctly do not render.
 
 ### The honest summary
 
@@ -2065,6 +2117,11 @@ Open debt and risk:
 | 22  | **No malware scanning of uploads**                          | Uploads are checked for type by content and size, but not scanned (§12.2 step 5) | Add a scanning step before a file becomes READY | 🟡 Medium |
 | 23  | **Abandoned uploads are never cleaned up**                  | A PENDING file whose form was never saved stays in storage and in `innovation.files` | A scheduled job (Phase 2) removing PENDING files older than a day | 🟢 Low    |
 | 24  | **Think Tank files live outside ECM**                       | The platform's single document store is meant to be ECM (§6.3); the knowledge library holds files until it exists | Migrate files and knowledge documents into ECM when Phase 3 ships | 🟢 Low    |
+| 25  | **No accounting period in production yet**                  | ERP is migrated and seeded on Supabase, but no period exists, so no journal entry can be posted; and only `platform-admin` holds the finance permissions until someone is given `finance-admin` or `accountant` | A finance administrator creates the first periods in the UI and the right people are granted the finance roles | 🟢 Low    |
+| 26  | **No maker–checker on posting**                             | §6.2 routes approvals through the workflow engine (Phase 4). Until then posting is a direct permission (`erp.journal.post`), and one person holding create and post can record and post the same entry | Add a configurable "cannot post your own entry" rule or a workflow step when Phase 4 lands | 🟡 Medium |
+| 27  | **Signed-in ERP browser journey not run**                   | `tests/e2e/erp-finance.spec.ts` needs `E2E_EMAIL`/`E2E_PASSWORD` for a finance administrator on a non-production database with the starter chart and an open period containing today; without them it skips | Owner provides a test account and database, then runs `npm run test:e2e` | 🟡 Medium |
+| 28  | **Finance pickers load capped lists**                       | The journal form loads at most 1,000 postable accounts and 500 cost centres | Replace with a type-ahead picker before the chart grows past that | 🟢 Low    |
+| 29  | **Single-currency ledger, no reports**                      | ERP Phase 1 records EGP only; there is no trial balance, running balance, opening balance or financial statement | Add currency and rate with receivables/payables; reports in a later ERP phase (from rollups, §6.7) | 🟢 Low    |
 
 Add real debt here as it accrues, with why it was accepted and the trigger to repay it. A
 TODO in code without a row here is invisible debt.

@@ -1,4 +1,5 @@
 import { CRM_PERMISSIONS } from "@/modules/crm/contracts/permissions";
+import { ERP_PERMISSIONS } from "@/modules/erp/contracts/permissions";
 import { INNOVATION_PERMISSIONS } from "@/modules/innovation/contracts/permissions";
 import { IAM_PERMISSIONS, PLATFORM_PERMISSIONS } from "@/platform/iam/permissions";
 
@@ -79,18 +80,35 @@ export const NAV_SECTIONS: readonly NavSection[] = [
   },
   {
     key: "erp",
-    label: "ERP",
-    permission: "erp.module.access",
+    label: "ERP Finance",
+    permission: ERP_PERMISSIONS.ACCESS,
     items: [
-      { label: "Invoices", href: "/erp/invoices", permission: "erp.invoice.read" },
-      { label: "Payments", href: "/erp/payments", permission: "erp.payment.read" },
       {
-        label: "Purchase orders",
-        href: "/erp/purchase-orders",
-        permission: "erp.purchase_order.read",
+        label: "Finance dashboard",
+        href: "/erp/finance",
+        permission: ERP_PERMISSIONS.ACCESS,
+        exact: true,
       },
-      { label: "Inventory", href: "/erp/inventory", permission: "erp.inventory.read" },
-      { label: "Projects", href: "/erp/projects", permission: "erp.project.read" },
+      {
+        label: "Chart of accounts",
+        href: "/erp/finance/accounts",
+        permission: ERP_PERMISSIONS.ACCOUNT_READ,
+      },
+      {
+        label: "Journal entries",
+        href: "/erp/finance/journals",
+        permission: ERP_PERMISSIONS.JOURNAL_READ,
+      },
+      {
+        label: "Accounting periods",
+        href: "/erp/finance/periods",
+        permission: ERP_PERMISSIONS.PERIOD_READ,
+      },
+      {
+        label: "Cost centres",
+        href: "/erp/finance/cost-centres",
+        permission: ERP_PERMISSIONS.COST_CENTRE_READ,
+      },
     ],
   },
   {
@@ -202,6 +220,20 @@ export function navigationPermissionKeys(): string[] {
     for (const item of section.items) keys.add(item.permission);
   }
   return [...keys];
+}
+
+/**
+ * Label for a breadcrumb: the navigation entry at exactly this path when there is
+ * one, so /erp/finance/accounts reads "Chart of accounts" rather than CRM's
+ * "Companies", which also ends in /accounts.
+ */
+export function labelForPath(href: string, segment: string): string {
+  for (const section of NAV_SECTIONS) {
+    for (const item of section.items) {
+      if (item.href === href) return item.label;
+    }
+  }
+  return labelForSegment(segment);
 }
 
 /** Human-readable label for a path segment, used by breadcrumbs. */

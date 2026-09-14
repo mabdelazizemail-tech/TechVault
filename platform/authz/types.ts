@@ -16,7 +16,11 @@ export type PermissionAction =
   | "EXPORT"
   | "DOWNLOAD"
   | "SHARE"
-  | "ADMINISTER";
+  | "ADMINISTER"
+  | "POST"
+  | "REVERSE"
+  | "CLOSE"
+  | "REOPEN";
 
 export type ScopeType = "GLOBAL" | "ORG_UNIT" | "OWN_ORG_UNIT" | "OWN";
 
