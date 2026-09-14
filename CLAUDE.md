@@ -112,7 +112,7 @@ an ADR, and read the compatibility notes before upgrading anything.
 
 | Layer      | Choice                                                    | Version                  | Notes                                                                                                                 |
 | ---------- | --------------------------------------------------------- | ------------------------ | --------------------------------------------------------------------------------------------------------------------- |
-| Runtime    | Node.js                                                   | 24.14.0                  | `engines: >=24`. Next requires >=20.9, Prisma >=24 for the current line.                                              |
+| Runtime    | Node.js                                                   | 24.14.0                  | `engines: 24.x` (a major upgrade is deliberate, not automatic on Vercel). Next requires >=20.9, Prisma >=24.          |
 | Framework  | **Next.js** (App Router, Turbopack)                       | 16.3.5                   | Server Components by default; Server Actions for mutations.                                                           |
 | UI library | React / React DOM                                         | 19.3.0                   |                                                                                                                       |
 | Language   | **TypeScript**                                            | 5.9.3                    | **Pinned to 5.x deliberately — see ADR-011.** TS 7 is published but unusable here.                                    |
@@ -148,6 +148,11 @@ an ADR, and read the compatibility notes before upgrading anything.
   `proxy`, not `middleware`. `middleware.ts` still works but warns on every build.
 - **Next 16 dropped the `eslint` key from `next.config.ts`.** Linting is not part of
   `next build`; `npm run verify` and CI run ESLint separately.
+
+- **npm 12 blocks dependency install scripts** unless the root `package.json` lists them in
+  `allowScripts` (pinned `name@version`). Vercel builds with npm 12. When you upgrade Prisma, esbuild or
+  `unrs-resolver`, re-approve the new versions with `npx npm@12 approve-scripts <pkg>` or their install
+  scripts are silently skipped.
 
 **Deliberately excluded**, with the trigger that would change the decision:
 
