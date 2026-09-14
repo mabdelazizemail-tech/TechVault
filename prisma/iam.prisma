@@ -146,6 +146,16 @@ model User {
   msgAttachments    MsgAttachment[]  @relation("MsgAttachmentAttacher")
   msgPresence       MsgPresence?     @relation("MsgPresenceUser")
 
+  // THE THINK TANK (innovation.prisma). Relation fields only.
+  innovationFilesUploaded      InnovationFile[]          @relation("InnovationFileUploader")
+  innovationIdeasOwned         InnovationIdea[]          @relation("InnovationIdeaOwner")
+  innovationIdeasSubmitted     InnovationIdea[]          @relation("InnovationIdeaSubmitter")
+  innovationIdeaVotes          InnovationIdeaVote[]      @relation("InnovationIdeaVoter")
+  innovationComments           InnovationIdeaComment[]   @relation("InnovationCommentAuthor")
+  innovationKnowledgeOwned     InnovationKnowledgeItem[] @relation("InnovationKnowledgeOwner")
+  innovationProjectsOwned      InnovationProject[]       @relation("InnovationProjectOwner")
+  innovationProjectMemberships InnovationProjectMember[] @relation("InnovationProjectMember")
+
   @@index([orgUnitId])
   @@index([hrisEmployeeId])
   @@index([isActive])

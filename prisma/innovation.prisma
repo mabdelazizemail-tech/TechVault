@@ -1,0 +1,237 @@
+// THE THINK TANK — Innovation & Knowledge Management.  Owner: modules/innovation.
+// Schema: "innovation".
+//
+// Deliberately small (ADR-021): ideas with votes and comments, a knowledge
+// library, and projects that grow out of approved ideas. Categories are rows so
+// administrators can add them without a deploy. Files are stored once, in a
+// private Supabase Storage bucket, and referenced from here by id — metadata only
+// in Postgres, never file bytes (CLAUDE.md §12.1).
+//
+// "Documents" of a project and "lessons learned" are knowledge items linked to the
+// project, not separate tables, so every piece of knowledge is found by the same
+// search. Full-text search indexes are raw SQL in the migration.
+
+enum InnovationCategoryKind {
+  IDEA
+  KNOWLEDGE
+
+  @@schema("innovation")
+}
+
+enum InnovationIdeaStatus {
+  NEW
+  REVIEWING
+  APPROVED
+  IN_PROGRESS
+  IMPLEMENTED
+  REJECTED
+
+  @@schema("innovation")
+}
+
+enum InnovationProjectStatus {
+  PLANNING
+  IN_PROGRESS
+  COMPLETED
+
+  @@schema("innovation")
+}
+
+/// A file is PENDING from the moment an upload is authorised until the item using
+/// it is saved and the stored bytes have been checked; only READY files are served.
+enum InnovationFileStatus {
+  PENDING
+  READY
+
+  @@schema("innovation")
+}
+
+model InnovationCategory {
+  id        String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  kind      InnovationCategoryKind
+  name      String
+  sortOrder Int                    @default(0) @map("sort_order")
+  /// Archived categories stay on existing items but are not offered for new ones.
+  isActive  Boolean                @default(true) @map("is_active")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy String?  @map("created_by") @db.Uuid
+  updatedBy String?  @map("updated_by") @db.Uuid
+
+  ideas          InnovationIdea[]
+  knowledgeItems InnovationKnowledgeItem[]
+
+  @@index([kind, isActive, sortOrder])
+  @@map("categories")
+  @@schema("innovation")
+}
+
+model InnovationFile {
+  id          String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  /// Random, server-chosen object key. The uploaded file name is never part of it.
+  storageKey  String               @unique @map("storage_key")
+  /// The name shown to people and used for downloads, cleaned of paths.
+  fileName    String               @map("file_name")
+  /// Decided by the server from the file's extension and verified content.
+  contentType String               @map("content_type")
+  sizeBytes   Int                  @map("size_bytes")
+  status      InnovationFileStatus @default(PENDING)
+  uploadedBy  String               @map("uploaded_by") @db.Uuid
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  uploader      User                     @relation("InnovationFileUploader", fields: [uploadedBy], references: [id], onDelete: Restrict)
+  idea          InnovationIdea?          @relation("InnovationIdeaAttachment")
+  knowledgeItem InnovationKnowledgeItem? @relation("InnovationKnowledgeFile")
+
+  @@index([uploadedBy, status])
+  @@map("files")
+  @@schema("innovation")
+}
+
+model InnovationIdea {
+  id               String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title            String
+  description      String
+  categoryId       String               @map("category_id") @db.Uuid
+  status           InnovationIdeaStatus @default(NEW)
+  /// The person responsible for taking the idea forward, set by an administrator.
+  ownerId          String?              @map("owner_id") @db.Uuid
+  attachmentFileId String?              @unique @map("attachment_file_id") @db.Uuid
+  /// Kept in step with idea_votes and idea_comments in the same transaction, so
+  /// lists sort by popularity without counting rows.
+  voteCount        Int                  @default(0) @map("vote_count")
+  commentCount     Int                  @default(0) @map("comment_count")
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+  /// The person who submitted the idea.
+  createdBy String    @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+
+  category   InnovationCategory      @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  owner      User?                   @relation("InnovationIdeaOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  submitter  User                    @relation("InnovationIdeaSubmitter", fields: [createdBy], references: [id], onDelete: Restrict)
+  attachment InnovationFile?         @relation("InnovationIdeaAttachment", fields: [attachmentFileId], references: [id], onDelete: SetNull)
+  votes      InnovationIdeaVote[]
+  comments   InnovationIdeaComment[]
+  project    InnovationProject?
+
+  @@index([status, createdAt])
+  @@index([categoryId])
+  @@index([createdBy])
+  @@index([ownerId])
+  @@index([createdAt])
+  @@map("ideas")
+  @@schema("innovation")
+}
+
+model InnovationIdeaVote {
+  ideaId    String   @map("idea_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  idea InnovationIdea @relation(fields: [ideaId], references: [id], onDelete: Cascade)
+  user User           @relation("InnovationIdeaVoter", fields: [userId], references: [id], onDelete: Restrict)
+
+  /// One vote per person per idea.
+  @@id([ideaId, userId])
+  @@index([userId])
+  @@map("idea_votes")
+  @@schema("innovation")
+}
+
+model InnovationIdeaComment {
+  id       String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ideaId   String @map("idea_id") @db.Uuid
+  authorId String @map("author_id") @db.Uuid
+  body     String
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  idea   InnovationIdea @relation(fields: [ideaId], references: [id], onDelete: Cascade)
+  author User           @relation("InnovationCommentAuthor", fields: [authorId], references: [id], onDelete: Restrict)
+
+  @@index([ideaId, createdAt])
+  @@index([authorId])
+  @@map("idea_comments")
+  @@schema("innovation")
+}
+
+model InnovationKnowledgeItem {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title       String
+  description String?
+  categoryId  String   @map("category_id") @db.Uuid
+  tags        String[] @default([])
+  fileId      String?  @unique @map("file_id") @db.Uuid
+  ownerId     String?  @map("owner_id") @db.Uuid
+  /// Set when the item is a document or lesson learned of a project.
+  projectId   String?  @map("project_id") @db.Uuid
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+
+  category InnovationCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  file     InnovationFile?    @relation("InnovationKnowledgeFile", fields: [fileId], references: [id], onDelete: SetNull)
+  owner    User?              @relation("InnovationKnowledgeOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  project  InnovationProject? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  @@index([categoryId, updatedAt])
+  @@index([projectId])
+  @@index([ownerId])
+  @@index([updatedAt])
+  @@index([tags], type: Gin)
+  @@map("knowledge_items")
+  @@schema("innovation")
+}
+
+model InnovationProject {
+  id             String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name           String
+  description    String?
+  ownerId        String?                 @map("owner_id") @db.Uuid
+  status         InnovationProjectStatus @default(PLANNING)
+  /// The approved idea this project grew out of. One project per idea.
+  ideaId         String?                 @unique @map("idea_id") @db.Uuid
+  lessonsLearned String?                 @map("lessons_learned")
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+
+  owner     User?                     @relation("InnovationProjectOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  idea      InnovationIdea?           @relation(fields: [ideaId], references: [id], onDelete: SetNull)
+  members   InnovationProjectMember[]
+  documents InnovationKnowledgeItem[]
+
+  @@index([status, updatedAt])
+  @@index([ownerId])
+  @@index([updatedAt])
+  @@map("projects")
+  @@schema("innovation")
+}
+
+model InnovationProjectMember {
+  projectId String   @map("project_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  project InnovationProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User              @relation("InnovationProjectMember", fields: [userId], references: [id], onDelete: Restrict)
+
+  @@id([projectId, userId])
+  @@index([userId])
+  @@map("project_members")
+  @@schema("innovation")
+}

@@ -318,7 +318,10 @@ history, Forecast snapshot.
 - Pipelines and stages are **data, not code**. A new stage is a row, never a deploy.
 - Lead → Opportunity conversion is one transactional service operation that preserves the
   lead's history; never delete-and-recreate.
-- Activities are append-only. Correct by adding, not by rewriting history.
+- Activities are never deleted to rewrite history. Calls, emails, meetings, notes and tasks may be corrected by
+  holders of `crm.activity.update` within their scope — subject, text, timing, and a task's due date, priority and
+  assignee — with every edit audited; an activity's type and linked records never change, and the CRM's own
+  status and stage entries are immutable.
 - Forecasting reads BI aggregates, never a full scan of the opportunity table.
 - Customer documents are **ECM documents** linked by ID. CRM stores no files.
 
@@ -1844,6 +1847,32 @@ is unavailable until ECM publishes its contract function; presence reveals onlin
 message costs one extra round trip after its signal. _Revisit when:_ ECM ships (add the picker, cards and viewer link),
 group chat is built (receipts already generalise), or Realtime connection quotas bind.
 
+**ADR-021 — THE THINK TANK: a deliberately simple innovation module, with files in private storage.** _Context:_ the
+owner asked for Innovation (§6.6) as "a simple internal innovation and knowledge hub, not a complicated enterprise
+platform": ideas with votes and comments, a knowledge library with files, projects that grow from approved ideas, and
+an Ask Think Tank screen ready for AI later. §6.6 planned a workflow-engine stage pipeline, gamification and conversion
+to ERP projects; none of Phase 2 (storage, jobs), Phase 3 (ECM), Phase 4 (workflow) or ERP exists. _Decision:_ (1) Schema
+`innovation`, module `modules/innovation`: categories (rows, per kind), files, ideas (+ votes, comments), knowledge_items
+(documents, SOPs, best practices, lessons learned and templates are CATEGORIES, and a project's documents and lessons
+are knowledge items linked to it — one searchable library), projects (+ members). (2) Idea status is a plain field an
+administrator sets — New, Reviewing, Approved, In progress, Implemented, Rejected — not a workflow definition; no points,
+badges or leaderboard. One vote per person, never on one's own idea (service rule and trigger). (3) "Projects" here are
+innovation initiatives owned by THE THINK TANK, not ERP projects; converting publishes
+`innovation.IdeaConvertedToProject`, so ERP can react when it exists. (4) Files: `platform/storage` over a private
+Supabase Storage bucket (`techvault-documents`, created by the migration, no storage policies) reached only with
+`SUPABASE_SECRET_KEY`. Browsers upload straight to storage through a one-time signed URL; before an item is saved the
+server reads the object's size and first 4 KB and accepts it only if its bytes match its extension; downloads and
+previews are authorised against the owning item, audited, and served through links that expire in 1–5 minutes. When
+ECM is built, these files migrate into it (§29). (5) Permissions: members read, submit, vote, comment, add knowledge,
+download and ask; one `administer` permission per area; a seeded `think-tank-admin` role; members' permissions are added
+to the employee and sales roles. (6) Search is Postgres full-text ('simple' configuration, so Arabic works) on expression
+GIN indexes, with prefix matching; lists fetch ids through the index and rows by id, 20 per page. (7) Ask Think Tank
+calls an `AnswerEngine`; V1's keyword engine returns ranked, permission-filtered sources with highlighted passages and
+no generated answer, and the UI already renders an answer above the sources for the Phase 3 AI engine. _Consequences:_
+simple to use and to maintain; file features need the secret key on the server; the knowledge library duplicates part of
+ECM's future role until ECM absorbs it; no malware scanning yet. _Revisit when:_ ECM ships (move files and knowledge
+documents into it), the workflow engine exists (if review needs routing), or Phase 3 connects AI.
+
 ---
 
 ## 28. Current Implementation Status
@@ -1952,6 +1981,20 @@ The code is **not yet committed or deployed**, so production does not show Messa
 | Tests       | ✅ 20 integration tests (both permission directions, participation 404s, dedupe including concurrent first contact, pagination, concurrent send order, idempotent retry, receipts, deactivation, triggers from the owner connection, the ECM seam with a stand-in function, RLS as a non-owning role) and 17 unit tests. |
 | **Missing** | Document sharing: the paperclip, document picker, document cards and viewer link (§29 #17). Browser walk-through against Supabase (§29 #18). No Playwright spec. No message edit or delete UI (the columns exist). |
 
+### 🟡 THE THINK TANK (Innovation) — Phase 1 built 2026-09-14, at the owner's request
+
+Design decisions are in ADR-021. Migration `20260914123231_innovation_module` is applied to the **local test database
+only**. It is not applied to Supabase and the seed has not been re-run there (owner review, §8.5); order matters —
+migrate, then seed, since the seed grants the permissions that show the module.
+
+| Area        | State |
+| ----------- | ----- |
+| Data model  | ✅ `innovation` schema, 8 tables; CHECK invariants; case-insensitive unique category names; self-vote trigger; full-text expression indexes; deny-by-default RLS; private storage bucket (Supabase only). `prisma migrate diff` reports no drift. |
+| Services    | ✅ Ideas (submit, list/search/filter/sort, vote, comment, administer, convert to project), knowledge (add with verified file upload, search, administer), projects (team, documents, lessons learned), categories, overview (3 indexed statements), Ask Think Tank keyword engine, audited file downloads. |
+| UI          | ✅ Navigation section; overview with question box, four cards, recent activity and trending ideas; ideas list and detail; knowledge library with category chips, detail with inline PDF/image preview; projects list and detail; Ask Think Tank chat screen; category administration. |
+| Tests       | ✅ 17 integration tests (storage faked) and 12 unit tests (file signatures, search queries). |
+| **Missing** | Not applied to Supabase; `SUPABASE_SECRET_KEY` not set, so uploads and downloads are switched off until it is (§29 #21). Browser walk-through not done. Phase 2 (advanced search, relationships, notifications) and Phase 3 (AI) not started, as agreed. |
+
 ### 📋 Not started
 
 The five remaining domain modules (ERP, ECM, HRIS, Innovation, BI). Their navigation entries and
@@ -2017,6 +2060,10 @@ Open debt and risk:
 | 18  | **Messaging not yet exercised in a browser against Supabase** | Services, triggers and RLS are covered by integration tests on local Postgres; Realtime delivery, presence and typing need the migration applied to Supabase and two signed-in users | Owner applies the migration, then the seed, then walks the browser scenarios | 🟡 Medium |
 | 19  | **Presence is visible to every active account**             | Realtime policies cannot evaluate the permission model, so any active account may join `messaging:presence` and learn which user ids are online (no names, no content) | Acceptable for one organisation; scope presence per org unit if that changes | 🟢 Low    |
 | 20  | **Realtime connection quotas**                              | Every signed-in user with Messages holds one Realtime socket, and Supabase plans cap concurrent connections | Check the plan limit against headcount before rollout | 🟢 Low    |
+| 21  | **Think Tank files need `SUPABASE_SECRET_KEY`**             | Without the key on the server, uploads, previews and downloads are switched off (the UI says so) | Add the key to `.env.local` and Vercel | 🟡 Medium |
+| 22  | **No malware scanning of uploads**                          | Uploads are checked for type by content and size, but not scanned (§12.2 step 5) | Add a scanning step before a file becomes READY | 🟡 Medium |
+| 23  | **Abandoned uploads are never cleaned up**                  | A PENDING file whose form was never saved stays in storage and in `innovation.files` | A scheduled job (Phase 2) removing PENDING files older than a day | 🟢 Low    |
+| 24  | **Think Tank files live outside ECM**                       | The platform's single document store is meant to be ECM (§6.3); the knowledge library holds files until it exists | Migrate files and knowledge documents into ECM when Phase 3 ships | 🟢 Low    |
 
 Add real debt here as it accrues, with why it was accepted and the trigger to repay it. A
 TODO in code without a row here is invisible debt.

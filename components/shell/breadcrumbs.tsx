@@ -61,6 +61,9 @@ const RECORD_LABELS: Record<string, string> = {
   contacts: "Contact",
   opportunities: "Opportunity",
   users: "User",
+  ideas: "Idea",
+  knowledge: "Knowledge",
+  projects: "Project",
 };
 
 export function Breadcrumbs() {

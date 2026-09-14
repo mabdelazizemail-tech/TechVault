@@ -9,6 +9,12 @@ import {
 import { DEFAULT_STAGES } from "../modules/crm/domain/pipeline";
 import { MESSAGING_MEMBER_PERMISSIONS } from "../modules/messaging/contracts/permissions";
 import {
+  INNOVATION_ADMIN_PERMISSIONS,
+  INNOVATION_ADMIN_ROLE,
+  INNOVATION_MEMBER_PERMISSIONS,
+} from "../modules/innovation/contracts/permissions";
+import { INNOVATION_DEFAULT_CATEGORIES } from "../modules/innovation/domain/categories";
+import {
   IAM_PERMISSIONS,
   PLATFORM_PERMISSIONS,
   SYSTEM_ROLES,
@@ -88,13 +94,23 @@ const ROLE_DEFINITIONS: Record<
     name: "Sales",
     description:
       "Works leads, contacts, companies and opportunities, and logs activity. Cannot change how the pipeline is configured.",
-    permissions: [...CRM_SALES_PERMISSIONS, ...MESSAGING_MEMBER_PERMISSIONS],
+    permissions: [
+      ...CRM_SALES_PERMISSIONS,
+      ...MESSAGING_MEMBER_PERMISSIONS,
+      ...INNOVATION_MEMBER_PERMISSIONS,
+    ],
+  },
+  [INNOVATION_ADMIN_ROLE]: {
+    name: "Think Tank admin",
+    description:
+      "Manages THE THINK TANK: reviews and assigns ideas, curates knowledge, runs projects and maintains categories.",
+    permissions: [...INNOVATION_ADMIN_PERMISSIONS, ...MESSAGING_MEMBER_PERMISSIONS],
   },
   [SYSTEM_ROLES.EMPLOYEE]: {
     name: "Employee",
     description:
       "The baseline role every member of staff receives: messaging with colleagues, and no administrative access. Module access is added by assigning further roles.",
-    permissions: [...MESSAGING_MEMBER_PERMISSIONS],
+    permissions: [...MESSAGING_MEMBER_PERMISSIONS, ...INNOVATION_MEMBER_PERMISSIONS],
   },
 };
 
@@ -193,6 +209,26 @@ async function main(): Promise<void> {
     });
   }
   process.stdout.write(`  ${DEFAULT_STAGES.length} stages\n`);
+
+  process.stdout.write("Seeding Think Tank categories...\n");
+  // Create only: administrators rename, reorder and archive categories, and a
+  // re-seed must not undo that.
+  for (const [kind, names] of Object.entries(INNOVATION_DEFAULT_CATEGORIES)) {
+    const categoryKind = kind as "IDEA" | "KNOWLEDGE";
+    let order = 0;
+    for (const name of names) {
+      order += 1;
+      const existing = await prisma.innovationCategory.findFirst({
+        where: { kind: categoryKind, name: { equals: name, mode: "insensitive" } },
+        select: { id: true },
+      });
+      if (existing === null) {
+        await prisma.innovationCategory.create({
+          data: { kind: categoryKind, name, sortOrder: order },
+        });
+      }
+    }
+  }
 
   process.stdout.write("Seeding security policies…\n");
   const policies: { key: string; value: unknown; description: string }[] = [

@@ -1,4 +1,5 @@
 import { CRM_PERMISSIONS } from "@/modules/crm/contracts/permissions";
+import { INNOVATION_PERMISSIONS } from "@/modules/innovation/contracts/permissions";
 import { IAM_PERMISSIONS, PLATFORM_PERMISSIONS } from "@/platform/iam/permissions";
 
 /**
@@ -122,14 +123,39 @@ export const NAV_SECTIONS: readonly NavSection[] = [
   },
   {
     key: "innovation",
-    label: "Think Tank",
-    permission: "innovation.module.access",
+    label: "The Think Tank",
+    permission: INNOVATION_PERMISSIONS.ACCESS,
     items: [
-      { label: "Ideas", href: "/innovation/ideas", permission: "innovation.idea.read" },
       {
-        label: "Leaderboard",
-        href: "/innovation/leaderboard",
-        permission: "innovation.leaderboard.read",
+        label: "Overview",
+        href: "/innovation",
+        permission: INNOVATION_PERMISSIONS.ACCESS,
+        exact: true,
+      },
+      {
+        label: "Ideas",
+        href: "/innovation/ideas",
+        permission: INNOVATION_PERMISSIONS.IDEA_READ,
+      },
+      {
+        label: "Knowledge",
+        href: "/innovation/knowledge",
+        permission: INNOVATION_PERMISSIONS.KNOWLEDGE_READ,
+      },
+      {
+        label: "Projects",
+        href: "/innovation/projects",
+        permission: INNOVATION_PERMISSIONS.PROJECT_READ,
+      },
+      {
+        label: "Ask Think Tank",
+        href: "/innovation/ask",
+        permission: INNOVATION_PERMISSIONS.ASSISTANT_ACCESS,
+      },
+      {
+        label: "Categories",
+        href: "/innovation/categories",
+        permission: INNOVATION_PERMISSIONS.CATEGORY_ADMINISTER,
       },
     ],
   },
