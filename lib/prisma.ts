@@ -30,11 +30,25 @@ const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
 
-export const prisma: PrismaClient = globalForPrisma.prisma ?? createPrismaClient();
-
-if (process.env.NODE_ENV !== "production") {
-  globalForPrisma.prisma = prisma;
+function getPrismaClient(): PrismaClient {
+  const client = globalForPrisma.prisma ?? createPrismaClient();
+  globalForPrisma.prisma = client;
+  return client;
 }
+
+/**
+ * Created on first use, not on import. `next build` imports every route to
+ * collect page data, and a build must never need real credentials (§18.1): an
+ * eager client read DATABASE_URL at import and failed any build without it.
+ * The proxy keeps the `prisma.model.method()` call shape for every caller.
+ */
+export const prisma: PrismaClient = new Proxy({} as PrismaClient, {
+  get(_target, property) {
+    const client = getPrismaClient();
+    const value: unknown = Reflect.get(client, property, client);
+    return typeof value === "function" ? value.bind(client) : value;
+  },
+});
 
 /**
  * The transaction-scoped client type. Services that must write a business change,
