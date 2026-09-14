@@ -29,6 +29,9 @@ enum PermissionAction {
   REVERSE
   CLOSE
   REOPEN
+  /// Accounts receivable controls (ADR-023).
+  CANCEL
+  ALLOCATE
 
   @@schema("iam")
 }
@@ -163,11 +166,16 @@ model User {
 
   // ERP finance (erp.prisma). Relation fields only — who posted, reversed and
   // closed, because "who approved this posting" must be answerable (§13.3).
-  erpJournalsCreated  ErpJournalEntry[] @relation("ErpJournalCreator")
-  erpJournalsPosted   ErpJournalEntry[] @relation("ErpJournalPoster")
-  erpJournalsReversed ErpJournalEntry[] @relation("ErpJournalReverser")
-  erpPeriodsClosed    ErpFiscalPeriod[] @relation("ErpPeriodCloser")
-  erpPeriodsReopened  ErpFiscalPeriod[] @relation("ErpPeriodReopener")
+  erpJournalsCreated    ErpJournalEntry[] @relation("ErpJournalCreator")
+  erpJournalsPosted     ErpJournalEntry[] @relation("ErpJournalPoster")
+  erpJournalsReversed   ErpJournalEntry[] @relation("ErpJournalReverser")
+  erpPeriodsClosed      ErpFiscalPeriod[] @relation("ErpPeriodCloser")
+  erpPeriodsReopened    ErpFiscalPeriod[] @relation("ErpPeriodReopener")
+  erpArInvoicesCreated  ErpArInvoice[]    @relation("ErpArInvoiceCreator")
+  erpArInvoicesApproved ErpArInvoice[]    @relation("ErpArInvoiceApprover")
+  erpArInvoicesPosted   ErpArInvoice[]    @relation("ErpArInvoicePoster")
+  erpArReceiptsCreated  ErpArReceipt[]    @relation("ErpArReceiptCreator")
+  erpArReceiptsPosted   ErpArReceipt[]    @relation("ErpArReceiptPoster")
 
   @@index([orgUnitId])
   @@index([hrisEmployeeId])

@@ -1,19 +1,25 @@
 // ERP — Enterprise Resource Planning.  Owner: modules/erp.  Schema: "erp".
 //
-// Phase 1 is the finance foundation only (ADR-022): the chart of accounts, cost
-// centres, accounting periods and the double-entry journal. Receivables, payables,
-// procurement, inventory, assets and projects arrive in later phases.
+// Phase 1 is the finance foundation (ADR-022): the chart of accounts, cost centres,
+// accounting periods and the double-entry journal. Phase 2 adds accounts receivable
+// (ADR-023): customer invoices, receipts, allocations, tax rates, payment methods,
+// document numbering and AR settings. Payables, procurement, inventory, assets and
+// projects arrive in later phases.
 //
 // Models are prefixed `Erp` because Prisma model and enum names share one namespace
 // across every schema (CRM already has its own "Account").
 //
-// Money is a BIGINT in minor units (piastres) — never a float (ADR-006). Phase 1
-// records in the functional currency, EGP, only.
+// Money is a BIGINT in minor units (piastres) — never a float (ADR-006). ERP records
+// in the functional currency, EGP, only.
 //
 // The accounting invariants are enforced by the database as well as the services:
 // a posted entry balances, lives in an open period, uses active postable accounts,
-// and can never be changed or deleted — only reversed. See the raw SQL at the end of
-// the migration that creates these tables.
+// and can never be changed or deleted — only reversed. An invoice or receipt in the
+// ledger is frozen the same way, and always matches its journal entry. See the raw
+// SQL at the end of the migrations that create these tables.
+//
+// Customers are CRM accounts (§6.1): ERP stores `crm_account_id` with no foreign key
+// and copies no CRM data.
 
 /// The five fundamental account classes. Genuinely fixed, so an enum.
 enum ErpAccountType {
@@ -51,6 +57,29 @@ enum ErpJournalStatus {
   @@schema("erp")
 }
 
+/// DRAFT → PENDING_APPROVAL → APPROVED → POSTED → PARTIALLY_PAID → PAID, or
+/// CANCELLED (before posting, or voided by reversal while unpaid).
+enum ErpArInvoiceStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  POSTED
+  PARTIALLY_PAID
+  PAID
+  CANCELLED
+
+  @@schema("erp")
+}
+
+/// DRAFT → POSTED, or CANCELLED (a draft, or voided by reversal while unallocated).
+enum ErpArReceiptStatus {
+  DRAFT
+  POSTED
+  CANCELLED
+
+  @@schema("erp")
+}
+
 model ErpAccount {
   id            String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   code          String           @unique
@@ -73,6 +102,15 @@ model ErpAccount {
   children ErpAccount[]     @relation("ErpAccountTree")
   lines    ErpJournalLine[]
 
+  arSettingsDefaults    ErpArSettings[]        @relation("ErpArDefaultReceivable")
+  taxRates              ErpTaxRate[]           @relation("ErpTaxRateAccount")
+  paymentMethodDeposits ErpPaymentMethod[]     @relation("ErpPaymentMethodDeposit")
+  arProfiles            ErpArCustomerProfile[] @relation("ErpArProfileReceivable")
+  arInvoicesReceivable  ErpArInvoice[]         @relation("ErpArInvoiceReceivable")
+  arInvoiceLines        ErpArInvoiceLine[]     @relation("ErpArInvoiceLineRevenue")
+  arReceiptsDeposit     ErpArReceipt[]         @relation("ErpArReceiptDeposit")
+  arReceiptsReceivable  ErpArReceipt[]         @relation("ErpArReceiptReceivable")
+
   @@index([parentId])
   @@index([type, code])
   @@index([isActive])
@@ -93,9 +131,10 @@ model ErpCostCentre {
   createdBy String?  @map("created_by") @db.Uuid
   updatedBy String?  @map("updated_by") @db.Uuid
 
-  parent   ErpCostCentre?   @relation("ErpCostCentreTree", fields: [parentId], references: [id], onDelete: Restrict)
-  children ErpCostCentre[]  @relation("ErpCostCentreTree")
-  lines    ErpJournalLine[]
+  parent         ErpCostCentre?     @relation("ErpCostCentreTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children       ErpCostCentre[]    @relation("ErpCostCentreTree")
+  lines          ErpJournalLine[]
+  arInvoiceLines ErpArInvoiceLine[]
 
   @@index([parentId])
   @@index([isActive])
@@ -121,9 +160,11 @@ model ErpFiscalPeriod {
   createdBy String?  @map("created_by") @db.Uuid
   updatedBy String?  @map("updated_by") @db.Uuid
 
-  closer   User?             @relation("ErpPeriodCloser", fields: [closedBy], references: [id], onDelete: Restrict)
-  reopener User?             @relation("ErpPeriodReopener", fields: [reopenedBy], references: [id], onDelete: Restrict)
-  entries  ErpJournalEntry[]
+  closer     User?             @relation("ErpPeriodCloser", fields: [closedBy], references: [id], onDelete: Restrict)
+  reopener   User?             @relation("ErpPeriodReopener", fields: [reopenedBy], references: [id], onDelete: Restrict)
+  entries    ErpJournalEntry[]
+  arInvoices ErpArInvoice[]
+  arReceipts ErpArReceipt[]
 
   @@index([startDate])
   @@index([status])
@@ -144,8 +185,7 @@ model ErpJournalEntry {
   /// Total debits (= total credits), kept in step with the lines and verified by the
   /// database at posting, so lists show amounts without summing lines.
   totalMinor      BigInt           @default(0) @map("total_minor")
-  /// Where an entry came from when another ERP feature raises it (e.g. an invoice in
-  /// a later phase). All three or none.
+  /// The document that raised the entry, e.g. an AR invoice. All three or none.
   sourceModule    String?          @map("source_module")
   sourceType      String?          @map("source_type")
   sourceId        String?          @map("source_id")
@@ -168,6 +208,11 @@ model ErpJournalEntry {
   reverses ErpJournalEntry? @relation("ErpJournalReversal", fields: [reversesEntryId], references: [id], onDelete: Restrict)
   reversal ErpJournalEntry? @relation("ErpJournalReversal")
   lines    ErpJournalLine[]
+
+  arInvoice     ErpArInvoice? @relation("ErpArInvoiceJournal")
+  arInvoiceVoid ErpArInvoice? @relation("ErpArInvoiceVoidJournal")
+  arReceipt     ErpArReceipt? @relation("ErpArReceiptJournal")
+  arReceiptVoid ErpArReceipt? @relation("ErpArReceiptVoidJournal")
 
   @@index([status, entryDate(sort: Desc)])
   @@index([entryDate(sort: Desc)])
@@ -211,5 +256,302 @@ model ErpJournalSequence {
   updatedAt  DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   @@map("journal_sequences")
+  @@schema("erp")
+}
+
+// ---------------------------------------------------------------------------
+// Accounts receivable (ADR-023)
+// ---------------------------------------------------------------------------
+
+/// AR configuration: one row, id = 1. Approval rules, defaults and aging buckets are
+/// data an administrator changes, never code.
+model ErpArSettings {
+  id                         Int     @id @default(1)
+  defaultReceivableAccountId String? @map("default_receivable_account_id") @db.Uuid
+  invoiceApprovalRequired    Boolean @default(true) @map("invoice_approval_required")
+  /// When set, only invoices at or above this total need approval.
+  approvalThresholdMinor     BigInt? @map("approval_threshold_minor")
+  /// Off by default: nobody approves an invoice they created or submitted (§13.3).
+  allowSelfApproval          Boolean @default(false) @map("allow_self_approval")
+  defaultPaymentTermsDays    Int     @default(30) @map("default_payment_terms_days")
+  /// Aging boundaries in days past due: [30, 60, 90, 120] gives Current, 1–30, …, 120+.
+  agingBucketDays            Int[]   @default([30, 60, 90, 120]) @map("aging_bucket_days")
+
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  updatedBy String?  @map("updated_by") @db.Uuid
+
+  defaultReceivableAccount ErpAccount? @relation("ErpArDefaultReceivable", fields: [defaultReceivableAccountId], references: [id], onDelete: Restrict)
+
+  @@map("ar_settings")
+  @@schema("erp")
+}
+
+/// How a document type is numbered: INV-2026-000001. Numbers are assigned at posting.
+model ErpNumberSeries {
+  id           String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  /// AR_INVOICE or AR_RECEIPT.
+  documentType String  @unique @map("document_type")
+  prefix       String
+  padding      Int     @default(6)
+  resetsYearly Boolean @default(true) @map("resets_yearly")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  updatedBy String?  @map("updated_by") @db.Uuid
+
+  counters ErpNumberSeriesCounter[]
+
+  @@map("number_series")
+  @@schema("erp")
+}
+
+/// The last number used per series and year (year 0 for a series that never resets).
+model ErpNumberSeriesCounter {
+  seriesId   String   @map("series_id") @db.Uuid
+  year       Int
+  lastNumber Int      @default(0) @map("last_number")
+  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  series ErpNumberSeries @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+
+  @@id([seriesId, year])
+  @@map("number_series_counters")
+  @@schema("erp")
+}
+
+/// A tax rate is data (§25.3): the rate in basis points (1400 = 14%) and the
+/// liability account its tax is credited to. Lines copy the rate when calculated.
+model ErpTaxRate {
+  id              String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code            String  @unique
+  name            String
+  nameAr          String? @map("name_ar")
+  rateBasisPoints Int     @map("rate_basis_points")
+  taxAccountId    String  @map("tax_account_id") @db.Uuid
+  isActive        Boolean @default(true) @map("is_active")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy String?  @map("created_by") @db.Uuid
+  updatedBy String?  @map("updated_by") @db.Uuid
+
+  taxAccount   ErpAccount         @relation("ErpTaxRateAccount", fields: [taxAccountId], references: [id], onDelete: Restrict)
+  invoiceLines ErpArInvoiceLine[]
+
+  @@index([isActive])
+  @@map("tax_rates")
+  @@schema("erp")
+}
+
+model ErpPaymentMethod {
+  id                      String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code                    String  @unique
+  name                    String
+  nameAr                  String? @map("name_ar")
+  /// Suggested bank or cash account for receipts taken this way.
+  defaultDepositAccountId String? @map("default_deposit_account_id") @db.Uuid
+  isActive                Boolean @default(true) @map("is_active")
+  sortOrder               Int     @default(0) @map("sort_order")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy String?  @map("created_by") @db.Uuid
+  updatedBy String?  @map("updated_by") @db.Uuid
+
+  defaultDepositAccount ErpAccount?    @relation("ErpPaymentMethodDeposit", fields: [defaultDepositAccountId], references: [id], onDelete: Restrict)
+  receipts              ErpArReceipt[]
+
+  @@index([isActive, sortOrder])
+  @@map("payment_methods")
+  @@schema("erp")
+}
+
+/// Accounting terms for a CRM customer. Holds no CRM data — only the id (§8.3).
+model ErpArCustomerProfile {
+  id                  String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  crmAccountId        String  @unique @map("crm_account_id") @db.Uuid
+  paymentTermsDays    Int?    @map("payment_terms_days")
+  /// Shown against the balance; not enforced in Phase 2.
+  creditLimitMinor    BigInt? @map("credit_limit_minor")
+  receivableAccountId String? @map("receivable_account_id") @db.Uuid
+  notes               String?
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy String?  @map("created_by") @db.Uuid
+  updatedBy String?  @map("updated_by") @db.Uuid
+
+  receivableAccount ErpAccount? @relation("ErpArProfileReceivable", fields: [receivableAccountId], references: [id], onDelete: Restrict)
+
+  @@map("ar_customer_profiles")
+  @@schema("erp")
+}
+
+model ErpArInvoice {
+  id                  String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  /// Assigned at posting from the AR_INVOICE number series.
+  invoiceNumber       String?            @unique @map("invoice_number")
+  crmAccountId        String             @map("crm_account_id") @db.Uuid
+  invoiceDate         DateTime           @map("invoice_date") @db.Date
+  dueDate             DateTime           @map("due_date") @db.Date
+  currency            String             @default("EGP") @db.Char(3)
+  status              ErpArInvoiceStatus @default(DRAFT)
+  /// Calculated by the server from the lines and re-checked by the database.
+  subtotalMinor       BigInt             @default(0) @map("subtotal_minor")
+  discountMinor       BigInt             @default(0) @map("discount_minor")
+  taxMinor            BigInt             @default(0) @map("tax_minor")
+  totalMinor          BigInt             @default(0) @map("total_minor")
+  /// Maintained by the allocation trigger and reconciled with the allocations at commit.
+  paidMinor           BigInt             @default(0) @map("paid_minor")
+  /// total − paid while the invoice is in the ledger; 0 otherwise.
+  outstandingMinor    BigInt             @default(0) @map("outstanding_minor")
+  reference           String?
+  notes               String?
+  receivableAccountId String             @map("receivable_account_id") @db.Uuid
+  fiscalPeriodId      String?            @map("fiscal_period_id") @db.Uuid
+  journalEntryId      String?            @unique @map("journal_entry_id") @db.Uuid
+  voidJournalEntryId  String?            @unique @map("void_journal_entry_id") @db.Uuid
+
+  submittedAt     DateTime? @map("submitted_at") @db.Timestamptz(6)
+  submittedBy     String?   @map("submitted_by") @db.Uuid
+  /// True when the invoice was below the approval rule and approved automatically.
+  approvalSkipped Boolean   @default(false) @map("approval_skipped")
+  approvedAt      DateTime? @map("approved_at") @db.Timestamptz(6)
+  approvedBy      String?   @map("approved_by") @db.Uuid
+  rejectedAt      DateTime? @map("rejected_at") @db.Timestamptz(6)
+  rejectedBy      String?   @map("rejected_by") @db.Uuid
+  rejectionReason String?   @map("rejection_reason")
+  postedAt        DateTime? @map("posted_at") @db.Timestamptz(6)
+  postedBy        String?   @map("posted_by") @db.Uuid
+  cancelledAt     DateTime? @map("cancelled_at") @db.Timestamptz(6)
+  cancelledBy     String?   @map("cancelled_by") @db.Uuid
+  cancelReason    String?   @map("cancel_reason")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy String   @map("created_by") @db.Uuid
+  updatedBy String?  @map("updated_by") @db.Uuid
+
+  receivableAccount ErpAccount               @relation("ErpArInvoiceReceivable", fields: [receivableAccountId], references: [id], onDelete: Restrict)
+  period            ErpFiscalPeriod?         @relation(fields: [fiscalPeriodId], references: [id], onDelete: Restrict)
+  journalEntry      ErpJournalEntry?         @relation("ErpArInvoiceJournal", fields: [journalEntryId], references: [id], onDelete: Restrict)
+  voidJournalEntry  ErpJournalEntry?         @relation("ErpArInvoiceVoidJournal", fields: [voidJournalEntryId], references: [id], onDelete: Restrict)
+  creator           User                     @relation("ErpArInvoiceCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+  approver          User?                    @relation("ErpArInvoiceApprover", fields: [approvedBy], references: [id], onDelete: Restrict)
+  poster            User?                    @relation("ErpArInvoicePoster", fields: [postedBy], references: [id], onDelete: Restrict)
+  lines             ErpArInvoiceLine[]
+  allocations       ErpArReceiptAllocation[]
+
+  @@index([crmAccountId, status])
+  @@index([status, invoiceDate(sort: Desc)])
+  @@index([invoiceDate(sort: Desc)])
+  @@index([dueDate])
+  @@index([outstandingMinor, dueDate])
+  @@index([fiscalPeriodId])
+  @@index([createdBy])
+  @@map("ar_invoices")
+  @@schema("erp")
+}
+
+model ErpArInvoiceLine {
+  id                 String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  invoiceId          String  @map("invoice_id") @db.Uuid
+  lineNo             Int     @map("line_no")
+  description        String
+  /// Exact decimal, four places.
+  quantity           Decimal @db.Decimal(18, 4)
+  unitPriceMinor     BigInt  @map("unit_price_minor")
+  grossMinor         BigInt  @map("gross_minor")
+  discountMinor      BigInt  @default(0) @map("discount_minor")
+  netMinor           BigInt  @map("net_minor")
+  taxRateId          String? @map("tax_rate_id") @db.Uuid
+  /// The rate as it was when the line was calculated.
+  taxRateBasisPoints Int?    @map("tax_rate_basis_points")
+  taxMinor           BigInt  @default(0) @map("tax_minor")
+  totalMinor         BigInt  @map("total_minor")
+  revenueAccountId   String  @map("revenue_account_id") @db.Uuid
+  costCentreId       String? @map("cost_centre_id") @db.Uuid
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  invoice        ErpArInvoice   @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  taxRate        ErpTaxRate?    @relation(fields: [taxRateId], references: [id], onDelete: Restrict)
+  revenueAccount ErpAccount     @relation("ErpArInvoiceLineRevenue", fields: [revenueAccountId], references: [id], onDelete: Restrict)
+  costCentre     ErpCostCentre? @relation(fields: [costCentreId], references: [id], onDelete: Restrict)
+
+  @@unique([invoiceId, lineNo])
+  @@index([revenueAccountId])
+  @@index([taxRateId])
+  @@index([costCentreId])
+  @@map("ar_invoice_lines")
+  @@schema("erp")
+}
+
+model ErpArReceipt {
+  id                  String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  /// Assigned at posting from the AR_RECEIPT number series.
+  receiptNumber       String?            @unique @map("receipt_number")
+  crmAccountId        String             @map("crm_account_id") @db.Uuid
+  receiptDate         DateTime           @map("receipt_date") @db.Date
+  amountMinor         BigInt             @map("amount_minor")
+  currency            String             @default("EGP") @db.Char(3)
+  paymentMethodId     String             @map("payment_method_id") @db.Uuid
+  depositAccountId    String             @map("deposit_account_id") @db.Uuid
+  receivableAccountId String             @map("receivable_account_id") @db.Uuid
+  reference           String?
+  notes               String?
+  status              ErpArReceiptStatus @default(DRAFT)
+  /// Maintained by the allocation trigger and reconciled with the allocations at commit.
+  allocatedMinor      BigInt             @default(0) @map("allocated_minor")
+  fiscalPeriodId      String?            @map("fiscal_period_id") @db.Uuid
+  journalEntryId      String?            @unique @map("journal_entry_id") @db.Uuid
+  voidJournalEntryId  String?            @unique @map("void_journal_entry_id") @db.Uuid
+  postedAt            DateTime?          @map("posted_at") @db.Timestamptz(6)
+  postedBy            String?            @map("posted_by") @db.Uuid
+  cancelledAt         DateTime?          @map("cancelled_at") @db.Timestamptz(6)
+  cancelledBy         String?            @map("cancelled_by") @db.Uuid
+  cancelReason        String?            @map("cancel_reason")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy String   @map("created_by") @db.Uuid
+  updatedBy String?  @map("updated_by") @db.Uuid
+
+  paymentMethod     ErpPaymentMethod         @relation(fields: [paymentMethodId], references: [id], onDelete: Restrict)
+  depositAccount    ErpAccount               @relation("ErpArReceiptDeposit", fields: [depositAccountId], references: [id], onDelete: Restrict)
+  receivableAccount ErpAccount               @relation("ErpArReceiptReceivable", fields: [receivableAccountId], references: [id], onDelete: Restrict)
+  period            ErpFiscalPeriod?         @relation(fields: [fiscalPeriodId], references: [id], onDelete: Restrict)
+  journalEntry      ErpJournalEntry?         @relation("ErpArReceiptJournal", fields: [journalEntryId], references: [id], onDelete: Restrict)
+  voidJournalEntry  ErpJournalEntry?         @relation("ErpArReceiptVoidJournal", fields: [voidJournalEntryId], references: [id], onDelete: Restrict)
+  creator           User                     @relation("ErpArReceiptCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+  poster            User?                    @relation("ErpArReceiptPoster", fields: [postedBy], references: [id], onDelete: Restrict)
+  allocations       ErpArReceiptAllocation[]
+
+  @@index([crmAccountId, status])
+  @@index([status, receiptDate(sort: Desc)])
+  @@index([receiptDate(sort: Desc)])
+  @@index([paymentMethodId])
+  @@index([fiscalPeriodId])
+  @@map("ar_receipts")
+  @@schema("erp")
+}
+
+/// Matches part of a posted receipt to a posted invoice of the same customer. It moves
+/// no money in the ledger — the receipt already credited receivables.
+model ErpArReceiptAllocation {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  receiptId   String   @map("receipt_id") @db.Uuid
+  invoiceId   String   @map("invoice_id") @db.Uuid
+  amountMinor BigInt   @map("amount_minor")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdBy   String   @map("created_by") @db.Uuid
+
+  receipt ErpArReceipt @relation(fields: [receiptId], references: [id], onDelete: Restrict)
+  invoice ErpArInvoice @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+
+  @@unique([receiptId, invoiceId])
+  @@index([invoiceId])
+  @@map("ar_receipt_allocations")
   @@schema("erp")
 }

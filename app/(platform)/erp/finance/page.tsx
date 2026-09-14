@@ -90,6 +90,26 @@ export default async function FinanceDashboardPage() {
             />
           </CardLink>
         )}
+        {overview.arOutstandingMinor !== null && (
+          <CardLink href="/erp/finance/aging">
+            <StatCard
+              label="Receivables outstanding"
+              value={formatAmount(overview.arOutstandingMinor)}
+              note="Posted invoices not yet paid, EGP"
+              className="h-full"
+            />
+          </CardLink>
+        )}
+        {overview.arOverdueMinor !== null && (
+          <CardLink href="/erp/finance/invoices?overdue=1">
+            <StatCard
+              label="Overdue"
+              value={formatAmount(overview.arOverdueMinor)}
+              note="Past the due date, EGP"
+              className="h-full"
+            />
+          </CardLink>
+        )}
       </section>
 
       <div className="grid gap-4 lg:grid-cols-2">

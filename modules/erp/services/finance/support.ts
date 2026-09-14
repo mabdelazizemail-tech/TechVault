@@ -163,6 +163,8 @@ export async function lockJournalEntry(
   entryDate: string;
   journalNumber: string | null;
   reversesEntryId: string | null;
+  /** The document type that raised the entry (e.g. "ar_invoice"), if any. */
+  sourceType: string | null;
 }> {
   const rows = await tx.$queryRaw<
     {
@@ -171,10 +173,11 @@ export async function lockJournalEntry(
       entry_date: string;
       journal_number: string | null;
       reverses_entry_id: string | null;
+      source_type: string | null;
     }[]
   >`
     SELECT id, status::text AS status, entry_date::text AS entry_date,
-           journal_number, reverses_entry_id
+           journal_number, reverses_entry_id, source_type
       FROM erp.journal_entries
      WHERE id = ${id}::uuid
        FOR UPDATE`;
@@ -186,6 +189,7 @@ export async function lockJournalEntry(
     entryDate: row.entry_date,
     journalNumber: row.journal_number,
     reversesEntryId: row.reverses_entry_id,
+    sourceType: row.source_type,
   };
 }
 

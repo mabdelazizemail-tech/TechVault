@@ -53,3 +53,10 @@ export {
 
 export { searchCrm } from "../services/search-service";
 export { getCrmDashboard } from "../services/dashboard-service";
+
+/** Name-only company lookups for other modules; see the service for the contract. */
+export {
+  getAccountReferences,
+  searchAccountReferences,
+  type CrmAccountReference,
+} from "../services/account-reference-service";

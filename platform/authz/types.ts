@@ -20,7 +20,9 @@ export type PermissionAction =
   | "POST"
   | "REVERSE"
   | "CLOSE"
-  | "REOPEN";
+  | "REOPEN"
+  | "CANCEL"
+  | "ALLOCATE";
 
 export type ScopeType = "GLOBAL" | "ORG_UNIT" | "OWN_ORG_UNIT" | "OWN";
 

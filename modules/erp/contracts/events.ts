@@ -17,6 +17,13 @@ export const ERP_EVENTS = {
   PERIOD_REOPENED: "erp.PeriodReopened",
   JOURNAL_ENTRY_POSTED: "erp.JournalEntryPosted",
   JOURNAL_ENTRY_REVERSED: "erp.JournalEntryReversed",
+  AR_INVOICE_APPROVED: "erp.ARInvoiceApproved",
+  AR_INVOICE_POSTED: "erp.ARInvoicePosted",
+  AR_INVOICE_CANCELLED: "erp.ARInvoiceCancelled",
+  AR_RECEIPT_POSTED: "erp.ARReceiptPosted",
+  AR_RECEIPT_ALLOCATED: "erp.ARReceiptAllocated",
+  AR_RECEIPT_UNALLOCATED: "erp.ARReceiptUnallocated",
+  AR_RECEIPT_CANCELLED: "erp.ARReceiptCancelled",
 } as const;
 
 export type JournalEntryPostedPayload = {
@@ -41,4 +48,51 @@ export type PeriodClosedPayload = {
   name: string;
   startDate: string;
   endDate: string;
+};
+
+/* Accounts receivable -------------------------------------------------------- */
+
+export type ArInvoiceApprovedPayload = {
+  invoiceId: string;
+  crmAccountId: string;
+  /** True when the invoice fell below the approval rule and was approved automatically. */
+  approvalSkipped: boolean;
+};
+
+export type ArInvoicePostedPayload = {
+  invoiceId: string;
+  invoiceNumber: string;
+  crmAccountId: string;
+  invoiceDate: string;
+  dueDate: string;
+  journalEntryId: string;
+};
+
+export type ArInvoiceCancelledPayload = {
+  invoiceId: string;
+  invoiceNumber: string | null;
+  crmAccountId: string;
+  /** The reversal entry, when a posted invoice was voided. */
+  voidJournalEntryId: string | null;
+};
+
+export type ArReceiptPostedPayload = {
+  receiptId: string;
+  receiptNumber: string;
+  crmAccountId: string;
+  receiptDate: string;
+  journalEntryId: string;
+};
+
+export type ArReceiptAllocationPayload = {
+  receiptId: string;
+  crmAccountId: string;
+  invoiceIds: string[];
+};
+
+export type ArReceiptCancelledPayload = {
+  receiptId: string;
+  receiptNumber: string | null;
+  crmAccountId: string;
+  voidJournalEntryId: string | null;
 };

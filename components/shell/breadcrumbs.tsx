@@ -69,6 +69,9 @@ const RECORD_LABELS: Record<string, string> = {
 const ERP_RECORD_LABELS: Record<string, string> = {
   accounts: "Account",
   journals: "Journal entry",
+  invoices: "Invoice",
+  receipts: "Receipt",
+  customers: "Customer",
 };
 
 export function Breadcrumbs() {

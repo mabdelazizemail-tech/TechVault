@@ -109,6 +109,31 @@ export const NAV_SECTIONS: readonly NavSection[] = [
         href: "/erp/finance/cost-centres",
         permission: ERP_PERMISSIONS.COST_CENTRE_READ,
       },
+      {
+        label: "Invoices",
+        href: "/erp/finance/invoices",
+        permission: ERP_PERMISSIONS.AR_INVOICE_READ,
+      },
+      {
+        label: "Receipts",
+        href: "/erp/finance/receipts",
+        permission: ERP_PERMISSIONS.AR_RECEIPT_READ,
+      },
+      {
+        label: "Customers",
+        href: "/erp/finance/customers",
+        permission: ERP_PERMISSIONS.AR_CUSTOMER_READ,
+      },
+      {
+        label: "AR aging",
+        href: "/erp/finance/aging",
+        permission: ERP_PERMISSIONS.AR_AGING_READ,
+      },
+      {
+        label: "AR settings",
+        href: "/erp/finance/ar-settings",
+        permission: ERP_PERMISSIONS.AR_SETTINGS_ADMINISTER,
+      },
     ],
   },
   {

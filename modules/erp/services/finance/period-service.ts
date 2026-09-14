@@ -163,15 +163,26 @@ export async function closePeriod(actor: Actor, periodId: string): Promise<void>
       }
 
       // A draft dated inside a closed period could never be posted; resolve it first.
-      const drafts = await tx.erpJournalEntry.count({
-        where: {
-          status: "DRAFT",
-          entryDate: {
-            gte: dateFromIso(period.startDate),
-            lte: dateFromIso(period.endDate),
+      const inPeriod = {
+        gte: dateFromIso(period.startDate),
+        lte: dateFromIso(period.endDate),
+      };
+      const [drafts, unpostedInvoices, draftReceipts] = await Promise.all([
+        tx.erpJournalEntry.count({ where: { status: "DRAFT", entryDate: inPeriod } }),
+        tx.erpArInvoice.count({
+          where: {
+            status: { in: ["DRAFT", "PENDING_APPROVAL", "APPROVED"] },
+            invoiceDate: inPeriod,
           },
-        },
-      });
+        }),
+        tx.erpArReceipt.count({ where: { status: "DRAFT", receiptDate: inPeriod } }),
+      ]);
+      // Unposted AR documents dated inside a closed period could never be posted either.
+      if (unpostedInvoices + draftReceipts > 0) {
+        throw new BusinessRuleError(
+          `${unpostedInvoices} unposted invoice(s) and ${draftReceipts} draft receipt(s) are dated in ${period.name}. Post, cancel or delete them before closing the period.`,
+        );
+      }
       if (drafts > 0) {
         throw new BusinessRuleError(
           `${drafts} draft journal ${drafts === 1 ? "entry is" : "entries are"} dated in ${period.name}. Post or delete ${drafts === 1 ? "it" : "them"} before closing the period.`,

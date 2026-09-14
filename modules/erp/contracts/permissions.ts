@@ -34,6 +34,25 @@ export const ERP_PERMISSIONS = {
   JOURNAL_DELETE: "erp.journal.delete",
   JOURNAL_POST: "erp.journal.post",
   JOURNAL_REVERSE: "erp.journal.reverse",
+
+  AR_INVOICE_READ: "erp.ar_invoice.read",
+  AR_INVOICE_CREATE: "erp.ar_invoice.create",
+  AR_INVOICE_UPDATE: "erp.ar_invoice.update",
+  AR_INVOICE_APPROVE: "erp.ar_invoice.approve",
+  AR_INVOICE_POST: "erp.ar_invoice.post",
+  AR_INVOICE_CANCEL: "erp.ar_invoice.cancel",
+
+  AR_RECEIPT_READ: "erp.ar_receipt.read",
+  AR_RECEIPT_CREATE: "erp.ar_receipt.create",
+  AR_RECEIPT_UPDATE: "erp.ar_receipt.update",
+  AR_RECEIPT_POST: "erp.ar_receipt.post",
+  AR_RECEIPT_ALLOCATE: "erp.ar_receipt.allocate",
+  AR_RECEIPT_CANCEL: "erp.ar_receipt.cancel",
+
+  AR_CUSTOMER_READ: "erp.ar_customer.read",
+  AR_CUSTOMER_UPDATE: "erp.ar_customer.update",
+  AR_AGING_READ: "erp.ar_aging.read",
+  AR_SETTINGS_ADMINISTER: "erp.ar_settings.administer",
 } as const;
 
 type ErpPermissionKey = (typeof ERP_PERMISSIONS)[keyof typeof ERP_PERMISSIONS];
@@ -106,6 +125,77 @@ export const ERP_PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
     "REVERSE",
     "Reverse posted journal entries with an equal and opposite entry.",
   ),
+
+  define(ERP_PERMISSIONS.AR_INVOICE_READ, "READ", "View customer invoices."),
+  define(ERP_PERMISSIONS.AR_INVOICE_CREATE, "CREATE", "Create draft customer invoices."),
+  define(
+    ERP_PERMISSIONS.AR_INVOICE_UPDATE,
+    "UPDATE",
+    "Edit, submit and delete draft customer invoices.",
+  ),
+  define(
+    ERP_PERMISSIONS.AR_INVOICE_APPROVE,
+    "APPROVE",
+    "Approve or reject submitted customer invoices.",
+  ),
+  define(
+    ERP_PERMISSIONS.AR_INVOICE_POST,
+    "POST",
+    "Post approved invoices to the ledger, which gives them their invoice number.",
+  ),
+  define(
+    ERP_PERMISSIONS.AR_INVOICE_CANCEL,
+    "CANCEL",
+    "Cancel unposted invoices, and void unpaid posted invoices by reversal.",
+  ),
+
+  define(
+    ERP_PERMISSIONS.AR_RECEIPT_READ,
+    "READ",
+    "View customer receipts and allocations.",
+  ),
+  define(ERP_PERMISSIONS.AR_RECEIPT_CREATE, "CREATE", "Record draft customer receipts."),
+  define(
+    ERP_PERMISSIONS.AR_RECEIPT_UPDATE,
+    "UPDATE",
+    "Edit and delete draft customer receipts.",
+  ),
+  define(
+    ERP_PERMISSIONS.AR_RECEIPT_POST,
+    "POST",
+    "Post customer receipts to the ledger.",
+  ),
+  define(
+    ERP_PERMISSIONS.AR_RECEIPT_ALLOCATE,
+    "ALLOCATE",
+    "Allocate posted receipts to invoices, and remove allocations.",
+  ),
+  define(
+    ERP_PERMISSIONS.AR_RECEIPT_CANCEL,
+    "CANCEL",
+    "Cancel draft receipts, and void unallocated posted receipts by reversal.",
+  ),
+
+  define(
+    ERP_PERMISSIONS.AR_CUSTOMER_READ,
+    "READ",
+    "View customer balances, statements and billing profiles.",
+  ),
+  define(
+    ERP_PERMISSIONS.AR_CUSTOMER_UPDATE,
+    "UPDATE",
+    "Set a customer's payment terms, credit limit and receivable account.",
+  ),
+  define(
+    ERP_PERMISSIONS.AR_AGING_READ,
+    "READ",
+    "View the accounts receivable aging report.",
+  ),
+  define(
+    ERP_PERMISSIONS.AR_SETTINGS_ADMINISTER,
+    "ADMINISTER",
+    "Configure accounts receivable: tax rates, payment methods, numbering, approval rules and aging buckets.",
+  ),
 ];
 
 /** Role key for the seeded finance administrator: every ERP finance permission. */
@@ -137,4 +227,18 @@ export const ERP_ACCOUNTANT_PERMISSIONS: readonly string[] = [
   ERP_PERMISSIONS.JOURNAL_DELETE,
   ERP_PERMISSIONS.JOURNAL_POST,
   ERP_PERMISSIONS.JOURNAL_REVERSE,
+  // Accounts receivable: day-to-day billing and cash application. Approving and
+  // cancelling invoices, voiding receipts, customer credit terms and AR settings
+  // stay with a finance administrator.
+  ERP_PERMISSIONS.AR_INVOICE_READ,
+  ERP_PERMISSIONS.AR_INVOICE_CREATE,
+  ERP_PERMISSIONS.AR_INVOICE_UPDATE,
+  ERP_PERMISSIONS.AR_INVOICE_POST,
+  ERP_PERMISSIONS.AR_RECEIPT_READ,
+  ERP_PERMISSIONS.AR_RECEIPT_CREATE,
+  ERP_PERMISSIONS.AR_RECEIPT_UPDATE,
+  ERP_PERMISSIONS.AR_RECEIPT_POST,
+  ERP_PERMISSIONS.AR_RECEIPT_ALLOCATE,
+  ERP_PERMISSIONS.AR_CUSTOMER_READ,
+  ERP_PERMISSIONS.AR_AGING_READ,
 ];

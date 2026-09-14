@@ -356,7 +356,8 @@ centre, Budget, Period close.
   Thresholds are configuration rows, never `if (amount > 50000)` in code.
 - Period close locks postings by date. Enforce it in services **and** with a DB constraint.
 
-**Publishes:** `erp.InvoiceCreated`, `erp.InvoiceIssued`, `erp.PaymentCompleted`,
+**Publishes:** `erp.ARInvoicePosted`, `erp.ARReceiptAllocated` and the other AR events of ADR-023 (in place of the
+planned `erp.InvoiceCreated`, `erp.InvoiceIssued`, `erp.PaymentCompleted`),
 `erp.PurchaseOrderApproved`, `erp.GoodsReceived`, `erp.JournalEntryPosted`,
 `erp.ProjectCreated`, `erp.BudgetExceeded`, `erp.PeriodClosed`.
 
@@ -1445,7 +1446,8 @@ Phase 3  ECM core (register → store → version → search → download, permi
 Phase 4  platform/workflow + the first real approval flow
 Phase 5  CRM core (accounts, contacts, opportunities, pipeline-as-data) — 🟡 built ahead of order (§28)
 Phase 6  ERP finance core — 🟡 ERP Phase 1 "finance foundation" built (chart of accounts, periods,
-         cost centres, double-entry journal, §28); invoices and payments follow
+         cost centres, double-entry journal, §28); ERP Phase 2 accounts receivable built (customer
+         invoices, approval, receipts, allocation, balances, aging, §28); payables follow
 Phase 7  HRIS core (employees, org structure, sensitive-field isolation)
 Phase 8  Innovation (ideas, configurable stage workflow, voting)
 Phase 9  BI (rollups, dashboards, scheduled reports)
@@ -1908,6 +1910,53 @@ maker–checker until the workflow engine exists (§29 #26); the ledger is singl
 engine arrives (route posting approval through it), receivables or payables need foreign currency, or reporting needs
 balances (from rollups, §6.7).
 
+**ADR-023 — ERP Phase 2: accounts receivable on the Phase 1 ledger, with CRM as the only customer record.** _Context:_
+the owner asked for customer invoicing through to cash — CRM customer → invoice → approval → posting → receipt →
+allocation → balance → aging — reusing the Phase 1 ledger, duplicating no CRM customer data, and with no second
+workflow engine (Phase 4 does not exist). _Decision:_ (1) Ten `erp` tables: `ar_settings` (one row), `number_series`
+and `number_series_counters`, `tax_rates`, `payment_methods`, `ar_customer_profiles`, `ar_invoices`,
+`ar_invoice_lines`, `ar_receipts`, `ar_receipt_allocations`. There is no customer table: documents and the optional
+billing profile (payment terms, credit limit, receivable account, notes) store only `crm_account_id`. Names are read at
+display time through CRM's reference contract (`getAccountReferences` / `searchAccountReferences` in
+`modules/crm/contracts/service.ts`), which returns only id, name and whether the company still exists and checks no CRM
+permission — holding an AR permission is what entitles the reader to the customer's name. A company deleted in CRM keeps
+its receivables history, shown as no longer in CRM; new documents refuse it. (2) Totals belong to the server. A line is
+quantity (`numeric(18,4)`, an integer scaled by 10⁴ in code) × unit price, rounded half away from zero, less a discount,
+plus tax at the line's rate in basis points, which the line keeps; invoice totals are sums of lines. Totals, statuses and
+numbers sent by a browser are ignored, and CHECKs recompute every line figure in SQL, so a writer that bypasses the
+services cannot store a wrong amount either. EGP only; discounts net against revenue; tax rates are rows credited to a
+liability account, none seeded. (3) Lifecycle: invoice DRAFT → PENDING_APPROVAL → APPROVED → POSTED → PARTIALLY_PAID →
+PAID, or CANCELLED; receipt DRAFT → POSTED, or CANCELLED. Approval is a status plus a permission, not a workflow:
+`ar_settings` says whether invoices need approval, above what threshold, and whether a creator may approve their own
+(off by default). An invoice the rule does not catch is marked approval-skipped at submission; a rejection returns it
+to draft with a reason. (4) Posting reuses the ledger through the module-private `services/finance/ledger.ts`. An
+invoice posts Dr receivable (total), Cr revenue per account and cost centre (net), Cr tax accounts; a receipt posts Dr
+the deposit account, Cr receivable. Document, number, journal entry, audit record and outbox events commit in one
+transaction, and the Phase 1 guard still refuses a closed period. Numbers (`INV-2026-000001`, `RCT-2026-000001`) come
+from a configurable series at posting, so abandoned drafts leave no gaps. (5) `paid_minor`, `outstanding_minor`, the
+payment status and a receipt's `allocated_minor` are cached columns maintained only by the allocation trigger, which
+locks the receipt and invoice rows and refuses to exceed either; deferred checks at commit require invoice totals to
+equal the sum of the lines, paid to equal the sum of allocations, and a document's journal entry to match it. Concurrent
+allocations to one invoice therefore serialise and cannot over-allocate. (6) Corrections are voids, never edits: a
+posted invoice or receipt with nothing allocated is cancelled by reversing its journal entry (`void_journal_entry_id`);
+allocations must be removed first. Credit notes are deferred. A journal entry raised by a document (`source_type` set)
+cannot be reversed from the journal screens, and closing a period is also refused while unposted invoices or draft
+receipts are dated in it. (7) Balances are derived, never stored per customer: balance = posted invoices − posted
+receipts; aging buckets each open invoice's outstanding amount by days past due (`ar_settings.aging_bucket_days`,
+default 30/60/90/120) and shows unapplied receipts as a credit; the subledger equals the ledger balance of the
+receivable accounts, proven by an integration test. (8) Permissions: `erp.ar_invoice.{read,create,update,approve,post,
+cancel}`, `erp.ar_receipt.{read,create,update,post,allocate,cancel}`, `erp.ar_customer.{read,update}`,
+`erp.ar_aging.read`, `erp.ar_settings.administer`. IAM gains the actions CANCEL and ALLOCATE in their own migration,
+because a new enum value cannot be used in the transaction that adds it. `finance-admin` holds all of them;
+`accountant` has no approve, cancel, customer-terms or settings rights. (9) Events carry ids and amounts only:
+`erp.ARInvoiceApproved`, `ARInvoicePosted`, `ARInvoiceCancelled`, `ARReceiptPosted`, `ARReceiptAllocated`,
+`ARReceiptUnallocated`, `ARReceiptCancelled`; they replace §6.2's planned `InvoiceIssued` and `PaymentCompleted`.
+_Consequences:_ a service bug cannot over-allocate, store a mispriced line, or leave a document out of step with its
+ledger entry; the SQL and the Prisma schema must change together; the credit limit is shown, not enforced; invoices
+carry no billing-name, address or tax-registration snapshot, so they are not e-invoices; customer lists and aging
+aggregate transactional tables live. _Revisit when:_ credit notes, foreign currency or Egyptian e-invoicing are
+required; the workflow engine exists (route approval through it); or AR lists pass ~200 ms (rollups, §6.7).
+
 ---
 
 ## 28. Current Implementation Status
@@ -2046,11 +2095,29 @@ triggers (the balance check deferrable), 19 CHECK constraints and the period exc
 | Services    | ✅ Chart of accounts (tree listing in code order, create, edit, activate/deactivate, totals, paginated activity), cost centres (tree, create, edit), periods (create without overlap, close — refused while drafts are dated inside — and reopen with a reason), journal (drafts create/edit/delete; post with server re-validation and a gap-free number; reverse with an equal and opposite posted entry), finance overview. Every write: permission → Zod → one transaction with audit record and, where others may react, an outbox event. |
 | UI          | ✅ ERP Finance navigation; dashboard; chart of accounts with search, type and status filters; account detail with totals and dated activity; journal list with search and status filter; line-entry form with running totals and a balanced/out-of-balance indicator; journal detail with post, reverse and delete-draft confirmations; periods with close and reopen; cost centres. Arabic names shown right-to-left, amounts accept Arabic digits. |
 | Tests       | ✅ 32 unit tests (amount parsing, balancing and posting rules, reversal, schemas, roles) and 23 integration tests (every rejection case, immutability through the services and straight at the tables, reversal, rollback leaves no number, audit or event, simultaneous postings, allowed/refused for post, reverse, close and reopen). `npm run verify` 203 passing; full integration suite 144 passing; build succeeds. |
-| **Missing** | The signed-in browser journey has not been run: `tests/e2e/erp-finance.spec.ts` skips without `E2E_EMAIL`/`E2E_PASSWORD` (§29 #27). No accounting period exists on Supabase yet, so nothing can be posted until a finance administrator creates one. No maker–checker (§29 #26). Receivables, payables, procurement, inventory, assets, projects, budgeting and reporting are deferred to later ERP phases, as agreed. |
+| **Missing** | The signed-in browser journey has not been run: `tests/e2e/erp-finance.spec.ts` skips without `E2E_EMAIL`/`E2E_PASSWORD` (§29 #27). No accounting period exists on Supabase yet, so nothing can be posted until a finance administrator creates one. No maker–checker (§29 #26). Payables, procurement, inventory, assets, projects, budgeting and reporting are deferred to later ERP phases, as agreed; receivables are ERP Phase 2, below. |
+
+### 🟡 ERP — Phase 2 accounts receivable, built 2026-09-14 at the owner's request
+
+Design decisions are in ADR-023. Migrations `20260914200000_ar_permission_actions` and
+`20260914200100_erp_accounts_receivable` are applied to the local test database and, with the owner's approval on
+2026-09-14, to Supabase. Verified on Supabase by direct query: both migrations finished; `iam.PermissionAction` has
+CANCEL and ALLOCATE; RLS on all 10 new tables with no policies; the 8 triggers (4 deferred checks, including
+`journal_entries_source_check`); 40 CHECK constraints on the AR tables; no privileges for `anon` or `authenticated` on
+`erp`. On any database: migrate, deploy the code, then run `npm run db:seed` — permission rows using the new actions
+cannot be loaded by a Prisma client generated before them.
+
+| Area        | State |
+| ----------- | ----- |
+| Data model  | ✅ 10 `erp` tables (ADR-023): settings, number series and counters, tax rates, payment methods, customer billing profiles, invoices and lines, receipts and allocations. Pricing CHECKs, guard triggers, the allocation trigger and deferred reconciliation checks; deny-by-default RLS. `prisma migrate diff` reports no drift. |
+| Services    | ✅ Invoices (drafts priced by the server, submit, approve with the self-approval and threshold rules, reject, post into a balanced linked journal, cancel or void by reversal, delete draft), receipts (drafts, post, allocate to one or more open invoices, unallocate, void), customers (search through the CRM contract, balance list, account with statement, aging and recent documents, billing profile), aging report, AR settings, tax rates, payment methods, numbering. Every write: permission → Zod → one transaction with audit record and outbox event. Journal reversal refuses document-raised entries; period close refuses unposted AR documents. |
+| UI          | ✅ Invoices (list with status and overdue filters and sortable number, date, due, total and outstanding; line-entry form; detail with lines, totals, payments, approval trail and actions), Receipts (list, form, detail with allocation dialog and unallocate), Customers (balance list; account page with balance, overdue, unapplied, credit limit, billing profile, aging, statement by date range, recent invoices and receipts), AR aging (as-of date, customer search, totals), AR settings (rules and defaults, aging buckets, tax rates, payment methods, numbering). The finance dashboard shows receivables outstanding and overdue; a document's journal entry links back to it and hides Reverse. |
+| Tests       | ✅ 21 unit tests (quantities, rounding, line pricing, tax rates, approval rules, payment status, aging buckets, numbering, schemas, roles) and 20 integration tests (browser totals ignored, validation, self-approval and threshold, rejection, balanced linked journal, closed period and double posting leave nothing behind, posted immutability in services and straight at the tables, sourced-journal reversal refused, voids, partial, full and multi-invoice allocation, 100,000 − 40,000 = 60,000, over-allocation, duplicate and cross-customer refusals, simultaneous allocations, unallocate then void, aging and statement, subledger equals ledger, period close with unposted invoices, allowed/refused for approve, post, receipt post and allocate). `npm run verify` 224 passing; full integration suite 164 passing; build succeeds (64 routes). |
+| **Missing** | The signed-in browser journey `tests/e2e/erp-ar.spec.ts` has not been run (§29 #32). No tax rate exists until a finance administrator adds one, and no period exists (§29 #25). With the default settings one person cannot take their own invoice through approval (§29 #36). Credit notes, foreign currency, invoice PDF and e-mail, and e-invoicing are deferred (§29 #30, #33). |
 
 ### 📋 Not started
 
-ECM, HRIS and BI, and ERP beyond finance. The ECM, HRIS and BI navigation entries and permission keys are declared
+ECM, HRIS and BI, and ERP beyond finance and receivables. The ECM, HRIS and BI navigation entries and permission keys are declared
 but uncatalogued, so they correctly do not render.
 
 ### The honest summary
@@ -2122,6 +2189,13 @@ Open debt and risk:
 | 27  | **Signed-in ERP browser journey not run**                   | `tests/e2e/erp-finance.spec.ts` needs `E2E_EMAIL`/`E2E_PASSWORD` for a finance administrator on a non-production database with the starter chart and an open period containing today; without them it skips | Owner provides a test account and database, then runs `npm run test:e2e` | 🟡 Medium |
 | 28  | **Finance pickers load capped lists**                       | The journal form loads at most 1,000 postable accounts and 500 cost centres | Replace with a type-ahead picker before the chart grows past that | 🟢 Low    |
 | 29  | **Single-currency ledger, no reports**                      | ERP Phase 1 records EGP only; there is no trial balance, running balance, opening balance or financial statement | Add currency and rate with receivables/payables; reports in a later ERP phase (from rollups, §6.7) | 🟢 Low    |
+| 30  | **No credit notes**                                         | A paid or part-paid invoice can only be corrected by removing its allocations and voiding it; partial credits and returns cannot be recorded (ADR-023) | A credit note document posting Dr revenue and tax, Cr receivable, allocatable like a receipt | 🟡 Medium |
+| 31  | **Credit limit shown, not enforced**                        | The customer page flags a balance over the limit, but creating and posting invoices do not refuse it | A configurable block or approval rule when the owner wants one | 🟢 Low    |
+| 32  | **Signed-in AR browser journey not run**                    | `tests/e2e/erp-ar.spec.ts` needs `E2E_EMAIL`/`E2E_PASSWORD` for a finance administrator on a non-production database with a CRM company, the starter chart, an open period containing today and settings that let one person through approval; without them it skips | Owner provides a test account and database, then runs `npm run test:e2e` | 🟡 Medium |
+| 33  | **Invoices are not e-invoices**                             | No billing name, address or tax-registration snapshot (the name shown is CRM's current one), no PDF or e-mail, no Egyptian Tax Authority submission | Snapshot billing details at posting; e-invoicing through `platform/integrations` (§15) when required | 🟡 Medium |
+| 34  | **Aging as of a past date is approximate**                  | An as-of date leaves out documents dated after it and moves the days-past-due cut-off, but allocations (which carry no date) and voids made after it still count | Date allocations, or snapshot aging nightly into a rollup | 🟢 Low    |
+| 35  | **AR lists aggregate transactional tables live**            | The Customers list and aging group invoices and receipts on each request (§6.7 wants rollups) | Move to rollups with BI, or when a query passes ~200 ms | 🟢 Low    |
+| 36  | **Default approval needs two people**                       | AR settings start with approval required and self-approval off, so a finance administrator working alone cannot post their own invoice | Grant approval to a second person, or change AR settings (threshold, self-approval, or no approval) | 🟢 Low    |
 
 Add real debt here as it accrues, with why it was accepted and the trigger to repay it. A
 TODO in code without a row here is invisible debt.

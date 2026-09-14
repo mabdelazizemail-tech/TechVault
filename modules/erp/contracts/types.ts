@@ -199,4 +199,272 @@ export type FinanceOverview = {
   activeAccountCount: number | null;
   openPeriods: (PeriodRef & { startDate: string; endDate: string })[] | null;
   recentJournals: JournalListItem[] | null;
+  /** Receivables still owed, and the part of it past due. */
+  arOutstandingMinor: number | null;
+  arOverdueMinor: number | null;
+};
+
+/* ========================================================================== */
+/* Accounts receivable (ADR-023)                                              */
+/* ========================================================================== */
+
+export const AR_INVOICE_STATUSES = [
+  "DRAFT",
+  "PENDING_APPROVAL",
+  "APPROVED",
+  "POSTED",
+  "PARTIALLY_PAID",
+  "PAID",
+  "CANCELLED",
+] as const;
+export type ArInvoiceStatus = (typeof AR_INVOICE_STATUSES)[number];
+
+export const AR_INVOICE_STATUS_LABELS: Record<ArInvoiceStatus, string> = {
+  DRAFT: "Draft",
+  PENDING_APPROVAL: "Pending approval",
+  APPROVED: "Approved",
+  POSTED: "Posted",
+  PARTIALLY_PAID: "Partially paid",
+  PAID: "Paid",
+  CANCELLED: "Cancelled",
+};
+
+/** An invoice in these statuses is in the ledger and counts toward balances. */
+export const AR_POSTED_INVOICE_STATUSES = ["POSTED", "PARTIALLY_PAID", "PAID"] as const;
+
+export const AR_RECEIPT_STATUSES = ["DRAFT", "POSTED", "CANCELLED"] as const;
+export type ArReceiptStatus = (typeof AR_RECEIPT_STATUSES)[number];
+
+export const AR_RECEIPT_STATUS_LABELS: Record<ArReceiptStatus, string> = {
+  DRAFT: "Draft",
+  POSTED: "Posted",
+  CANCELLED: "Cancelled",
+};
+
+export const AR_DOCUMENT_TYPES = ["AR_INVOICE", "AR_RECEIPT"] as const;
+export type ArDocumentType = (typeof AR_DOCUMENT_TYPES)[number];
+
+export const AR_DOCUMENT_TYPE_LABELS: Record<ArDocumentType, string> = {
+  AR_INVOICE: "Invoices",
+  AR_RECEIPT: "Receipts",
+};
+
+/** A customer as ERP sees it: the CRM company id and its name, nothing more. */
+export type CustomerRef = { id: string; name: string; existsInCrm: boolean };
+
+export type TaxRateDto = {
+  id: string;
+  code: string;
+  name: string;
+  nameAr: string | null;
+  rateBasisPoints: number;
+  taxAccount: AccountRef;
+  isActive: boolean;
+};
+
+export type PaymentMethodDto = {
+  id: string;
+  code: string;
+  name: string;
+  nameAr: string | null;
+  defaultDepositAccount: AccountRef | null;
+  isActive: boolean;
+  sortOrder: number;
+};
+
+export type NumberSeriesDto = {
+  id: string;
+  documentType: ArDocumentType;
+  prefix: string;
+  padding: number;
+  resetsYearly: boolean;
+};
+
+export type ArSettingsDto = {
+  defaultReceivableAccount: AccountRef | null;
+  invoiceApprovalRequired: boolean;
+  approvalThresholdMinor: number | null;
+  allowSelfApproval: boolean;
+  defaultPaymentTermsDays: number;
+  agingBucketDays: number[];
+  numberSeries: NumberSeriesDto[];
+};
+
+export type ArInvoiceListItem = {
+  id: string;
+  invoiceNumber: string | null;
+  customer: CustomerRef;
+  invoiceDate: string;
+  dueDate: string;
+  status: ArInvoiceStatus;
+  totalMinor: number;
+  paidMinor: number;
+  outstandingMinor: number;
+  createdBy: PersonRef;
+};
+
+export type ArInvoiceLineDto = {
+  id: string;
+  lineNo: number;
+  description: string;
+  /** Exact decimal as text, e.g. "2.5". */
+  quantity: string;
+  unitPriceMinor: number;
+  grossMinor: number;
+  discountMinor: number;
+  netMinor: number;
+  taxRate: { id: string; code: string; name: string } | null;
+  taxRateBasisPoints: number | null;
+  taxMinor: number;
+  totalMinor: number;
+  revenueAccount: AccountRef;
+  costCentre: CostCentreRef | null;
+};
+
+export type ArAllocationDto = {
+  id: string;
+  receiptId: string;
+  receiptNumber: string | null;
+  receiptDate: string;
+  invoiceId: string;
+  invoiceNumber: string | null;
+  invoiceDate: string;
+  dueDate: string;
+  amountMinor: number;
+  allocatedAt: Date;
+};
+
+export type ArInvoiceDetail = ArInvoiceListItem & {
+  currency: string;
+  subtotalMinor: number;
+  discountMinor: number;
+  taxMinor: number;
+  reference: string | null;
+  notes: string | null;
+  receivableAccount: AccountRef;
+  period: PeriodRef | null;
+  journal: JournalRef | null;
+  voidJournal: JournalRef | null;
+  lines: ArInvoiceLineDto[];
+  allocations: ArAllocationDto[];
+  submittedAt: Date | null;
+  approvalSkipped: boolean;
+  approvedAt: Date | null;
+  approvedBy: PersonRef | null;
+  rejectedAt: Date | null;
+  rejectionReason: string | null;
+  postedAt: Date | null;
+  postedBy: PersonRef | null;
+  cancelledAt: Date | null;
+  cancelReason: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type ArReceiptListItem = {
+  id: string;
+  receiptNumber: string | null;
+  customer: CustomerRef;
+  receiptDate: string;
+  amountMinor: number;
+  allocatedMinor: number;
+  unallocatedMinor: number;
+  paymentMethod: { id: string; name: string };
+  status: ArReceiptStatus;
+  createdBy: PersonRef;
+};
+
+export type ArReceiptDetail = ArReceiptListItem & {
+  currency: string;
+  reference: string | null;
+  notes: string | null;
+  depositAccount: AccountRef;
+  receivableAccount: AccountRef;
+  period: PeriodRef | null;
+  journal: JournalRef | null;
+  voidJournal: JournalRef | null;
+  allocations: ArAllocationDto[];
+  postedAt: Date | null;
+  postedBy: PersonRef | null;
+  cancelledAt: Date | null;
+  cancelReason: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+/** An invoice a receipt can still be allocated to. */
+export type OpenInvoiceOption = {
+  id: string;
+  invoiceNumber: string;
+  invoiceDate: string;
+  dueDate: string;
+  totalMinor: number;
+  outstandingMinor: number;
+};
+
+export type ArCustomerListItem = {
+  customer: CustomerRef;
+  invoicedMinor: number;
+  receivedMinor: number;
+  /** Invoiced − received: what the customer owes, net of unapplied receipts. */
+  balanceMinor: number;
+  outstandingMinor: number;
+  overdueMinor: number;
+  unappliedMinor: number;
+  openInvoiceCount: number;
+  lastActivityDate: string | null;
+};
+
+export type AgingRow = {
+  customer: CustomerRef;
+  /** One amount per bucket, in the order of the report's bucket labels. */
+  bucketsMinor: number[];
+  outstandingMinor: number;
+  unappliedMinor: number;
+  balanceMinor: number;
+};
+
+export type AgingReport = Paginated<AgingRow> & {
+  asOf: string;
+  bucketLabels: string[];
+  totals: {
+    bucketsMinor: number[];
+    outstandingMinor: number;
+    unappliedMinor: number;
+    balanceMinor: number;
+  };
+};
+
+export type ArCustomerProfileDto = {
+  paymentTermsDays: number | null;
+  creditLimitMinor: number | null;
+  receivableAccount: AccountRef | null;
+  notes: string | null;
+  updatedAt: Date;
+};
+
+export type ArCustomerStatement = {
+  from: string | null;
+  to: string | null;
+  openingMinor: number;
+  invoicedMinor: number;
+  receivedMinor: number;
+  closingMinor: number;
+};
+
+export type ArCustomerAccount = {
+  customer: CustomerRef;
+  profile: ArCustomerProfileDto | null;
+  defaultPaymentTermsDays: number;
+  invoicedMinor: number;
+  receivedMinor: number;
+  balanceMinor: number;
+  outstandingMinor: number;
+  overdueMinor: number;
+  unappliedMinor: number;
+  creditLimitExceeded: boolean;
+  aging: { asOf: string; bucketLabels: string[]; bucketsMinor: number[] };
+  statement: ArCustomerStatement;
+  invoices: ArInvoiceListItem[];
+  receipts: ArReceiptListItem[];
 };

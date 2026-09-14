@@ -14,6 +14,11 @@ import {
   ERP_FINANCE_ADMIN_ROLE,
 } from "../modules/erp/contracts/permissions";
 import { DEFAULT_CHART } from "../modules/erp/domain/chart";
+import {
+  DEFAULT_NUMBER_SERIES,
+  DEFAULT_PAYMENT_METHODS,
+  DEFAULT_RECEIVABLE_ACCOUNT_CODE,
+} from "../modules/erp/domain/ar-defaults";
 import { DEFAULT_NORMAL_BALANCE } from "../modules/erp/contracts/types";
 import { MESSAGING_MEMBER_PERMISSIONS } from "../modules/messaging/contracts/permissions";
 import {
@@ -284,6 +289,42 @@ async function main(): Promise<void> {
   }
   process.stdout.write(
     `  ${accountsCreated} of ${DEFAULT_CHART.length} accounts created\n`,
+  );
+
+  process.stdout.write("Seeding accounts receivable configuration...\n");
+  // Create only: numbering, payment methods and AR settings are an administrator's to
+  // change, and a re-seed must not undo that. No tax rates are seeded.
+  for (const series of DEFAULT_NUMBER_SERIES) {
+    await prisma.erpNumberSeries.upsert({
+      where: { documentType: series.documentType },
+      create: { ...series },
+      update: {},
+    });
+  }
+  for (const method of DEFAULT_PAYMENT_METHODS) {
+    await prisma.erpPaymentMethod.upsert({
+      where: { code: method.code },
+      create: { ...method },
+      update: {},
+    });
+  }
+  const receivable = await prisma.erpAccount.findUnique({
+    where: { code: DEFAULT_RECEIVABLE_ACCOUNT_CODE },
+    select: { id: true, type: true, isPostable: true },
+  });
+  await prisma.erpArSettings.upsert({
+    where: { id: 1 },
+    create: {
+      id: 1,
+      defaultReceivableAccountId:
+        receivable !== null && receivable.type === "ASSET" && receivable.isPostable
+          ? receivable.id
+          : null,
+    },
+    update: {},
+  });
+  process.stdout.write(
+    `  ${DEFAULT_NUMBER_SERIES.length} number series, ${DEFAULT_PAYMENT_METHODS.length} payment methods, settings\n`,
   );
 
   process.stdout.write("Seeding security policies…\n");

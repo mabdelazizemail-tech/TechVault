@@ -26,6 +26,8 @@ export function JournalActions({
     journalNumber: string | null;
     entryDate: string;
     isReversal: boolean;
+    /** Raised by an invoice or receipt: corrected by voiding that document instead. */
+    isSourced: boolean;
     debitTotalMinor: number;
     creditTotalMinor: number;
   };
@@ -48,7 +50,7 @@ export function JournalActions({
       </>
     );
   }
-  if (entry.status === "POSTED" && !entry.isReversal && can.reverse) {
+  if (entry.status === "POSTED" && !entry.isReversal && !entry.isSourced && can.reverse) {
     return <ReverseButton entry={entry} today={today} />;
   }
   return null;

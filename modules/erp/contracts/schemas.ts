@@ -1,5 +1,11 @@
 import { z } from "zod";
 import { MAX_JOURNAL_LINES, isIsoDate, parseAmountText } from "../domain/journal";
+import {
+  MAX_INVOICE_LINES,
+  agingBoundaryProblem,
+  parseQuantityText,
+  parseRateText,
+} from "../domain/ar";
 import { ACCOUNT_TYPES, JOURNAL_STATUSES, NORMAL_BALANCES } from "./types";
 
 /**
@@ -171,4 +177,242 @@ export const listParamsSchema = z.object({
   from: isoDate.optional().catch(undefined),
   to: isoDate.optional().catch(undefined),
   period: z.uuid().optional().catch(undefined),
+});
+
+/* ========================================================================== */
+/* Accounts receivable (ADR-023)                                              */
+/* ========================================================================== */
+
+/** A quantity typed as text, kept exact to four decimal places, above zero. */
+const quantity = z
+  .union([z.string(), z.number()], { error: "Enter a quantity." })
+  .transform((value, context) => {
+    const parsed = parseQuantityText(String(value));
+    if (!parsed.ok) {
+      context.addIssue({ code: "custom", message: parsed.message });
+      return z.NEVER;
+    }
+    return parsed.scaled;
+  });
+
+const positiveAmount = amount.refine(
+  (value) => value > 0n,
+  "Enter an amount above zero.",
+);
+
+/** An optional money amount: blank means "not set", never zero. */
+const optionalAmount = z
+  .union([z.string(), z.number()])
+  .nullish()
+  .transform((value, context) => {
+    if (value === null || value === undefined || String(value).trim() === "") return null;
+    const parsed = parseAmountText(String(value));
+    if (!parsed.ok) {
+      context.addIssue({ code: "custom", message: parsed.message });
+      return z.NEVER;
+    }
+    return parsed.minor;
+  });
+
+const DAYS_MESSAGE = "Enter whole days between 0 and 3650.";
+
+function daysOf(value: string | number): number | null {
+  const text = String(value).trim();
+  return /^\d{1,4}$/.test(text) && Number(text) <= 3650 ? Number(text) : null;
+}
+
+const requiredDays = z
+  .union([z.string(), z.number()], { error: DAYS_MESSAGE })
+  .transform((value, context) => {
+    const days = daysOf(value);
+    if (days === null) {
+      context.addIssue({ code: "custom", message: DAYS_MESSAGE });
+      return z.NEVER;
+    }
+    return days;
+  });
+
+const optionalDays = z
+  .union([z.string(), z.number()])
+  .nullish()
+  .transform((value, context) => {
+    if (value === null || value === undefined || String(value).trim() === "") return null;
+    const days = daysOf(value);
+    if (days === null) {
+      context.addIssue({ code: "custom", message: DAYS_MESSAGE });
+      return z.NEVER;
+    }
+    return days;
+  });
+
+export const arInvoiceLineSchema = z.object({
+  description: requiredText("Description", 300),
+  quantity,
+  unitPrice: amount,
+  discount: amount,
+  taxRateId: optionalUuid,
+  revenueAccountId: z.uuid({ error: "Choose a revenue account." }),
+  costCentreId: optionalUuid,
+});
+
+/**
+ * A draft invoice as typed. It carries no totals and no status: the server prices
+ * every line and decides the lifecycle.
+ */
+export const arInvoiceDraftSchema = z
+  .object({
+    crmAccountId: z.uuid({ error: "Choose a customer." }),
+    invoiceDate: isoDate,
+    /** Defaults from the customer's payment terms when left blank. */
+    dueDate: z.preprocess(blankToUndefined, isoDate.optional()),
+    reference: optionalText(100),
+    notes: optionalText(1000),
+    lines: z
+      .array(arInvoiceLineSchema, { error: "Add the invoice lines." })
+      .min(1, "An invoice needs at least one line.")
+      .max(MAX_INVOICE_LINES, `An invoice can have at most ${MAX_INVOICE_LINES} lines.`),
+  })
+  .refine(
+    (invoice) => invoice.dueDate === undefined || invoice.dueDate >= invoice.invoiceDate,
+    { path: ["dueDate"], message: "The due date cannot be before the invoice date." },
+  );
+export type ArInvoiceDraftInput = z.input<typeof arInvoiceDraftSchema>;
+
+export const arReasonSchema = z.object({ reason: requiredText("Reason", 500) });
+
+export const arCancelSchema = z.object({
+  reason: requiredText("Reason", 500),
+  /** For a posted document: the date of the void entry. Defaults to today. */
+  voidDate: z.preprocess(blankToUndefined, isoDate.optional()),
+});
+
+export const arReceiptDraftSchema = z.object({
+  crmAccountId: z.uuid({ error: "Choose a customer." }),
+  receiptDate: isoDate,
+  amount: positiveAmount,
+  paymentMethodId: z.uuid({ error: "Choose a payment method." }),
+  depositAccountId: z.uuid({ error: "Choose the bank or cash account." }),
+  reference: optionalText(100),
+  notes: optionalText(1000),
+});
+export type ArReceiptDraftInput = z.input<typeof arReceiptDraftSchema>;
+
+export const arAllocationSchema = z
+  .object({
+    allocations: z
+      .array(
+        z.object({
+          invoiceId: z.uuid({ error: "Choose an invoice." }),
+          amount: positiveAmount,
+        }),
+        { error: "Enter the allocations." },
+      )
+      .min(1, "Allocate to at least one invoice.")
+      .max(100, "Allocate to at most 100 invoices at once."),
+  })
+  .refine(
+    (input) =>
+      new Set(input.allocations.map((allocation) => allocation.invoiceId)).size ===
+      input.allocations.length,
+    { path: ["allocations"], message: "Each invoice can appear only once." },
+  );
+
+export const arUnallocateSchema = z.object({
+  invoiceId: z.uuid({ error: "Choose an invoice." }),
+});
+
+export const arCustomerProfileSchema = z.object({
+  paymentTermsDays: optionalDays,
+  creditLimit: optionalAmount,
+  receivableAccountId: optionalUuid,
+  notes: optionalText(1000),
+});
+
+export const arSettingsSchema = z.object({
+  defaultReceivableAccountId: optionalUuid,
+  invoiceApprovalRequired: z.boolean(),
+  approvalThreshold: optionalAmount,
+  allowSelfApproval: z.boolean(),
+  defaultPaymentTermsDays: requiredDays,
+  agingBucketDays: z
+    .union([z.string(), z.array(z.number())], { error: "Enter the aging boundaries." })
+    .transform((value, context) => {
+      const parts = Array.isArray(value)
+        ? value
+        : value
+            .split(/[\s,]+/)
+            .filter((part) => part !== "")
+            .map(Number);
+      const problem = agingBoundaryProblem(parts);
+      if (problem !== null) {
+        context.addIssue({ code: "custom", message: problem });
+        return z.NEVER;
+      }
+      return parts;
+    }),
+});
+
+export const taxRateSchema = z.object({
+  code,
+  name: requiredText("Name", 100),
+  nameAr: optionalText(100),
+  rate: z
+    .union([z.string(), z.number()], { error: "Enter the rate." })
+    .transform((value, context) => {
+      const parsed = parseRateText(String(value));
+      if (!parsed.ok) {
+        context.addIssue({ code: "custom", message: parsed.message });
+        return z.NEVER;
+      }
+      return parsed.basisPoints;
+    }),
+  taxAccountId: z.uuid({ error: "Choose the tax account." }),
+  isActive: z.boolean().default(true),
+});
+
+export const paymentMethodSchema = z.object({
+  code,
+  name: requiredText("Name", 100),
+  nameAr: optionalText(100),
+  defaultDepositAccountId: optionalUuid,
+  isActive: z.boolean().default(true),
+  sortOrder: z.coerce
+    .number({ error: "Enter a number." })
+    .int("Use a whole number.")
+    .min(0, "Use 0 or more.")
+    .max(999, "Use 999 or less.")
+    .default(0),
+});
+
+export const numberSeriesSchema = z.object({
+  prefix: z
+    .string({ error: "Enter a prefix." })
+    .trim()
+    .toUpperCase()
+    .regex(/^[A-Z0-9]{1,12}$/, "Use up to 12 letters and digits."),
+  padding: z.coerce
+    .number({ error: "Enter a number of digits." })
+    .int("Use a whole number.")
+    .min(1, "Use at least 1 digit.")
+    .max(12, "Use at most 12 digits."),
+  resetsYearly: z.boolean(),
+});
+
+/** AR list filters from the URL. Anything malformed is ignored rather than an error. */
+export const arListParamsSchema = z.object({
+  page: z.coerce.number().int().min(1).max(100_000).catch(1),
+  q: z.string().trim().max(100).optional().catch(undefined),
+  status: z.string().trim().max(40).optional().catch(undefined),
+  customer: z.uuid().optional().catch(undefined),
+  from: isoDate.optional().catch(undefined),
+  to: isoDate.optional().catch(undefined),
+  dueFrom: isoDate.optional().catch(undefined),
+  dueTo: isoDate.optional().catch(undefined),
+  asOf: isoDate.optional().catch(undefined),
+  overdue: z.enum(["1"]).optional().catch(undefined),
+  sort: z
+    .enum(["date", "due", "number", "total", "outstanding", "amount"])
+    .optional()
+    .catch(undefined),
+  dir: z.enum(["asc", "desc"]).catch("desc"),
 });

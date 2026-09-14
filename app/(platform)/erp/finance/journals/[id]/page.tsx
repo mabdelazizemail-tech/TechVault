@@ -60,6 +60,7 @@ export default async function JournalPage({
               journalNumber: entry.journalNumber,
               entryDate: entry.entryDate,
               isReversal: entry.reverses !== null,
+              isSourced: entry.source !== null,
               debitTotalMinor: entry.debitTotalMinor,
               creditTotalMinor: entry.creditTotalMinor,
             }}
@@ -114,6 +115,20 @@ export default async function JournalPage({
             <Fact label="Reference">
               {entry.reference === null ? "—" : <span dir="auto">{entry.reference}</span>}
             </Fact>
+            {entry.source !== null &&
+              (entry.source.type === "ar_invoice" ||
+                entry.source.type === "ar_receipt") && (
+                <Fact label="Posted from">
+                  <Link
+                    href={`/erp/finance/${entry.source.type === "ar_invoice" ? "invoices" : "receipts"}/${entry.source.id}`}
+                    className="font-bold hover:underline"
+                  >
+                    {entry.source.type === "ar_invoice"
+                      ? "Customer invoice"
+                      : "Customer receipt"}
+                  </Link>
+                </Fact>
+              )}
             {entry.reverses !== null && (
               <Fact label="Reverses">
                 <Link
