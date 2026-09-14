@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronUp, Rocket, Trash2 } from "lucide-react";
+import { Rocket, ThumbsUp, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
@@ -69,15 +69,20 @@ export function VoteButton({
         });
       }}
       className={cn(
-        "flex shrink-0 flex-col items-center justify-center border font-extrabold tabular-nums transition-colors",
-        size === "lg" ? "min-h-16 w-16 text-lg" : "min-h-14 w-12 text-sm",
+        "inline-flex shrink-0 items-center gap-1.5 border font-extrabold tabular-nums transition-colors",
+        size === "lg" ? "min-h-10 px-4 text-base" : "min-h-8 px-2.5 text-[13px]",
         state.voted
           ? "border-primary bg-primary text-primary-foreground"
           : "border-border-strong text-foreground",
         disabled ? "cursor-default opacity-70" : "hover:border-primary cursor-pointer",
       )}
     >
-      <ChevronUp aria-hidden="true" size={size === "lg" ? 20 : 17} strokeWidth={2.5} />
+      <ThumbsUp
+        aria-hidden="true"
+        size={size === "lg" ? 18 : 15}
+        strokeWidth={2.25}
+        fill={state.voted ? "currentColor" : "none"}
+      />
       {state.count}
     </button>
   );

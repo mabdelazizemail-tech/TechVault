@@ -1,3 +1,4 @@
+import type { PrismaClient } from "@prisma/client";
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   BusinessRuleError,
@@ -27,6 +28,7 @@ import {
   listIdeas,
   listKnowledge,
   listProjects,
+  listTopVotedIdeas,
   prepareUpload,
   toggleVote,
   updateIdea,
@@ -151,15 +153,116 @@ describe.skipIf(!hasTestDatabase)("THE THINK TANK (integration)", () => {
       ).toBe(1);
     });
 
-    it("filters by status and category and sorts by votes", async () => {
+    it("filters by status and category and sorts by newest, votes and comments", async () => {
       const first = await createIdea(as(alice), idea({ title: "Paperless onboarding" }));
       const second = await createIdea(as(bob), idea({ title: "Shared glossary" }));
+      const third = await createIdea(as(bob), idea({ title: "Quiet Fridays" }));
       await toggleVote(as(alice), second.id);
+      await addComment(as(alice), first.id, { body: "Yes please" });
+      await addComment(as(bob), first.id, { body: "Agreed" });
 
-      const top = await listIdeas(as(admin), { sort: "top" });
-      expect(top.rows.map((row) => row.id)).toEqual([second.id, first.id]);
+      const newest = await listIdeas(as(admin), {});
+      expect(newest.rows.map((row) => row.id)).toEqual([third.id, second.id, first.id]);
+      const voted = await listIdeas(as(admin), { sort: "top" });
+      expect(voted.rows[0]?.id).toBe(second.id);
+      const commented = await listIdeas(as(admin), { sort: "comments" });
+      expect(commented.rows[0]?.id).toBe(first.id);
+      expect(commented.rows[0]?.commentCount).toBe(2);
+
       expect((await listIdeas(as(admin), { status: "APPROVED" })).total).toBe(0);
-      expect((await listIdeas(as(admin), { category: technology })).total).toBe(2);
+      expect((await listIdeas(as(admin), { category: technology })).total).toBe(3);
+    });
+
+    it("keeps the vote count in the database and refuses a second vote by the same person", async () => {
+      const { id } = await createIdea(as(alice), idea());
+      const prisma = testPrisma();
+
+      // Written straight to the table, bypassing the service: the trigger still counts it.
+      await prisma.innovationIdeaVote.create({ data: { ideaId: id, userId: bob.id } });
+      expect(
+        (await prisma.innovationIdea.findUniqueOrThrow({ where: { id } })).voteCount,
+      ).toBe(1);
+
+      await expect(
+        prisma.innovationIdeaVote.create({ data: { ideaId: id, userId: bob.id } }),
+      ).rejects.toThrow();
+
+      await prisma.innovationIdeaVote.delete({
+        where: { ideaId_userId: { ideaId: id, userId: bob.id } },
+      });
+      expect(
+        (await prisma.innovationIdea.findUniqueOrThrow({ where: { id } })).voteCount,
+      ).toBe(0);
+    });
+
+    it("shows administrators the top voted ideas, and nobody else", async () => {
+      const liked = await createIdea(as(alice), idea({ title: "Liked" }));
+      await createIdea(as(alice), idea({ title: "Unvoted" }));
+      await toggleVote(as(bob), liked.id);
+      await toggleVote(as(admin), liked.id);
+
+      const top = await listTopVotedIdeas(as(admin));
+      expect(top.map((row) => [row.title, row.voteCount])).toEqual([["Liked", 2]]);
+      await expect(listTopVotedIdeas(as(bob))).rejects.toThrow(ForbiddenError);
+    });
+
+    it("row-level security lets a client role add and remove only its own votes", async () => {
+      const { id } = await createIdea(as(alice), idea());
+      await toggleVote(as(admin), id);
+
+      const outcome = await asClientRole(bob.id, async (tx) => {
+        const results: string[] = [];
+        const attempt = async (label: string, sql: string, ...values: unknown[]) => {
+          await tx.$executeRawUnsafe("SAVEPOINT attempt");
+          try {
+            const affected = await tx.$executeRawUnsafe(sql, ...values);
+            results.push(`${label}: ${affected} row(s)`);
+          } catch {
+            await tx.$executeRawUnsafe("ROLLBACK TO SAVEPOINT attempt");
+            results.push(`${label}: rejected`);
+          }
+        };
+
+        const visible = await tx.$queryRawUnsafe<{ n: number }[]>(
+          "SELECT count(*)::int AS n FROM innovation.idea_votes",
+        );
+        results.push(`visible votes: ${visible[0]?.n}`);
+        await attempt(
+          "add own",
+          "INSERT INTO innovation.idea_votes (idea_id, user_id) VALUES ($1::uuid, $2::uuid)",
+          id,
+          bob.id,
+        );
+        await attempt(
+          "add as someone else",
+          "INSERT INTO innovation.idea_votes (idea_id, user_id) VALUES ($1::uuid, $2::uuid)",
+          id,
+          alice.id,
+        );
+        await attempt(
+          "remove someone else's",
+          "DELETE FROM innovation.idea_votes WHERE idea_id = $1::uuid AND user_id = $2::uuid",
+          id,
+          admin.id,
+        );
+        await attempt(
+          "remove own",
+          "DELETE FROM innovation.idea_votes WHERE idea_id = $1::uuid AND user_id = $2::uuid",
+          id,
+          bob.id,
+        );
+        return results;
+      });
+
+      expect(outcome).toEqual([
+        "visible votes: 1",
+        "add own: 1 row(s)",
+        "add as someone else: rejected",
+        "remove someone else's: 0 row(s)",
+        "remove own: 1 row(s)",
+      ]);
+      // Nothing the client role did survived its rolled-back transaction.
+      expect((await getIdea(as(alice), id)).voteCount).toBe(1);
     });
 
     it("counts one vote per person, never your own, without marking the idea as edited", async () => {
@@ -495,3 +598,43 @@ describe.skipIf(!hasTestDatabase)("THE THINK TANK (integration)", () => {
     });
   });
 });
+
+type Transaction = Parameters<Parameters<PrismaClient["$transaction"]>[0]>[0];
+
+const ROLLBACK = Symbol("rollback");
+
+/**
+ * Runs `work` as a non-owning database role carrying a Supabase-style JWT for
+ * `userId`, so row-level security applies as it would to a client. The role and
+ * everything it does exist only inside a rolled-back transaction.
+ */
+async function asClientRole<T>(
+  userId: string,
+  work: (tx: Transaction) => Promise<T>,
+): Promise<T> {
+  let result: T | undefined;
+  try {
+    await testPrisma().$transaction(async (tx) => {
+      await tx.$executeRawUnsafe("CREATE ROLE innovation_rls_probe NOLOGIN");
+      await tx.$executeRawUnsafe(
+        "GRANT USAGE ON SCHEMA innovation TO innovation_rls_probe",
+      );
+      await tx.$executeRawUnsafe(
+        "GRANT SELECT, INSERT, DELETE ON innovation.idea_votes TO innovation_rls_probe",
+      );
+      await tx.$executeRawUnsafe(
+        "GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA innovation TO innovation_rls_probe",
+      );
+      await tx.$executeRawUnsafe(
+        "SELECT set_config('request.jwt.claims', $1, true)",
+        JSON.stringify({ sub: userId, role: "authenticated" }),
+      );
+      await tx.$executeRawUnsafe("SET LOCAL ROLE innovation_rls_probe");
+      result = await work(tx);
+      throw ROLLBACK;
+    });
+  } catch (error) {
+    if (error !== ROLLBACK) throw error;
+  }
+  return result as T;
+}

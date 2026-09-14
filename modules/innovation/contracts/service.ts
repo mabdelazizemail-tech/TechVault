@@ -23,6 +23,7 @@ export {
   deleteIdea,
   getIdea,
   listIdeas,
+  listTopVotedIdeas,
   toggleVote,
   updateIdea,
 } from "../services/idea-service";

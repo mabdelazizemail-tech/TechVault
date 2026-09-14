@@ -128,7 +128,13 @@ export async function listIdeas(
        ${status !== undefined ? Prisma.sql`AND i.status = ${status}::innovation."InnovationIdeaStatus"` : Prisma.empty}
        ${params.category !== undefined ? Prisma.sql`AND i.category_id = ${params.category}::uuid` : Prisma.empty}
        ${prefix !== null ? Prisma.sql`AND innovation.idea_search(i.title, i.description) @@ to_tsquery('simple', ${prefix})` : Prisma.empty}
-     ORDER BY ${params.sort === "top" ? Prisma.sql`i.vote_count DESC,` : Prisma.empty} i.created_at DESC, i.id DESC
+     ORDER BY ${
+       params.sort === "top"
+         ? Prisma.sql`i.vote_count DESC,`
+         : params.sort === "comments"
+           ? Prisma.sql`i.comment_count DESC,`
+           : Prisma.empty
+     } i.created_at DESC, i.id DESC
      LIMIT ${PAGE_SIZE} OFFSET ${(params.page - 1) * PAGE_SIZE}
   `;
 
@@ -147,6 +153,24 @@ export async function listIdeas(
     page: params.page,
     pageSize: PAGE_SIZE,
   };
+}
+
+/**
+ * The ideas with the most votes, for administrators deciding what to take forward.
+ * One indexed statement: votes are counted on the idea, not per request.
+ */
+export async function listTopVotedIdeas(
+  actor: Actor,
+  limit = 10,
+): Promise<IdeaListItem[]> {
+  await requirePermission(actor, INNOVATION_PERMISSIONS.IDEA_ADMINISTER);
+  const rows = await prisma.innovationIdea.findMany({
+    where: { deletedAt: null, voteCount: { gt: 0 } },
+    orderBy: [{ voteCount: "desc" }, { createdAt: "desc" }],
+    take: Math.min(Math.max(limit, 1), 25),
+    select: listSelect(actor.id),
+  });
+  return rows.map((row) => toListItem(row, actor.id));
 }
 
 export async function getIdea(actor: Actor, ideaId: string): Promise<IdeaDetail> {
@@ -358,7 +382,9 @@ export async function deleteIdea(actor: Actor, ideaId: string): Promise<void> {
 
 /**
  * Adds or removes the actor's vote. Counters move with raw increments, which
- * neither race nor touch `updated_at` — a vote is not an edit of the idea.
+ * Adds or removes the actor's vote. The primary key (idea_id, user_id) makes a second
+ * vote impossible, and a database trigger keeps `vote_count` in step with the votes
+ * without touching `updated_at` — a vote is not an edit of the idea.
  */
 export async function toggleVote(
   actor: Actor,
@@ -378,14 +404,12 @@ export async function toggleVote(
       if (removed.count === 0) {
         await tx.innovationIdeaVote.create({ data: { ideaId, userId: actor.id } });
       }
-      const delta = removed.count === 0 ? 1 : -1;
-      const [row] = await tx.$queryRaw<{ vote_count: number }[]>`
-        UPDATE innovation.ideas
-           SET vote_count = vote_count + ${delta}
-         WHERE id = ${ideaId}::uuid
-        RETURNING vote_count
-      `;
-      return { voted: removed.count === 0, voteCount: row?.vote_count ?? 0 };
+      // The idea_votes_count trigger has already moved the counter.
+      const { voteCount } = await tx.innovationIdea.findUniqueOrThrow({
+        where: { id: ideaId },
+        select: { voteCount: true },
+      });
+      return { voted: removed.count === 0, voteCount };
     });
   } catch (error) {
     // A double click raced itself: the vote is there either way.

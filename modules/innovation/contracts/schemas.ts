@@ -48,7 +48,8 @@ export const listParamsSchema = z.object({
   q: z.string().trim().max(200).optional().catch(undefined),
   status: z.string().max(40).optional().catch(undefined),
   category: z.uuid().optional().catch(undefined),
-  sort: z.enum(["new", "top"]).optional().catch(undefined),
+  /** Ideas: newest (default), most votes, most comments. */
+  sort: z.enum(["new", "top", "comments"]).optional().catch(undefined),
 });
 
 export const ideaCreateSchema = z.object({

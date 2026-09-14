@@ -1856,7 +1856,7 @@ to ERP projects; none of Phase 2 (storage, jobs), Phase 3 (ECM), Phase 4 (workfl
 (documents, SOPs, best practices, lessons learned and templates are CATEGORIES, and a project's documents and lessons
 are knowledge items linked to it — one searchable library), projects (+ members). (2) Idea status is a plain field an
 administrator sets — New, Reviewing, Approved, In progress, Implemented, Rejected — not a workflow definition; no points,
-badges or leaderboard. One vote per person, never on one's own idea (service rule and trigger). (3) "Projects" here are
+badges or leaderboard. One 👍 vote per person, never on one's own idea: the primary key (idea_id, user_id) is the unique constraint, a trigger refuses self-votes, and a second trigger keeps `ideas.vote_count` exact for any writer. RLS on `idea_votes` lets active users see votes and add or remove only their own (no grants to API roles; ADR-015). Lists sort by newest, most voted or most commented through indexes on the counters; administrators see a top-voted panel on the Ideas page. (3) "Projects" here are
 innovation initiatives owned by THE THINK TANK, not ERP projects; converting publishes
 `innovation.IdeaConvertedToProject`, so ERP can react when it exists. (4) Files: `platform/storage` over a private
 Supabase Storage bucket (`techvault-documents`, created by the migration, no storage policies) reached only with
@@ -1992,7 +1992,8 @@ migrate, then seed, since the seed grants the permissions that show the module.
 | Data model  | ✅ `innovation` schema, 8 tables; CHECK invariants; case-insensitive unique category names; self-vote trigger; full-text expression indexes; deny-by-default RLS; private storage bucket (Supabase only). `prisma migrate diff` reports no drift. |
 | Services    | ✅ Ideas (submit, list/search/filter/sort, vote, comment, administer, convert to project), knowledge (add with verified file upload, search, administer), projects (team, documents, lessons learned), categories, overview (3 indexed statements), Ask Think Tank keyword engine, audited file downloads. |
 | UI          | ✅ Navigation section; overview with question box, four cards, recent activity and trending ideas; ideas list and detail; knowledge library with category chips, detail with inline PDF/image preview; projects list and detail; Ask Think Tank chat screen; category administration. |
-| Tests       | ✅ 17 integration tests (storage faked) and 12 unit tests (file signatures, search queries). |
+| Voting      | 🟡 👍 vote with immediate count, most voted and most commented sorts, top-voted panel for administrators, vote-count trigger and RLS on votes. Migrations `20260914142651_idea_voting` and `20260914150000_idea_votes_trigger_definer` are applied to the local test database only; the second fixes the self-vote trigger, which refused votes from any non-owner role. |
+| Tests       | ✅ 20 integration tests (storage faked; includes votes by a non-owning database role) and 12 unit tests (file signatures, search queries). |
 | **Missing** | Not applied to Supabase; `SUPABASE_SECRET_KEY` not set, so uploads and downloads are switched off until it is (§29 #21). Browser walk-through not done. Phase 2 (advanced search, relationships, notifications) and Phase 3 (AI) not started, as agreed. |
 
 ### 📋 Not started

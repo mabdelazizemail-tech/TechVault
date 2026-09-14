@@ -4,6 +4,7 @@ import {
   FileImage,
   FileSpreadsheet,
   FileText,
+  Lightbulb,
   MessageSquare,
   Paperclip,
   Presentation,
@@ -56,13 +57,11 @@ export function Dot() {
 
 export function IdeaRow({ idea, canVote }: { idea: IdeaListItem; canVote: boolean }) {
   return (
-    <li className="border-border flex gap-3.5 border-b px-4 py-3.5 last:border-0">
-      <VoteButton
-        ideaId={idea.id}
-        voteCount={idea.voteCount}
-        hasVoted={idea.hasVoted}
-        canVote={canVote}
-        isMine={idea.isMine}
+    <li className="border-border flex gap-3 border-b px-4 py-3.5 last:border-0">
+      <Lightbulb
+        aria-hidden="true"
+        size={18}
+        className="text-primary-ink mt-0.5 shrink-0"
       />
       <div className="min-w-0 flex-1">
         <Link
@@ -82,11 +81,6 @@ export function IdeaRow({ idea, canVote }: { idea: IdeaListItem; canVote: boolea
           <span>{idea.category.name}</span>
           <Dot />
           <span dir="auto">by {idea.submitter.name}</span>
-          <Dot />
-          <span className="inline-flex items-center gap-1">
-            <MessageSquare aria-hidden="true" size={12} />
-            {plural(idea.commentCount, "comment")}
-          </span>
           {idea.hasAttachment && (
             <>
               <Dot />
@@ -98,6 +92,22 @@ export function IdeaRow({ idea, canVote }: { idea: IdeaListItem; canVote: boolea
             {formatRelative(idea.createdAt)}
           </time>
         </Meta>
+        <div className="mt-2.5 flex items-center gap-4">
+          <VoteButton
+            ideaId={idea.id}
+            voteCount={idea.voteCount}
+            hasVoted={idea.hasVoted}
+            canVote={canVote}
+            isMine={idea.isMine}
+          />
+          <Link
+            href={`/innovation/ideas/${idea.id}#comments`}
+            className="text-foreground-muted hover:text-foreground inline-flex items-center gap-1.5 text-[13px]"
+          >
+            <MessageSquare aria-hidden="true" size={15} />
+            {plural(idea.commentCount, "comment")}
+          </Link>
+        </div>
       </div>
     </li>
   );
