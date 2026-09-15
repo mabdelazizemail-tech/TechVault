@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   describeDenial,
   evaluate,
+  evaluateGlobal,
   isWithinSubtree,
   scopeFilterFor,
 } from "@/platform/authz/evaluate";
@@ -384,5 +385,59 @@ describe("scope types are exhaustively handled", () => {
         }),
       ).not.toThrow();
     }
+  });
+});
+
+describe("evaluateGlobal — operations on records with no unit or owner", () => {
+  it("allows a GLOBAL grant", () => {
+    expect(evaluateGlobal(setOf([grant()]), PERMISSION).allowed).toBe(true);
+  });
+
+  it.each<ScopeType>(["ORG_UNIT", "OWN_ORG_UNIT", "OWN"])(
+    "refuses a %s grant that evaluate() without a target would allow",
+    (scopeType) => {
+      const set = setOf([
+        grant({
+          scopeType,
+          scopeOrgUnitId: scopeType === "ORG_UNIT" ? "unit-finance" : null,
+          scopeOrgUnitPath: scopeType === "ORG_UNIT" ? "/root/finance" : null,
+        }),
+      ]);
+      expect(evaluate(set, PERMISSION).allowed).toBe(true);
+      expect(evaluateGlobal(set, PERMISSION)).toEqual({
+        allowed: false,
+        reason: "OUT_OF_SCOPE",
+      });
+    },
+  );
+
+  it("lets a DENY of any scope win over a GLOBAL allow", () => {
+    const set = setOf([grant(), grant({ effect: "DENY", scopeType: "OWN" })]);
+    expect(evaluateGlobal(set, PERMISSION)).toEqual({
+      allowed: false,
+      reason: "EXPLICIT_DENY",
+    });
+  });
+
+  it("ignores an expired GLOBAL grant when only a scoped one is current", () => {
+    const now = new Date("2026-09-15T12:00:00Z");
+    const set = setOf([
+      grant({ endsAt: new Date("2026-09-01T00:00:00Z") }),
+      grant({ scopeType: "OWN_ORG_UNIT" }),
+    ]);
+    expect(evaluateGlobal(set, PERMISSION, now)).toEqual({
+      allowed: false,
+      reason: "OUT_OF_SCOPE",
+    });
+  });
+
+  it("refuses an inactive principal and a missing grant", () => {
+    expect(
+      evaluateGlobal(setOf([grant()], principal({ isActive: false })), PERMISSION),
+    ).toEqual({ allowed: false, reason: "PRINCIPAL_INACTIVE" });
+    expect(evaluateGlobal(setOf([]), PERMISSION)).toEqual({
+      allowed: false,
+      reason: "NO_GRANT",
+    });
   });
 });

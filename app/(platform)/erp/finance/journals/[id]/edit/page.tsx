@@ -12,7 +12,7 @@ import { todayInCairo } from "@/modules/erp/ui/format";
 import { JournalForm } from "@/modules/erp/ui/journal-form";
 import { orNotFound } from "@/modules/erp/ui/page-helpers";
 import { getActor } from "@/platform/auth/current-user";
-import { canAll } from "@/platform/authz/authz";
+import { canAllGlobally } from "@/platform/authz/authz";
 
 export const metadata: Metadata = { title: "Edit journal entry" };
 
@@ -26,7 +26,7 @@ export default async function EditJournalPage({
   const actor = await getActor();
   const [entry, rights] = await Promise.all([
     orNotFound(getJournal(actor, id)),
-    canAll(actor, [
+    canAllGlobally(actor, [
       ERP_PERMISSIONS.JOURNAL_UPDATE,
       ERP_PERMISSIONS.ACCOUNT_READ,
       ERP_PERMISSIONS.COST_CENTRE_READ,

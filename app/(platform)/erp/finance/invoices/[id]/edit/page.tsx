@@ -13,7 +13,7 @@ import { todayInCairo } from "@/modules/erp/ui/format";
 import { InvoiceForm } from "@/modules/erp/ui/invoice-form";
 import { orNotFound } from "@/modules/erp/ui/page-helpers";
 import { getActor } from "@/platform/auth/current-user";
-import { canAll } from "@/platform/authz/authz";
+import { canAllGlobally } from "@/platform/authz/authz";
 
 export const metadata: Metadata = { title: "Edit invoice" };
 
@@ -27,7 +27,7 @@ export default async function EditInvoicePage({
   const actor = await getActor();
   const [invoice, rights] = await Promise.all([
     orNotFound(getInvoice(actor, id)),
-    canAll(actor, [
+    canAllGlobally(actor, [
       ERP_PERMISSIONS.AR_INVOICE_UPDATE,
       ERP_PERMISSIONS.ACCOUNT_READ,
       ERP_PERMISSIONS.COST_CENTRE_READ,

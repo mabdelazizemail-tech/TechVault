@@ -18,7 +18,7 @@ import { CustomerProfileFormButton } from "@/modules/erp/ui/ar-settings-forms";
 import { formatAmount, formatDate } from "@/modules/erp/ui/format";
 import { flatParams, orNotFound } from "@/modules/erp/ui/page-helpers";
 import { getActor } from "@/platform/auth/current-user";
-import { canAll } from "@/platform/authz/authz";
+import { canAllGlobally } from "@/platform/authz/authz";
 
 export const metadata: Metadata = { title: "Customer" };
 
@@ -35,7 +35,7 @@ export default async function CustomerPage({
   const actor = await getActor();
   const [account, rights] = await Promise.all([
     orNotFound(getArCustomer(actor, id, query)),
-    canAll(actor, [
+    canAllGlobally(actor, [
       ERP_PERMISSIONS.AR_CUSTOMER_UPDATE,
       ERP_PERMISSIONS.AR_INVOICE_CREATE,
       ERP_PERMISSIONS.AR_RECEIPT_CREATE,

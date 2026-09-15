@@ -14,7 +14,7 @@ import { AccountFormButton } from "@/modules/erp/ui/account-forms";
 import { ActiveBadge } from "@/modules/erp/ui/badges";
 import { flatParams, orNotFound } from "@/modules/erp/ui/page-helpers";
 import { getActor } from "@/platform/auth/current-user";
-import { canAll } from "@/platform/authz/authz";
+import { canAllGlobally } from "@/platform/authz/authz";
 
 export const metadata: Metadata = { title: "Chart of accounts" };
 
@@ -30,7 +30,7 @@ export default async function AccountsPage({
   const actor = await getActor();
   const [result, rights] = await Promise.all([
     orNotFound(listAccounts(actor, params)),
-    canAll(actor, [ERP_PERMISSIONS.ACCOUNT_CREATE]),
+    canAllGlobally(actor, [ERP_PERMISSIONS.ACCOUNT_CREATE]),
   ]);
   const canCreate = rights[ERP_PERMISSIONS.ACCOUNT_CREATE] === true;
   const headings = canCreate ? await listAccountOptions(actor, { postable: false }) : [];

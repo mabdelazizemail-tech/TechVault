@@ -1,7 +1,7 @@
 import { BusinessRuleError, ConflictError, NotFoundError } from "@/lib/errors";
 import { prisma, type PrismaTransaction } from "@/lib/prisma";
 import { recordAudit } from "@/platform/audit/audit";
-import { type Actor, requirePermission } from "@/platform/authz/authz";
+import { type Actor, requireGlobalPermission } from "@/platform/authz/authz";
 import { publish } from "@/platform/events/publish";
 import { ERP_EVENTS, type PeriodClosedPayload } from "../../contracts/events";
 import { ERP_PERMISSIONS } from "../../contracts/permissions";
@@ -35,7 +35,7 @@ export async function listPeriods(
   actor: Actor,
   rawParams: Record<string, unknown> = {},
 ): Promise<Paginated<PeriodDto>> {
-  await requirePermission(actor, ERP_PERMISSIONS.PERIOD_READ);
+  await requireGlobalPermission(actor, ERP_PERMISSIONS.PERIOD_READ);
   const params = listParamsSchema.parse(rawParams);
 
   const [total, rows] = await Promise.all([
@@ -55,7 +55,7 @@ export async function createPeriod(
   actor: Actor,
   input: unknown,
 ): Promise<{ id: string }> {
-  await requirePermission(actor, ERP_PERMISSIONS.PERIOD_CREATE);
+  await requireGlobalPermission(actor, ERP_PERMISSIONS.PERIOD_CREATE);
   const data = parseInput(periodCreateSchema, input);
   const start = dateFromIso(data.startDate);
   const end = dateFromIso(data.endDate);
@@ -152,7 +152,7 @@ async function lockPeriod(
 }
 
 export async function closePeriod(actor: Actor, periodId: string): Promise<void> {
-  await requirePermission(actor, ERP_PERMISSIONS.PERIOD_CLOSE);
+  await requireGlobalPermission(actor, ERP_PERMISSIONS.PERIOD_CLOSE);
   assertId(periodId, "accounting period");
 
   try {
@@ -233,7 +233,7 @@ export async function reopenPeriod(
   periodId: string,
   input: unknown,
 ): Promise<void> {
-  await requirePermission(actor, ERP_PERMISSIONS.PERIOD_REOPEN);
+  await requireGlobalPermission(actor, ERP_PERMISSIONS.PERIOD_REOPEN);
   assertId(periodId, "accounting period");
   const { reason } = parseInput(periodReopenSchema, input);
 

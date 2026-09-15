@@ -39,6 +39,12 @@ export {
 
 export { getFinanceOverview } from "../services/finance/overview-service";
 
+export {
+  getBalanceSheet,
+  getProfitAndLoss,
+  getTrialBalance,
+} from "../services/finance/report-service";
+
 /* Accounts receivable ------------------------------------------------------ */
 
 export {

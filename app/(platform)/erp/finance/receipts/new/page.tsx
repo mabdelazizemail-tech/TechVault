@@ -6,13 +6,13 @@ import { listAccountOptions, listPaymentMethods } from "@/modules/erp/contracts/
 import { todayInCairo } from "@/modules/erp/ui/format";
 import { ReceiptForm } from "@/modules/erp/ui/receipt-form";
 import { getActor } from "@/platform/auth/current-user";
-import { canAll } from "@/platform/authz/authz";
+import { canAllGlobally } from "@/platform/authz/authz";
 
 export const metadata: Metadata = { title: "New receipt" };
 
 export default async function NewReceiptPage() {
   const actor = await getActor();
-  const rights = await canAll(actor, [
+  const rights = await canAllGlobally(actor, [
     ERP_PERMISSIONS.AR_RECEIPT_CREATE,
     ERP_PERMISSIONS.ACCOUNT_READ,
   ]);

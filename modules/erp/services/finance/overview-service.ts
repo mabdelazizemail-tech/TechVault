@@ -1,5 +1,9 @@
 import { prisma } from "@/lib/prisma";
-import { type Actor, canAll, requirePermission } from "@/platform/authz/authz";
+import {
+  type Actor,
+  canAllGlobally,
+  requireGlobalPermission,
+} from "@/platform/authz/authz";
 import { ERP_PERMISSIONS } from "../../contracts/permissions";
 import type { FinanceOverview } from "../../contracts/types";
 import { journalListSelect } from "../../repositories/selects";
@@ -11,8 +15,8 @@ import { dateFromIso, isoDateOf, todayIso, toAmount, toJournalListItem } from ".
  * statement — no ledger scans on page load (§6.7).
  */
 export async function getFinanceOverview(actor: Actor): Promise<FinanceOverview> {
-  await requirePermission(actor, ERP_PERMISSIONS.ACCESS);
-  const rights = await canAll(actor, [
+  await requireGlobalPermission(actor, ERP_PERMISSIONS.ACCESS);
+  const rights = await canAllGlobally(actor, [
     ERP_PERMISSIONS.JOURNAL_READ,
     ERP_PERMISSIONS.ACCOUNT_READ,
     ERP_PERMISSIONS.PERIOD_READ,

@@ -204,6 +204,68 @@ export type FinanceOverview = {
   arOverdueMinor: number | null;
 };
 
+/* Ledger reports (ADR-026) ------------------------------------------------------ */
+
+export type ReportAccount = {
+  id: string;
+  code: string;
+  name: string;
+  nameAr: string | null;
+  type: AccountType;
+};
+
+export type TrialBalanceRow = {
+  account: ReportAccount;
+  /** Balance before the start date; positive is a debit balance, negative a credit. */
+  openingMinor: number;
+  debitMinor: number;
+  creditMinor: number;
+  closingDebitMinor: number;
+  closingCreditMinor: number;
+};
+
+export type TrialBalance = {
+  /** Null when the report runs from the first posting. */
+  from: string | null;
+  to: string;
+  rows: TrialBalanceRow[];
+  totals: {
+    openingDebitMinor: number;
+    openingCreditMinor: number;
+    debitMinor: number;
+    creditMinor: number;
+    closingDebitMinor: number;
+    closingCreditMinor: number;
+  };
+  isBalanced: boolean;
+};
+
+/** One section of a statement, amounts in the section's own sign. */
+export type StatementSection = {
+  type: AccountType;
+  rows: { account: ReportAccount; amountMinor: number }[];
+  totalMinor: number;
+};
+
+export type ProfitAndLoss = {
+  from: string;
+  to: string;
+  revenue: StatementSection;
+  expenses: StatementSection;
+  netIncomeMinor: number;
+};
+
+export type BalanceSheet = {
+  asOf: string;
+  assets: StatementSection;
+  liabilities: StatementSection;
+  equity: StatementSection;
+  /** Revenue less expenses to date, not yet closed into equity (no year-end close). */
+  unclosedProfitMinor: number;
+  liabilitiesAndEquityMinor: number;
+  isBalanced: boolean;
+};
+
 /* ========================================================================== */
 /* Accounts receivable (ADR-023)                                              */
 /* ========================================================================== */

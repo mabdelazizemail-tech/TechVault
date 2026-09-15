@@ -3,7 +3,7 @@ import type { z } from "zod";
 import { BusinessRuleError, NotFoundError, ValidationError } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
 import { recordAudit } from "@/platform/audit/audit";
-import { type Actor, requirePermission } from "@/platform/authz/authz";
+import { type Actor, requireGlobalPermission } from "@/platform/authz/authz";
 import { publish } from "@/platform/events/publish";
 import {
   ERP_EVENTS,
@@ -211,7 +211,7 @@ export async function listInvoices(
   actor: Actor,
   rawParams: Record<string, unknown> = {},
 ): Promise<Paginated<ArInvoiceListItem>> {
-  await requirePermission(actor, ERP_PERMISSIONS.AR_INVOICE_READ);
+  await requireGlobalPermission(actor, ERP_PERMISSIONS.AR_INVOICE_READ);
   const params = arListParamsSchema.parse(rawParams);
   const status = AR_INVOICE_STATUSES.find((value) => value === params.status);
   const matchingCustomers = await customerIdsMatching(params.q);
@@ -284,7 +284,7 @@ export async function getInvoice(
   actor: Actor,
   invoiceId: string,
 ): Promise<ArInvoiceDetail> {
-  await requirePermission(actor, ERP_PERMISSIONS.AR_INVOICE_READ);
+  await requireGlobalPermission(actor, ERP_PERMISSIONS.AR_INVOICE_READ);
   assertId(invoiceId, "invoice");
 
   const row = await prisma.erpArInvoice.findUnique({
@@ -406,7 +406,7 @@ export async function listOpenInvoices(
   actor: Actor,
   crmAccountId: string,
 ): Promise<OpenInvoiceOption[]> {
-  await requirePermission(actor, ERP_PERMISSIONS.AR_RECEIPT_ALLOCATE);
+  await requireGlobalPermission(actor, ERP_PERMISSIONS.AR_RECEIPT_ALLOCATE);
   assertId(crmAccountId, "customer");
   const rows = await prisma.erpArInvoice.findMany({
     where: {
@@ -451,7 +451,7 @@ export async function createInvoice(
   actor: Actor,
   input: unknown,
 ): Promise<{ id: string }> {
-  await requirePermission(actor, ERP_PERMISSIONS.AR_INVOICE_CREATE);
+  await requireGlobalPermission(actor, ERP_PERMISSIONS.AR_INVOICE_CREATE);
   const { draft, priced, dueDate, receivableAccountId } = await prepareDraft(input);
 
   try {
@@ -503,7 +503,7 @@ export async function updateInvoice(
   invoiceId: string,
   input: unknown,
 ): Promise<{ id: string }> {
-  await requirePermission(actor, ERP_PERMISSIONS.AR_INVOICE_UPDATE);
+  await requireGlobalPermission(actor, ERP_PERMISSIONS.AR_INVOICE_UPDATE);
   assertId(invoiceId, "invoice");
   const { draft, priced, dueDate, receivableAccountId } = await prepareDraft(input);
 
@@ -558,7 +558,7 @@ export async function updateInvoice(
 }
 
 export async function deleteInvoice(actor: Actor, invoiceId: string): Promise<void> {
-  await requirePermission(actor, ERP_PERMISSIONS.AR_INVOICE_UPDATE);
+  await requireGlobalPermission(actor, ERP_PERMISSIONS.AR_INVOICE_UPDATE);
   assertId(invoiceId, "invoice");
   try {
     await prisma.$transaction(async (tx) => {
@@ -596,7 +596,7 @@ export async function submitInvoice(
   actor: Actor,
   invoiceId: string,
 ): Promise<{ status: "PENDING_APPROVAL" | "APPROVED" }> {
-  await requirePermission(actor, ERP_PERMISSIONS.AR_INVOICE_UPDATE);
+  await requireGlobalPermission(actor, ERP_PERMISSIONS.AR_INVOICE_UPDATE);
   assertId(invoiceId, "invoice");
 
   try {
@@ -679,7 +679,7 @@ export async function submitInvoice(
 }
 
 export async function approveInvoice(actor: Actor, invoiceId: string): Promise<void> {
-  await requirePermission(actor, ERP_PERMISSIONS.AR_INVOICE_APPROVE);
+  await requireGlobalPermission(actor, ERP_PERMISSIONS.AR_INVOICE_APPROVE);
   assertId(invoiceId, "invoice");
 
   try {
@@ -743,7 +743,7 @@ export async function rejectInvoice(
   invoiceId: string,
   input: unknown,
 ): Promise<void> {
-  await requirePermission(actor, ERP_PERMISSIONS.AR_INVOICE_APPROVE);
+  await requireGlobalPermission(actor, ERP_PERMISSIONS.AR_INVOICE_APPROVE);
   assertId(invoiceId, "invoice");
   const { reason } = parseInput(arReasonSchema, input);
 
@@ -797,7 +797,7 @@ export async function postInvoice(
   actor: Actor,
   invoiceId: string,
 ): Promise<{ invoiceNumber: string; journalNumber: string }> {
-  await requirePermission(actor, ERP_PERMISSIONS.AR_INVOICE_POST);
+  await requireGlobalPermission(actor, ERP_PERMISSIONS.AR_INVOICE_POST);
   assertId(invoiceId, "invoice");
 
   try {
@@ -949,7 +949,7 @@ export async function cancelInvoice(
   invoiceId: string,
   input: unknown,
 ): Promise<{ voidJournalNumber: string | null }> {
-  await requirePermission(actor, ERP_PERMISSIONS.AR_INVOICE_CANCEL);
+  await requireGlobalPermission(actor, ERP_PERMISSIONS.AR_INVOICE_CANCEL);
   assertId(invoiceId, "invoice");
   const data = parseInput(arCancelSchema, input);
 

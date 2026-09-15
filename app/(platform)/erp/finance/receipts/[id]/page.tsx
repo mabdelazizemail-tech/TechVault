@@ -21,7 +21,7 @@ import {
 import { orNotFound } from "@/modules/erp/ui/page-helpers";
 import { ReceiptActions, UnallocateButton } from "@/modules/erp/ui/receipt-actions";
 import { getActor } from "@/platform/auth/current-user";
-import { canAll } from "@/platform/authz/authz";
+import { canAllGlobally } from "@/platform/authz/authz";
 
 export const metadata: Metadata = { title: "Receipt" };
 
@@ -34,7 +34,7 @@ export default async function ReceiptPage({
   const actor = await getActor();
   const [receipt, rights] = await Promise.all([
     orNotFound(getReceipt(actor, id)),
-    canAll(actor, [
+    canAllGlobally(actor, [
       ERP_PERMISSIONS.AR_RECEIPT_UPDATE,
       ERP_PERMISSIONS.AR_RECEIPT_POST,
       ERP_PERMISSIONS.AR_RECEIPT_ALLOCATE,
@@ -77,8 +77,9 @@ export default async function ReceiptPage({
       {receipt.status === "CANCELLED" && receipt.cancelReason !== null && (
         <p className="border-danger mb-4 border-s-4 px-3 py-2 text-sm">
           Cancelled
-          {receipt.cancelledAt !== null ? ` ${formatDateTime(receipt.cancelledAt)}` : ""}:{" "}
-          <span dir="auto">{receipt.cancelReason}</span>
+          {receipt.cancelledAt !== null
+            ? ` ${formatDateTime(receipt.cancelledAt)}`
+            : ""}: <span dir="auto">{receipt.cancelReason}</span>
         </p>
       )}
 

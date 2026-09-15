@@ -23,7 +23,7 @@ import {
 } from "@/modules/erp/ui/ar-settings-forms";
 import { orNotFound } from "@/modules/erp/ui/page-helpers";
 import { getActor } from "@/platform/auth/current-user";
-import { can } from "@/platform/authz/authz";
+import { canGlobally } from "@/platform/authz/authz";
 
 export const metadata: Metadata = { title: "AR settings" };
 
@@ -34,7 +34,7 @@ export default async function ArSettingsPage() {
   const [taxRates, methods, accounts] = await Promise.all([
     listTaxRates(actor, { activeOnly: false }),
     listPaymentMethods(actor, { activeOnly: false }),
-    (await can(actor, ERP_PERMISSIONS.ACCOUNT_READ))
+    (await canGlobally(actor, ERP_PERMISSIONS.ACCOUNT_READ))
       ? listAccountOptions(actor, { postable: true })
       : Promise.resolve([]),
   ]);

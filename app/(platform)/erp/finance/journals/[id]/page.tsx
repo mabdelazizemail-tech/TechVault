@@ -22,7 +22,7 @@ import {
 import { JournalActions } from "@/modules/erp/ui/journal-actions";
 import { orNotFound } from "@/modules/erp/ui/page-helpers";
 import { getActor } from "@/platform/auth/current-user";
-import { canAll } from "@/platform/authz/authz";
+import { canAllGlobally } from "@/platform/authz/authz";
 
 export const metadata: Metadata = { title: "Journal entry" };
 
@@ -35,7 +35,7 @@ export default async function JournalPage({
   const actor = await getActor();
   const [entry, rights] = await Promise.all([
     orNotFound(getJournal(actor, id)),
-    canAll(actor, [
+    canAllGlobally(actor, [
       ERP_PERMISSIONS.JOURNAL_UPDATE,
       ERP_PERMISSIONS.JOURNAL_DELETE,
       ERP_PERMISSIONS.JOURNAL_POST,

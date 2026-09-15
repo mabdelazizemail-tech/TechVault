@@ -68,6 +68,36 @@ export function evaluate(
   return { allowed: false, reason: "OUT_OF_SCOPE" };
 }
 
+/**
+ * Whether a principal holds a permission ORGANISATION-WIDE.
+ *
+ * For operations on records that belong to no org unit and no owner — a general
+ * ledger, a chart of accounts, module settings — there is no target to pass, and
+ * `evaluate()` without a target lets any scope through. A grant scoped to one unit
+ * or to "own records" must not become organisation-wide access by accident, so
+ * this demands an active GLOBAL ALLOW and fails closed otherwise. Any applicable
+ * DENY, whatever its scope, still wins.
+ */
+export function evaluateGlobal(
+  set: PermissionSet,
+  permissionKey: string,
+  now: Date = new Date(),
+): Decision {
+  const decision = evaluate(set, permissionKey, undefined, now);
+  if (!decision.allowed) return decision;
+
+  const globalAllow = set.grants.find(
+    (grant) =>
+      grant.permissionKey === permissionKey &&
+      grant.effect === "ALLOW" &&
+      grant.scopeType === "GLOBAL" &&
+      isWithinValidity(grant, now),
+  );
+  return globalAllow
+    ? { allowed: true, matchedGrant: globalAllow }
+    : { allowed: false, reason: "OUT_OF_SCOPE" };
+}
+
 function isWithinValidity(grant: ResolvedGrant, now: Date): boolean {
   if (grant.startsAt !== null && grant.startsAt > now) return false;
   if (grant.endsAt !== null && grant.endsAt <= now) return false;

@@ -10,13 +10,13 @@ import {
 import { todayInCairo } from "@/modules/erp/ui/format";
 import { InvoiceForm } from "@/modules/erp/ui/invoice-form";
 import { getActor } from "@/platform/auth/current-user";
-import { canAll } from "@/platform/authz/authz";
+import { canAllGlobally } from "@/platform/authz/authz";
 
 export const metadata: Metadata = { title: "New invoice" };
 
 export default async function NewInvoicePage() {
   const actor = await getActor();
-  const rights = await canAll(actor, [
+  const rights = await canAllGlobally(actor, [
     ERP_PERMISSIONS.AR_INVOICE_CREATE,
     ERP_PERMISSIONS.ACCOUNT_READ,
     ERP_PERMISSIONS.COST_CENTRE_READ,

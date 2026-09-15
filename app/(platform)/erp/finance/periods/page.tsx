@@ -13,7 +13,7 @@ import {
   ReopenPeriodButton,
 } from "@/modules/erp/ui/period-forms";
 import { getActor } from "@/platform/auth/current-user";
-import { canAll } from "@/platform/authz/authz";
+import { canAllGlobally } from "@/platform/authz/authz";
 
 export const metadata: Metadata = { title: "Accounting periods" };
 
@@ -28,7 +28,7 @@ export default async function PeriodsPage({
   const actor = await getActor();
   const [result, rights] = await Promise.all([
     orNotFound(listPeriods(actor, params)),
-    canAll(actor, [
+    canAllGlobally(actor, [
       ERP_PERMISSIONS.PERIOD_CREATE,
       ERP_PERMISSIONS.PERIOD_CLOSE,
       ERP_PERMISSIONS.PERIOD_REOPEN,

@@ -15,7 +15,7 @@ import { JournalStatusBadge } from "@/modules/erp/ui/badges";
 import { formatAmount, formatDate } from "@/modules/erp/ui/format";
 import { flatParams, orNotFound } from "@/modules/erp/ui/page-helpers";
 import { getActor } from "@/platform/auth/current-user";
-import { can } from "@/platform/authz/authz";
+import { canGlobally } from "@/platform/authz/authz";
 
 export const metadata: Metadata = { title: "Journal entries" };
 
@@ -30,7 +30,7 @@ export default async function JournalsPage({
   const actor = await getActor();
   const [result, canCreate] = await Promise.all([
     orNotFound(listJournals(actor, params)),
-    can(actor, ERP_PERMISSIONS.JOURNAL_CREATE),
+    canGlobally(actor, ERP_PERMISSIONS.JOURNAL_CREATE),
   ]);
   const filtered = [params.q, params.status].some((value) => (value ?? "") !== "");
 

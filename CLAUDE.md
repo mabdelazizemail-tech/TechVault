@@ -798,6 +798,9 @@ requirePermission(actor, permission, target?): Promise<void> // assert, throws F
 scopeFilter(actor, permission): Promise<ScopeFilter>         // derive a row-level list filter
 canAll(actor, permissions[]): Promise<Record<string, boolean>> // batch, for navigation/shells
 explain(actor, permission, target?): Promise<Decision>       // "why can this user do that?"
+// For records with no org unit or owner (ERP's ledger, module settings) — ADR-025:
+requireGlobalPermission(actor, permission): Promise<void>    // only a GLOBAL grant passes
+canGlobally(actor, permission) / canAllGlobally(actor, permissions[])
 ```
 
 `scopeFilter` returns a database-agnostic descriptor; `platform/authz/prisma-filter.ts`
@@ -1985,6 +1988,35 @@ _Consequences:_ an accidental delete can only be undone by a database fix; sales
 deleting a contact also removes a deal's calls or notes that named that contact; deleted rows stay in the database.
 _Revisit when:_ the owner wants a restore screen, bulk delete, or permanent deletion for data-protection requests.
 
+**ADR-025 — ERP requires organisation-wide grants.** _Context:_ the ERP audit of 2026-09-15 found that ERP services
+called `requirePermission` with no target, because ledger records carry no org unit or owner, and `evaluate()` treats "no
+target" as "could do this to anything", so any scope passes. User administration can grant roles scoped to an org unit,
+the user's own unit or own records, so an "accountant for one branch" would have posted, reversed and approved for the
+whole organisation. _Decision:_ the owner chose organisation-wide finance access only. `platform/authz` gains
+`evaluateGlobal` (pure) and `requireGlobalPermission`, `canGlobally` and `canAllGlobally`, which pass only an active GLOBAL
+ALLOW; any applicable DENY, of any scope, still wins, and a refusal is logged and audited as `OUT_OF_SCOPE` like any other
+denial. Every ERP service, the ERP layout and every ERP page use them. The evaluator's targetless behaviour is unchanged,
+because navigation relies on it. _Consequences:_ a scoped finance grant authorises nothing in ERP and must be re-granted
+globally; the sidebar can still show the ERP section to such a user, whose ERP pages then return not-found (§29 #39).
+_Revisit when:_ finance must be split by org unit or legal entity — ledger records would then need a unit to scope by.
+
+**ADR-026 — Ledger reports read the posted journal directly, as pure arithmetic on per-account sums.** _Context:_ the
+ERP audit found no trial balance, profit and loss or balance sheet, so the books could not be reviewed from the app; the
+owner asked to finish finance and receivables before payables. No fiscal year or year-end close exists (§29 #40).
+_Decision:_ (1) `services/finance/report-service.ts` runs one grouped statement per report over `journal_lines` joined to
+entries in POSTED or REVERSED status (a reversed entry and its reversal both stay in the ledger and cancel out; drafts are
+excluded), returning opening (before `from`) and period debits and credits per account. Because AR invoices and receipts
+post through the same ledger engine, these are the complete books. (2) The rules live in `domain/reports.ts` as bigint
+arithmetic: the trial balance puts each closing balance on its side and flags any imbalance; statements sign amounts by
+account TYPE (assets and expenses debit-positive), so a contra account reduces its section. (3) The balance sheet shows
+revenue less expenses to date as "profit or loss not yet closed" until year-end close exists, which keeps it balancing;
+the profit and loss defaults to the calendar year to date, a display default only. (4) Reading needs `erp.account.read`
+and `erp.journal.read`, organisation-wide (ADR-025) — no new permission, so no re-seed. (5) One page,
+`/erp/finance/reports`, with the three views as URL state. Rows are one per account with postings, capped at 5,000 with a
+clear error rather than a truncated total. _Consequences:_ no migration; figures are live, so their cost grows with posted
+lines (§29 #41). _Revisit when:_ a report query passes ~200 ms (rollups, §6.7), or the fiscal year and year-end close are
+decided.
+
 ---
 
 ## 28. Current Implementation Status
@@ -2121,6 +2153,8 @@ triggers (the balance check deferrable), 19 CHECK constraints and the period exc
 | Area        | State |
 | ----------- | ----- |
 | Data model  | ✅ `erp` schema, 6 tables: accounts, cost_centres, fiscal_periods, journal_entries, journal_lines, journal_sequences. Ledger invariants enforced in the database (ADR-022). `prisma migrate diff` reports no drift. |
+| Reports     | ✅ Trial balance (with optional opening balances), profit and loss and balance sheet at `/erp/finance/reports`, read from posted and reversed journal entries (ADR-026). 8 unit tests on the pure rules and 2 integration tests (a reversal netting to zero and a draft left out; totals, opening balances, net profit and a balancing sheet; refusals and dates in the wrong order). Not yet walked through signed in. |
+| Authorisation | ✅ Every ERP service, page and the ERP layout require an organisation-wide grant (ADR-025): a finance or AR role scoped to an org unit or to own records authorises nothing. Found by the 2026-09-15 ERP audit, fixed the same day; 7 unit tests on `evaluateGlobal` and 2 integration tests (journals and the finance overview for all three scopes; AR approval and lists), plus refusals for journal update and customer credit terms. |
 | Services    | ✅ Chart of accounts (tree listing in code order, create, edit, activate/deactivate, totals, paginated activity), cost centres (tree, create, edit), periods (create without overlap, close — refused while drafts are dated inside — and reopen with a reason), journal (drafts create/edit/delete; post with server re-validation and a gap-free number; reverse with an equal and opposite posted entry), finance overview. Every write: permission → Zod → one transaction with audit record and, where others may react, an outbox event. |
 | UI          | ✅ ERP Finance navigation; dashboard; chart of accounts with search, type and status filters; account detail with totals and dated activity; journal list with search and status filter; line-entry form with running totals and a balanced/out-of-balance indicator; journal detail with post, reverse and delete-draft confirmations; periods with close and reopen; cost centres. Arabic names shown right-to-left, amounts accept Arabic digits. |
 | Tests       | ✅ 32 unit tests (amount parsing, balancing and posting rules, reversal, schemas, roles) and 23 integration tests (every rejection case, immutability through the services and straight at the tables, reversal, rollback leaves no number, audit or event, simultaneous postings, allowed/refused for post, reverse, close and reopen). `npm run verify` 203 passing; full integration suite 144 passing; build succeeds. |
@@ -2222,7 +2256,7 @@ Open debt and risk:
 | 26  | **No maker–checker on posting**                             | §6.2 routes approvals through the workflow engine (Phase 4). Until then posting is a direct permission (`erp.journal.post`), and one person holding create and post can record and post the same entry | Add a configurable "cannot post your own entry" rule or a workflow step when Phase 4 lands | 🟡 Medium |
 | 27  | **Signed-in ERP browser journey not run**                   | `tests/e2e/erp-finance.spec.ts` needs `E2E_EMAIL`/`E2E_PASSWORD` for a finance administrator on a non-production database with the starter chart and an open period containing today; without them it skips | Owner provides a test account and database, then runs `npm run test:e2e` | 🟡 Medium |
 | 28  | **Finance pickers load capped lists**                       | The journal form loads at most 1,000 postable accounts and 500 cost centres | Replace with a type-ahead picker before the chart grows past that | 🟢 Low    |
-| 29  | **Single-currency ledger, no reports**                      | ERP Phase 1 records EGP only; there is no trial balance, running balance, opening balance or financial statement | Add currency and rate with receivables/payables; reports in a later ERP phase (from rollups, §6.7) | 🟢 Low    |
+| 29  | **Single-currency ledger**                                  | ERP records EGP only. (The trial balance, profit and loss and balance sheet shipped on 2026-09-15, ADR-026; opening balances and year-end close are #40) | Add currency and rate when foreign-currency receivables or payables are required | 🟢 Low    |
 | 30  | **No credit notes**                                         | A paid or part-paid invoice can only be corrected by removing its allocations and voiding it; partial credits and returns cannot be recorded (ADR-023) | A credit note document posting Dr revenue and tax, Cr receivable, allocatable like a receipt | 🟡 Medium |
 | 31  | **Credit limit shown, not enforced**                        | The customer page flags a balance over the limit, but creating and posting invoices do not refuse it | A configurable block or approval rule when the owner wants one | 🟢 Low    |
 | 32  | **Signed-in AR browser journey not run**                    | `tests/e2e/erp-ar.spec.ts` needs `E2E_EMAIL`/`E2E_PASSWORD` for a finance administrator on a non-production database with a CRM company, the starter chart, an open period containing today and settings that let one person through approval; without them it skips | Owner provides a test account and database, then runs `npm run test:e2e` | 🟡 Medium |
@@ -2232,6 +2266,9 @@ Open debt and risk:
 | 36  | **Default approval needs two people**                       | AR settings start with approval required and self-approval off, so a finance administrator working alone cannot post their own invoice | Grant approval to a second person, or change AR settings (threshold, self-approval, or no approval) | 🟢 Low    |
 | 37  | **No restore for deleted CRM records**                      | Deletion is soft, but there is no screen to view or restore deleted records; undoing an accidental delete needs a database fix (ADR-024) | A "Deleted records" admin page with restore, if mistakes happen | 🟢 Low    |
 | 38  | **No bulk delete in the CRM**                               | Administrators delete one record at a time | Add delete to the leads bulk-action bar and the other lists when volume demands it | 🟢 Low    |
+| 40  | **No fiscal year, year-end close or opening-balance import** | Periods are free-standing; the balance sheet carries revenue less expenses as "not yet closed" instead of retained earnings; the profit and loss defaults to the calendar year; balances from a previous system can only be entered as ordinary journal entries | Owner decides the fiscal year, retained-earnings account and opening-balance method (audit decision D3), then build year-end close | 🟠 High   |
+| 41  | **Ledger reports aggregate journal lines live**             | Each report sums every posted line up to its end date on request (ADR-026) | Move to rollups with BI, or when a report query passes ~200 ms | 🟢 Low    |
+| 39  | **Sidebar can show ERP to a user with only scoped finance grants** | Navigation evaluates without a target, so any scope shows the section; the ERP layout then returns not-found (ADR-025). Nothing is exposed | Let a navigation section require global grants | 🟢 Low    |
 
 Add real debt here as it accrues, with why it was accepted and the trigger to repay it. A
 TODO in code without a row here is invisible debt.

@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { type Actor, requirePermission } from "@/platform/authz/authz";
+import { type Actor, requireGlobalPermission } from "@/platform/authz/authz";
 import { ERP_PERMISSIONS } from "../../../contracts/permissions";
 import { arListParamsSchema } from "../../../contracts/schemas";
 import type { AgingReport } from "../../../contracts/types";
@@ -62,7 +62,7 @@ export async function getAgingReport(
   actor: Actor,
   rawParams: Record<string, unknown> = {},
 ): Promise<AgingReport> {
-  await requirePermission(actor, ERP_PERMISSIONS.AR_AGING_READ);
+  await requireGlobalPermission(actor, ERP_PERMISSIONS.AR_AGING_READ);
   const params = arListParamsSchema.parse(rawParams);
   const settings = await loadArSettings();
   const boundaries = settings.agingBucketDays;

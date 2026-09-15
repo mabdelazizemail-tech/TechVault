@@ -12,7 +12,7 @@ import { todayInCairo } from "@/modules/erp/ui/format";
 import { orNotFound } from "@/modules/erp/ui/page-helpers";
 import { ReceiptForm } from "@/modules/erp/ui/receipt-form";
 import { getActor } from "@/platform/auth/current-user";
-import { canAll } from "@/platform/authz/authz";
+import { canAllGlobally } from "@/platform/authz/authz";
 
 export const metadata: Metadata = { title: "Edit receipt" };
 
@@ -25,7 +25,10 @@ export default async function EditReceiptPage({
   const actor = await getActor();
   const [receipt, rights] = await Promise.all([
     orNotFound(getReceipt(actor, id)),
-    canAll(actor, [ERP_PERMISSIONS.AR_RECEIPT_UPDATE, ERP_PERMISSIONS.ACCOUNT_READ]),
+    canAllGlobally(actor, [
+      ERP_PERMISSIONS.AR_RECEIPT_UPDATE,
+      ERP_PERMISSIONS.ACCOUNT_READ,
+    ]),
   ]);
   if (rights[ERP_PERMISSIONS.AR_RECEIPT_UPDATE] !== true) notFound();
   if (receipt.status !== "DRAFT") redirect(`/erp/finance/receipts/${id}`);

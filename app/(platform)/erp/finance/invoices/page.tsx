@@ -15,7 +15,7 @@ import { CustomerName, InvoiceStatusBadge } from "@/modules/erp/ui/ar-badges";
 import { formatAmount, formatDate, todayInCairo } from "@/modules/erp/ui/format";
 import { flatParams, orNotFound } from "@/modules/erp/ui/page-helpers";
 import { getActor } from "@/platform/auth/current-user";
-import { can } from "@/platform/authz/authz";
+import { canGlobally } from "@/platform/authz/authz";
 
 export const metadata: Metadata = { title: "Invoices" };
 
@@ -30,7 +30,7 @@ export default async function InvoicesPage({
   const actor = await getActor();
   const [result, canCreate] = await Promise.all([
     orNotFound(listInvoices(actor, params)),
-    can(actor, ERP_PERMISSIONS.AR_INVOICE_CREATE),
+    canGlobally(actor, ERP_PERMISSIONS.AR_INVOICE_CREATE),
   ]);
   const today = todayInCairo();
   const filtered = [params.q, params.status, params.overdue].some(

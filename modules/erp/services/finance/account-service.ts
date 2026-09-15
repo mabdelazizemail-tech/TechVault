@@ -2,7 +2,7 @@ import type { Prisma } from "@prisma/client";
 import { ConflictError, NotFoundError, ValidationError } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
 import { diffForAudit, recordAudit } from "@/platform/audit/audit";
-import { type Actor, requirePermission } from "@/platform/authz/authz";
+import { type Actor, requireGlobalPermission } from "@/platform/authz/authz";
 import { publish } from "@/platform/events/publish";
 import { ERP_EVENTS } from "../../contracts/events";
 import { ERP_PERMISSIONS } from "../../contracts/permissions";
@@ -58,7 +58,7 @@ export async function listAccounts(
   actor: Actor,
   rawParams: Record<string, unknown> = {},
 ): Promise<Paginated<AccountListItem>> {
-  await requirePermission(actor, ERP_PERMISSIONS.ACCOUNT_READ);
+  await requireGlobalPermission(actor, ERP_PERMISSIONS.ACCOUNT_READ);
   const params = listParamsSchema.parse(rawParams);
   const pattern =
     params.q === undefined || params.q === "" ? null : likePattern(params.q);
@@ -112,7 +112,7 @@ export async function listAccountOptions(
   actor: Actor,
   options: { postable: boolean },
 ): Promise<AccountOption[]> {
-  await requirePermission(actor, ERP_PERMISSIONS.ACCOUNT_READ);
+  await requireGlobalPermission(actor, ERP_PERMISSIONS.ACCOUNT_READ);
   const rows = await prisma.erpAccount.findMany({
     where: { isActive: true, isPostable: options.postable },
     orderBy: { code: "asc" },
@@ -126,7 +126,7 @@ export async function getAccount(
   actor: Actor,
   accountId: string,
 ): Promise<AccountDetail> {
-  await requirePermission(actor, ERP_PERMISSIONS.ACCOUNT_READ);
+  await requireGlobalPermission(actor, ERP_PERMISSIONS.ACCOUNT_READ);
   assertId(accountId, "account");
 
   const row = await prisma.erpAccount.findUnique({
@@ -174,8 +174,8 @@ export async function listAccountActivity(
   accountId: string,
   rawParams: Record<string, unknown> = {},
 ): Promise<AccountActivity> {
-  await requirePermission(actor, ERP_PERMISSIONS.ACCOUNT_READ);
-  await requirePermission(actor, ERP_PERMISSIONS.JOURNAL_READ);
+  await requireGlobalPermission(actor, ERP_PERMISSIONS.ACCOUNT_READ);
+  await requireGlobalPermission(actor, ERP_PERMISSIONS.JOURNAL_READ);
   assertId(accountId, "account");
   const account = await prisma.erpAccount.findUnique({
     where: { id: accountId },
@@ -287,7 +287,7 @@ export async function createAccount(
   actor: Actor,
   input: unknown,
 ): Promise<{ id: string }> {
-  await requirePermission(actor, ERP_PERMISSIONS.ACCOUNT_CREATE);
+  await requireGlobalPermission(actor, ERP_PERMISSIONS.ACCOUNT_CREATE);
   const data = parseInput(accountCreateSchema, input);
   await assertParent(data.parentId, data.type);
   const normalBalance = data.normalBalance ?? DEFAULT_NORMAL_BALANCE[data.type];
@@ -349,7 +349,7 @@ export async function updateAccount(
   accountId: string,
   input: unknown,
 ): Promise<{ id: string }> {
-  await requirePermission(actor, ERP_PERMISSIONS.ACCOUNT_UPDATE);
+  await requireGlobalPermission(actor, ERP_PERMISSIONS.ACCOUNT_UPDATE);
   assertId(accountId, "account");
   const data = parseInput(accountUpdateSchema, input);
 
@@ -422,7 +422,7 @@ export async function setAccountActive(
   accountId: string,
   input: unknown,
 ): Promise<{ id: string }> {
-  await requirePermission(actor, ERP_PERMISSIONS.ACCOUNT_ADMINISTER);
+  await requireGlobalPermission(actor, ERP_PERMISSIONS.ACCOUNT_ADMINISTER);
   assertId(accountId, "account");
   const { isActive } = parseInput(activeSchema, input);
 

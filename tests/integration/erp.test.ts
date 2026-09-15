@@ -19,8 +19,11 @@ import {
   createPeriod,
   deleteJournal,
   getAccount,
+  getBalanceSheet,
   getFinanceOverview,
   getJournal,
+  getProfitAndLoss,
+  getTrialBalance,
   listAccountActivity,
   listAccounts,
   listJournals,
@@ -33,6 +36,7 @@ import {
   updateJournal,
 } from "@/modules/erp/contracts/service";
 import {
+  createOrgUnit,
   createRole,
   createUser,
   grantRole,
@@ -203,6 +207,119 @@ describe.skipIf(!hasTestDatabase)("ERP finance (integration)", () => {
   const outbox = (name: string) =>
     prisma.eventOutbox.findMany({ where: { name }, orderBy: { occurredAt: "asc" } });
   const audits = (action: string) => prisma.auditLog.findMany({ where: { action } });
+
+  /* ======================================================================== */
+  /* Ledger reports (ADR-026)                                                 */
+  /* ======================================================================== */
+
+  describe("ledger reports", () => {
+    const entry = (
+      entryDate: string,
+      debitAccount: string,
+      creditAccount: string,
+      amount: string,
+    ) => ({
+      entryDate,
+      description: `Entry of ${amount}`,
+      lines: [
+        { accountId: debitAccount, debit: amount },
+        { accountId: creditAccount, credit: amount },
+      ],
+    });
+
+    const post = async (input: Record<string, unknown>) => {
+      const { id } = await createJournal(as(admin), input);
+      await postJournal(as(admin), id);
+      return { id };
+    };
+
+    it("builds a balanced trial balance, profit and loss and balance sheet from posted entries only", async () => {
+      const sales = (
+        await createAccount(as(admin), { code: "4100", name: "Sales", type: "REVENUE" })
+      ).id;
+      const rent = (
+        await createAccount(as(admin), { code: "5100", name: "Rent", type: "EXPENSE" })
+      ).id;
+      await post(entry("2026-09-02", bank, capital, "100,000"));
+      await postedEntry(admin, purchase()); // 14 Sep: Dr equipment, Cr cash 50,000
+      await post(entry("2026-09-20", bank, sales, "30,000"));
+      await post(entry("2026-09-21", rent, bank, "12,000"));
+      const mistake = await post(entry("2026-09-21", rent, bank, "5,000"));
+      await reverseJournal(as(admin), mistake.id, { reversalDate: "2026-09-22" });
+      await createJournal(as(accountant), entry("2026-09-23", rent, bank, "999")); // a draft
+
+      const trial = await getTrialBalance(as(viewer), { to: "2026-09-30" });
+      expect(
+        trial.rows.map((row) => [
+          row.account.code,
+          row.closingDebitMinor,
+          row.closingCreditMinor,
+        ]),
+      ).toEqual([
+        ["1110", 0, 5_000_000],
+        ["1120", 11_800_000, 0],
+        ["1500", 5_000_000, 0],
+        ["3100", 0, 10_000_000],
+        ["4100", 0, 3_000_000],
+        ["5100", 1_200_000, 0],
+      ]);
+      expect(trial.totals).toMatchObject({
+        debitMinor: 20_200_000,
+        creditMinor: 20_200_000,
+        closingDebitMinor: 18_000_000,
+        closingCreditMinor: 18_000_000,
+      });
+      expect(trial.isBalanced).toBe(true);
+
+      const secondHalf = await getTrialBalance(as(viewer), {
+        from: "2026-09-15",
+        to: "2026-09-30",
+      });
+      expect(secondHalf.rows.find((row) => row.account.code === "1120")).toMatchObject({
+        openingMinor: 10_000_000,
+        debitMinor: 3_500_000,
+        creditMinor: 1_700_000,
+        closingDebitMinor: 11_800_000,
+      });
+      expect(secondHalf.isBalanced).toBe(true);
+
+      const profit = await getProfitAndLoss(as(viewer), {
+        from: "2026-09-01",
+        to: "2026-09-30",
+      });
+      expect([
+        profit.revenue.totalMinor,
+        profit.expenses.totalMinor,
+        profit.netIncomeMinor,
+      ]).toEqual([3_000_000, 1_200_000, 1_800_000]);
+
+      const sheet = await getBalanceSheet(as(viewer), { to: "2026-09-30" });
+      expect([
+        sheet.assets.totalMinor,
+        sheet.equity.totalMinor,
+        sheet.unclosedProfitMinor,
+        sheet.liabilitiesAndEquityMinor,
+        sheet.isBalanced,
+      ]).toEqual([11_800_000, 10_000_000, 1_800_000, 11_800_000, true]);
+
+      expect((await getTrialBalance(as(viewer), { to: "2026-09-01" })).rows).toHaveLength(
+        0,
+      );
+    });
+
+    it("needs account and journal read organisation-wide, and refuses dates in the wrong order", async () => {
+      for (const user of [closer, outsider]) {
+        for (const read of [getTrialBalance, getProfitAndLoss, getBalanceSheet]) {
+          expect(await failure(read(as(user), {}))).toBeInstanceOf(ForbiddenError);
+        }
+      }
+      expect(
+        await failure(
+          getTrialBalance(as(viewer), { from: "2026-09-30", to: "2026-09-01" }),
+        ),
+      ).toBeInstanceOf(ValidationError);
+    });
+  });
 
   /* ======================================================================== */
   /* Chart of accounts                                                        */
@@ -757,6 +874,9 @@ describe.skipIf(!hasTestDatabase)("ERP finance (integration)", () => {
       expect(await failure(createJournal(as(viewer), purchase()))).toBeInstanceOf(
         ForbiddenError,
       );
+      expect(
+        await failure(updateJournal(as(viewer), draft.id, purchase())),
+      ).toBeInstanceOf(ForbiddenError);
       expect(await failure(getJournal(as(outsider), draft.id))).toBeInstanceOf(
         ForbiddenError,
       );
@@ -771,6 +891,50 @@ describe.skipIf(!hasTestDatabase)("ERP finance (integration)", () => {
       expect(await failure(deleteJournal(as(poster), draft.id))).toBeInstanceOf(
         ForbiddenError,
       );
+    });
+
+    it("a finance role scoped to a unit or to own records authorises nothing", async () => {
+      const unit = await createOrgUnit("finance-branch", "/root/finance-branch", 1);
+      const accountantRole = await prisma.role.findUniqueOrThrow({
+        where: { key: "accountant" },
+      });
+      const draft = await createJournal(as(accountant), purchase());
+
+      for (const scopeType of ["ORG_UNIT", "OWN_ORG_UNIT", "OWN"] as const) {
+        const scoped = await createUser({
+          email: `scoped.${scopeType.toLowerCase()}@example.com`,
+          orgUnitId: unit.id,
+        });
+        await grantRole(scoped.id, accountantRole.id, {
+          scopeType,
+          scopeOrgUnitId: scopeType === "ORG_UNIT" ? unit.id : null,
+        });
+        for (const operation of [
+          () => listJournals(as(scoped)),
+          () => createJournal(as(scoped), purchase()),
+          () => updateJournal(as(scoped), draft.id, purchase({ description: "Changed" })),
+          () => postJournal(as(scoped), draft.id),
+          () => getFinanceOverview(as(scoped)),
+        ]) {
+          expect(await failure(operation()), scopeType).toBeInstanceOf(ForbiddenError);
+        }
+      }
+
+      expect(await prisma.erpJournalEntry.count()).toBe(1);
+      expect((await getJournal(as(admin), draft.id)).status).toBe("DRAFT");
+      const denials = await prisma.auditLog.findMany({
+        where: { action: "iam.permission.denied" },
+      });
+      expect(denials.some((row) => row.summary.includes("OUT_OF_SCOPE"))).toBe(true);
+
+      // The same role granted organisation-wide still works.
+      const global = await createUser({
+        email: "global.accountant@example.com",
+        orgUnitId: unit.id,
+      });
+      await grantRole(global.id, accountantRole.id);
+      await postJournal(as(global), draft.id);
+      expect((await getJournal(as(admin), draft.id)).status).toBe("POSTED");
     });
 
     it("numbers simultaneous postings without gaps or duplicates", async () => {

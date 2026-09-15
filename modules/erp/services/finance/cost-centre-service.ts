@@ -1,7 +1,7 @@
 import { ConflictError, NotFoundError, ValidationError } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
 import { diffForAudit, recordAudit } from "@/platform/audit/audit";
-import { type Actor, requirePermission } from "@/platform/authz/authz";
+import { type Actor, requireGlobalPermission } from "@/platform/authz/authz";
 import { publish } from "@/platform/events/publish";
 import { ERP_EVENTS } from "../../contracts/events";
 import { ERP_PERMISSIONS } from "../../contracts/permissions";
@@ -34,7 +34,7 @@ export async function listCostCentres(
   actor: Actor,
   rawParams: Record<string, unknown> = {},
 ): Promise<Paginated<CostCentreListItem>> {
-  await requirePermission(actor, ERP_PERMISSIONS.COST_CENTRE_READ);
+  await requireGlobalPermission(actor, ERP_PERMISSIONS.COST_CENTRE_READ);
   const params = listParamsSchema.parse(rawParams);
   const pattern =
     params.q === undefined || params.q === "" ? null : likePattern(params.q);
@@ -81,7 +81,7 @@ export async function listCostCentres(
 
 /** Active cost centres for a picker. */
 export async function listCostCentreOptions(actor: Actor): Promise<CostCentreRef[]> {
-  await requirePermission(actor, ERP_PERMISSIONS.COST_CENTRE_READ);
+  await requireGlobalPermission(actor, ERP_PERMISSIONS.COST_CENTRE_READ);
   return prisma.erpCostCentre.findMany({
     where: { isActive: true },
     orderBy: { code: "asc" },
@@ -108,7 +108,7 @@ export async function createCostCentre(
   actor: Actor,
   input: unknown,
 ): Promise<{ id: string }> {
-  await requirePermission(actor, ERP_PERMISSIONS.COST_CENTRE_CREATE);
+  await requireGlobalPermission(actor, ERP_PERMISSIONS.COST_CENTRE_CREATE);
   const data = parseInput(costCentreCreateSchema, input);
   await assertParent(data.parentId);
 
@@ -158,7 +158,7 @@ export async function updateCostCentre(
   costCentreId: string,
   input: unknown,
 ): Promise<{ id: string }> {
-  await requirePermission(actor, ERP_PERMISSIONS.COST_CENTRE_UPDATE);
+  await requireGlobalPermission(actor, ERP_PERMISSIONS.COST_CENTRE_UPDATE);
   assertId(costCentreId, "cost centre");
   const data = parseInput(costCentreUpdateSchema, input);
 

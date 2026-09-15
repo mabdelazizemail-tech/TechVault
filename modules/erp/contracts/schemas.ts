@@ -179,6 +179,12 @@ export const listParamsSchema = z.object({
   period: z.uuid().optional().catch(undefined),
 });
 
+/** Dates for the ledger reports (ADR-026). The service applies the defaults. */
+export const ledgerReportParamsSchema = z.object({
+  from: isoDate.optional().catch(undefined),
+  to: isoDate.optional().catch(undefined),
+});
+
 /* ========================================================================== */
 /* Accounts receivable (ADR-023)                                              */
 /* ========================================================================== */

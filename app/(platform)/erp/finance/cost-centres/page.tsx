@@ -9,7 +9,7 @@ import { ActiveBadge } from "@/modules/erp/ui/badges";
 import { CostCentreFormButton } from "@/modules/erp/ui/cost-centre-form";
 import { flatParams, orNotFound } from "@/modules/erp/ui/page-helpers";
 import { getActor } from "@/platform/auth/current-user";
-import { canAll } from "@/platform/authz/authz";
+import { canAllGlobally } from "@/platform/authz/authz";
 
 export const metadata: Metadata = { title: "Cost centres" };
 
@@ -24,7 +24,7 @@ export default async function CostCentresPage({
   const actor = await getActor();
   const [result, rights] = await Promise.all([
     orNotFound(listCostCentres(actor, params)),
-    canAll(actor, [
+    canAllGlobally(actor, [
       ERP_PERMISSIONS.COST_CENTRE_CREATE,
       ERP_PERMISSIONS.COST_CENTRE_UPDATE,
     ]),

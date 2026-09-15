@@ -1,7 +1,7 @@
 import { ConflictError, NotFoundError } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
 import { diffForAudit, recordAudit } from "@/platform/audit/audit";
-import { type Actor, requirePermission } from "@/platform/authz/authz";
+import { type Actor, requireGlobalPermission } from "@/platform/authz/authz";
 import { ERP_PERMISSIONS } from "../../../contracts/permissions";
 import {
   arSettingsSchema,
@@ -34,7 +34,7 @@ import { loadArSettings, requireAccount } from "./support";
  */
 
 export async function getArSettings(actor: Actor): Promise<ArSettingsDto> {
-  await requirePermission(actor, ERP_PERMISSIONS.AR_SETTINGS_ADMINISTER);
+  await requireGlobalPermission(actor, ERP_PERMISSIONS.AR_SETTINGS_ADMINISTER);
   const [settings, account, series] = await Promise.all([
     loadArSettings(),
     prisma.erpArSettings.findUnique({
@@ -70,7 +70,7 @@ export async function getArSettings(actor: Actor): Promise<ArSettingsDto> {
 }
 
 export async function updateArSettings(actor: Actor, input: unknown): Promise<void> {
-  await requirePermission(actor, ERP_PERMISSIONS.AR_SETTINGS_ADMINISTER);
+  await requireGlobalPermission(actor, ERP_PERMISSIONS.AR_SETTINGS_ADMINISTER);
   const data = parseInput(arSettingsSchema, input);
   if (data.defaultReceivableAccountId !== null) {
     await requireAccount(
@@ -136,7 +136,7 @@ export async function listTaxRates(
   actor: Actor,
   options: { activeOnly: boolean },
 ): Promise<TaxRateDto[]> {
-  await requirePermission(
+  await requireGlobalPermission(
     actor,
     options.activeOnly
       ? ERP_PERMISSIONS.AR_INVOICE_READ
@@ -154,7 +154,7 @@ export async function createTaxRate(
   actor: Actor,
   input: unknown,
 ): Promise<{ id: string }> {
-  await requirePermission(actor, ERP_PERMISSIONS.AR_SETTINGS_ADMINISTER);
+  await requireGlobalPermission(actor, ERP_PERMISSIONS.AR_SETTINGS_ADMINISTER);
   const data = parseInput(taxRateSchema, input);
   await requireAccount(data.taxAccountId, ["LIABILITY"], "taxAccountId");
   try {
@@ -203,7 +203,7 @@ export async function updateTaxRate(
   taxRateId: string,
   input: unknown,
 ): Promise<{ id: string }> {
-  await requirePermission(actor, ERP_PERMISSIONS.AR_SETTINGS_ADMINISTER);
+  await requireGlobalPermission(actor, ERP_PERMISSIONS.AR_SETTINGS_ADMINISTER);
   assertId(taxRateId, "tax rate");
   const data = parseInput(taxRateSchema, input);
   const before = await prisma.erpTaxRate.findUnique({
@@ -265,7 +265,7 @@ export async function listPaymentMethods(
   actor: Actor,
   options: { activeOnly: boolean },
 ): Promise<PaymentMethodDto[]> {
-  await requirePermission(
+  await requireGlobalPermission(
     actor,
     options.activeOnly
       ? ERP_PERMISSIONS.AR_RECEIPT_READ
@@ -283,7 +283,7 @@ export async function createPaymentMethod(
   actor: Actor,
   input: unknown,
 ): Promise<{ id: string }> {
-  await requirePermission(actor, ERP_PERMISSIONS.AR_SETTINGS_ADMINISTER);
+  await requireGlobalPermission(actor, ERP_PERMISSIONS.AR_SETTINGS_ADMINISTER);
   const data = parseInput(paymentMethodSchema, input);
   if (data.defaultDepositAccountId !== null) {
     await requireAccount(
@@ -325,7 +325,7 @@ export async function updatePaymentMethod(
   paymentMethodId: string,
   input: unknown,
 ): Promise<{ id: string }> {
-  await requirePermission(actor, ERP_PERMISSIONS.AR_SETTINGS_ADMINISTER);
+  await requireGlobalPermission(actor, ERP_PERMISSIONS.AR_SETTINGS_ADMINISTER);
   assertId(paymentMethodId, "payment method");
   const data = parseInput(paymentMethodSchema, input);
   const before = await prisma.erpPaymentMethod.findUnique({
@@ -385,7 +385,7 @@ export async function updateNumberSeries(
   seriesId: string,
   input: unknown,
 ): Promise<{ id: string }> {
-  await requirePermission(actor, ERP_PERMISSIONS.AR_SETTINGS_ADMINISTER);
+  await requireGlobalPermission(actor, ERP_PERMISSIONS.AR_SETTINGS_ADMINISTER);
   assertId(seriesId, "number series");
   const data = parseInput(numberSeriesSchema, input);
   const before = await prisma.erpNumberSeries.findUnique({

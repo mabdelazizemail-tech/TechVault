@@ -100,6 +100,11 @@ export const NAV_SECTIONS: readonly NavSection[] = [
         permission: ERP_PERMISSIONS.JOURNAL_READ,
       },
       {
+        label: "Financial reports",
+        href: "/erp/finance/reports",
+        permission: ERP_PERMISSIONS.JOURNAL_READ,
+      },
+      {
         label: "Accounting periods",
         href: "/erp/finance/periods",
         permission: ERP_PERMISSIONS.PERIOD_READ,

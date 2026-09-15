@@ -7,7 +7,7 @@ import {
 } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
 import { recordAudit } from "@/platform/audit/audit";
-import { type Actor, requirePermission } from "@/platform/authz/authz";
+import { type Actor, requireGlobalPermission } from "@/platform/authz/authz";
 import { publish } from "@/platform/events/publish";
 import {
   ERP_EVENTS,
@@ -110,7 +110,7 @@ export async function listReceipts(
   actor: Actor,
   rawParams: Record<string, unknown> = {},
 ): Promise<Paginated<ArReceiptListItem>> {
-  await requirePermission(actor, ERP_PERMISSIONS.AR_RECEIPT_READ);
+  await requireGlobalPermission(actor, ERP_PERMISSIONS.AR_RECEIPT_READ);
   const params = arListParamsSchema.parse(rawParams);
   const status = AR_RECEIPT_STATUSES.find((value) => value === params.status);
   const matchingCustomers = await customerIdsMatching(params.q);
@@ -169,7 +169,7 @@ export async function getReceipt(
   actor: Actor,
   receiptId: string,
 ): Promise<ArReceiptDetail> {
-  await requirePermission(actor, ERP_PERMISSIONS.AR_RECEIPT_READ);
+  await requireGlobalPermission(actor, ERP_PERMISSIONS.AR_RECEIPT_READ);
   assertId(receiptId, "receipt");
 
   const row = await prisma.erpArReceipt.findUnique({
@@ -243,7 +243,7 @@ export async function createReceipt(
   actor: Actor,
   input: unknown,
 ): Promise<{ id: string }> {
-  await requirePermission(actor, ERP_PERMISSIONS.AR_RECEIPT_CREATE);
+  await requireGlobalPermission(actor, ERP_PERMISSIONS.AR_RECEIPT_CREATE);
   const { draft, receivableAccountId } = await prepareDraft(input);
 
   try {
@@ -287,7 +287,7 @@ export async function updateReceipt(
   receiptId: string,
   input: unknown,
 ): Promise<{ id: string }> {
-  await requirePermission(actor, ERP_PERMISSIONS.AR_RECEIPT_UPDATE);
+  await requireGlobalPermission(actor, ERP_PERMISSIONS.AR_RECEIPT_UPDATE);
   assertId(receiptId, "receipt");
   const { draft, receivableAccountId } = await prepareDraft(input);
 
@@ -331,7 +331,7 @@ export async function updateReceipt(
 }
 
 export async function deleteReceipt(actor: Actor, receiptId: string): Promise<void> {
-  await requirePermission(actor, ERP_PERMISSIONS.AR_RECEIPT_UPDATE);
+  await requireGlobalPermission(actor, ERP_PERMISSIONS.AR_RECEIPT_UPDATE);
   assertId(receiptId, "receipt");
   try {
     await prisma.$transaction(async (tx) => {
@@ -365,7 +365,7 @@ export async function postReceipt(
   actor: Actor,
   receiptId: string,
 ): Promise<{ receiptNumber: string; journalNumber: string }> {
-  await requirePermission(actor, ERP_PERMISSIONS.AR_RECEIPT_POST);
+  await requireGlobalPermission(actor, ERP_PERMISSIONS.AR_RECEIPT_POST);
   assertId(receiptId, "receipt");
 
   try {
@@ -473,7 +473,7 @@ export async function cancelReceipt(
   receiptId: string,
   input: unknown,
 ): Promise<{ voidJournalNumber: string | null }> {
-  await requirePermission(actor, ERP_PERMISSIONS.AR_RECEIPT_CANCEL);
+  await requireGlobalPermission(actor, ERP_PERMISSIONS.AR_RECEIPT_CANCEL);
   assertId(receiptId, "receipt");
   const data = parseInput(arCancelSchema, input);
 
@@ -561,7 +561,7 @@ export async function allocateReceipt(
   receiptId: string,
   input: unknown,
 ): Promise<void> {
-  await requirePermission(actor, ERP_PERMISSIONS.AR_RECEIPT_ALLOCATE);
+  await requireGlobalPermission(actor, ERP_PERMISSIONS.AR_RECEIPT_ALLOCATE);
   assertId(receiptId, "receipt");
   const data = parseInput(arAllocationSchema, input);
   // A fixed order, so two allocations touching the same invoices queue, not deadlock.
@@ -682,7 +682,7 @@ export async function unallocateReceipt(
   receiptId: string,
   input: unknown,
 ): Promise<void> {
-  await requirePermission(actor, ERP_PERMISSIONS.AR_RECEIPT_ALLOCATE);
+  await requireGlobalPermission(actor, ERP_PERMISSIONS.AR_RECEIPT_ALLOCATE);
   assertId(receiptId, "receipt");
   const { invoiceId } = parseInput(arUnallocateSchema, input);
 

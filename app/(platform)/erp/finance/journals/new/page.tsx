@@ -9,13 +9,13 @@ import {
 import { todayInCairo } from "@/modules/erp/ui/format";
 import { JournalForm } from "@/modules/erp/ui/journal-form";
 import { getActor } from "@/platform/auth/current-user";
-import { canAll } from "@/platform/authz/authz";
+import { canAllGlobally } from "@/platform/authz/authz";
 
 export const metadata: Metadata = { title: "New journal entry" };
 
 export default async function NewJournalPage() {
   const actor = await getActor();
-  const rights = await canAll(actor, [
+  const rights = await canAllGlobally(actor, [
     ERP_PERMISSIONS.JOURNAL_CREATE,
     ERP_PERMISSIONS.ACCOUNT_READ,
     ERP_PERMISSIONS.COST_CENTRE_READ,

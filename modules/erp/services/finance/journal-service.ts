@@ -3,7 +3,7 @@ import type { z } from "zod";
 import { BusinessRuleError, NotFoundError, ValidationError } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
 import { recordAudit } from "@/platform/audit/audit";
-import { type Actor, requirePermission } from "@/platform/authz/authz";
+import { type Actor, requireGlobalPermission } from "@/platform/authz/authz";
 import { ERP_PERMISSIONS } from "../../contracts/permissions";
 import {
   journalDraftSchema,
@@ -55,7 +55,7 @@ export async function listJournals(
   actor: Actor,
   rawParams: Record<string, unknown> = {},
 ): Promise<Paginated<JournalListItem>> {
-  await requirePermission(actor, ERP_PERMISSIONS.JOURNAL_READ);
+  await requireGlobalPermission(actor, ERP_PERMISSIONS.JOURNAL_READ);
   const params = listParamsSchema.parse(rawParams);
   const query = params.q === undefined || params.q === "" ? undefined : params.q;
 
@@ -101,7 +101,7 @@ export async function listJournals(
 }
 
 export async function getJournal(actor: Actor, entryId: string): Promise<JournalDetail> {
-  await requirePermission(actor, ERP_PERMISSIONS.JOURNAL_READ);
+  await requireGlobalPermission(actor, ERP_PERMISSIONS.JOURNAL_READ);
   assertId(entryId, "journal entry");
 
   const row = await prisma.erpJournalEntry.findUnique({
@@ -236,7 +236,7 @@ export async function createJournal(
   actor: Actor,
   input: unknown,
 ): Promise<{ id: string }> {
-  await requirePermission(actor, ERP_PERMISSIONS.JOURNAL_CREATE);
+  await requireGlobalPermission(actor, ERP_PERMISSIONS.JOURNAL_CREATE);
   const draft = parseInput(journalDraftSchema, input);
   await assertLineReferences(draft);
   const lines = linesOf(draft);
@@ -279,7 +279,7 @@ export async function updateJournal(
   entryId: string,
   input: unknown,
 ): Promise<{ id: string }> {
-  await requirePermission(actor, ERP_PERMISSIONS.JOURNAL_UPDATE);
+  await requireGlobalPermission(actor, ERP_PERMISSIONS.JOURNAL_UPDATE);
   assertId(entryId, "journal entry");
   const draft = parseInput(journalDraftSchema, input);
   await assertLineReferences(draft);
@@ -325,7 +325,7 @@ export async function updateJournal(
 }
 
 export async function deleteJournal(actor: Actor, entryId: string): Promise<void> {
-  await requirePermission(actor, ERP_PERMISSIONS.JOURNAL_DELETE);
+  await requireGlobalPermission(actor, ERP_PERMISSIONS.JOURNAL_DELETE);
   assertId(entryId, "journal entry");
 
   try {
@@ -360,7 +360,7 @@ export async function postJournal(
   actor: Actor,
   entryId: string,
 ): Promise<{ journalNumber: string }> {
-  await requirePermission(actor, ERP_PERMISSIONS.JOURNAL_POST);
+  await requireGlobalPermission(actor, ERP_PERMISSIONS.JOURNAL_POST);
   assertId(entryId, "journal entry");
 
   try {
@@ -399,7 +399,7 @@ export async function reverseJournal(
   entryId: string,
   input: unknown = {},
 ): Promise<{ reversalId: string; journalNumber: string }> {
-  await requirePermission(actor, ERP_PERMISSIONS.JOURNAL_REVERSE);
+  await requireGlobalPermission(actor, ERP_PERMISSIONS.JOURNAL_REVERSE);
   assertId(entryId, "journal entry");
   const data = parseInput(journalReverseSchema, input ?? {});
   const reversalDate = data.reversalDate ?? todayIso();

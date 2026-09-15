@@ -1,7 +1,7 @@
 import { NotFoundError } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
 import { diffForAudit, recordAudit } from "@/platform/audit/audit";
-import { type Actor, requirePermission } from "@/platform/authz/authz";
+import { type Actor, requireGlobalPermission } from "@/platform/authz/authz";
 import { ERP_PERMISSIONS } from "../../../contracts/permissions";
 import { arCustomerProfileSchema, arListParamsSchema } from "../../../contracts/schemas";
 import type {
@@ -51,7 +51,7 @@ export async function searchArCustomers(
   actor: Actor,
   query: string,
 ): Promise<CustomerRef[]> {
-  await requirePermission(actor, ERP_PERMISSIONS.AR_CUSTOMER_READ);
+  await requireGlobalPermission(actor, ERP_PERMISSIONS.AR_CUSTOMER_READ);
   return searchCustomers(query);
 }
 
@@ -59,7 +59,7 @@ export async function listArCustomers(
   actor: Actor,
   rawParams: Record<string, unknown> = {},
 ): Promise<Paginated<ArCustomerListItem>> {
-  await requirePermission(actor, ERP_PERMISSIONS.AR_CUSTOMER_READ);
+  await requireGlobalPermission(actor, ERP_PERMISSIONS.AR_CUSTOMER_READ);
   const params = arListParamsSchema.parse(rawParams);
   const filterIds = await customerIdsMatching(params.q);
   const today = todayIso();
@@ -137,7 +137,7 @@ export async function getArCustomer(
   crmAccountId: string,
   rawParams: Record<string, unknown> = {},
 ): Promise<ArCustomerAccount> {
-  await requirePermission(actor, ERP_PERMISSIONS.AR_CUSTOMER_READ);
+  await requireGlobalPermission(actor, ERP_PERMISSIONS.AR_CUSTOMER_READ);
   assertId(crmAccountId, "customer");
   const params = arListParamsSchema.parse(rawParams);
   const today = todayIso();
@@ -281,7 +281,7 @@ export async function updateArCustomerProfile(
   crmAccountId: string,
   input: unknown,
 ): Promise<void> {
-  await requirePermission(actor, ERP_PERMISSIONS.AR_CUSTOMER_UPDATE);
+  await requireGlobalPermission(actor, ERP_PERMISSIONS.AR_CUSTOMER_UPDATE);
   assertId(crmAccountId, "customer");
   const data = parseInput(arCustomerProfileSchema, input);
   await requireLiveCustomer(crmAccountId, "_");

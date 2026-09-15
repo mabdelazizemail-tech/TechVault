@@ -15,7 +15,7 @@ import { CustomerName, ReceiptStatusBadge } from "@/modules/erp/ui/ar-badges";
 import { formatAmount, formatDate } from "@/modules/erp/ui/format";
 import { flatParams, orNotFound } from "@/modules/erp/ui/page-helpers";
 import { getActor } from "@/platform/auth/current-user";
-import { can } from "@/platform/authz/authz";
+import { canGlobally } from "@/platform/authz/authz";
 
 export const metadata: Metadata = { title: "Receipts" };
 
@@ -30,7 +30,7 @@ export default async function ReceiptsPage({
   const actor = await getActor();
   const [result, canCreate] = await Promise.all([
     orNotFound(listReceipts(actor, params)),
-    can(actor, ERP_PERMISSIONS.AR_RECEIPT_CREATE),
+    canGlobally(actor, ERP_PERMISSIONS.AR_RECEIPT_CREATE),
   ]);
   const filtered = [params.q, params.status].some((value) => (value ?? "") !== "");
 

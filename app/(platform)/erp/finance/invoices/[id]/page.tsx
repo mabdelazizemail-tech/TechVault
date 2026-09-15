@@ -17,7 +17,7 @@ import { InvoiceActions } from "@/modules/erp/ui/invoice-actions";
 import { orNotFound } from "@/modules/erp/ui/page-helpers";
 import { UnallocateButton } from "@/modules/erp/ui/receipt-actions";
 import { getActor } from "@/platform/auth/current-user";
-import { canAll } from "@/platform/authz/authz";
+import { canAllGlobally } from "@/platform/authz/authz";
 
 export const metadata: Metadata = { title: "Invoice" };
 
@@ -30,7 +30,7 @@ export default async function InvoicePage({
   const actor = await getActor();
   const [invoice, rights] = await Promise.all([
     orNotFound(getInvoice(actor, id)),
-    canAll(actor, [
+    canAllGlobally(actor, [
       ERP_PERMISSIONS.AR_INVOICE_UPDATE,
       ERP_PERMISSIONS.AR_INVOICE_APPROVE,
       ERP_PERMISSIONS.AR_INVOICE_POST,
@@ -74,15 +74,17 @@ export default async function InvoicePage({
       {invoice.status === "DRAFT" && invoice.rejectionReason !== null && (
         <p className="border-warning mb-4 border-s-4 px-3 py-2 text-sm">
           Rejected
-          {invoice.rejectedAt !== null ? ` ${formatDateTime(invoice.rejectedAt)}` : ""}:{" "}
-          <span dir="auto">{invoice.rejectionReason}</span>
+          {invoice.rejectedAt !== null
+            ? ` ${formatDateTime(invoice.rejectedAt)}`
+            : ""}: <span dir="auto">{invoice.rejectionReason}</span>
         </p>
       )}
       {invoice.status === "CANCELLED" && invoice.cancelReason !== null && (
         <p className="border-danger mb-4 border-s-4 px-3 py-2 text-sm">
           Cancelled
-          {invoice.cancelledAt !== null ? ` ${formatDateTime(invoice.cancelledAt)}` : ""}:{" "}
-          <span dir="auto">{invoice.cancelReason}</span>
+          {invoice.cancelledAt !== null
+            ? ` ${formatDateTime(invoice.cancelledAt)}`
+            : ""}: <span dir="auto">{invoice.cancelReason}</span>
           {invoice.voidJournal !== null && (
             <>
               {" "}

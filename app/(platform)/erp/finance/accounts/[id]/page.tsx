@@ -25,7 +25,7 @@ import { ActiveBadge, JournalStatusBadge } from "@/modules/erp/ui/badges";
 import { formatAmount, formatAmountOrBlank, formatDate } from "@/modules/erp/ui/format";
 import { flatParams, orNotFound } from "@/modules/erp/ui/page-helpers";
 import { getActor } from "@/platform/auth/current-user";
-import { canAll } from "@/platform/authz/authz";
+import { canAllGlobally } from "@/platform/authz/authz";
 
 export const metadata: Metadata = { title: "Account" };
 
@@ -42,7 +42,7 @@ export default async function AccountPage({
   const actor = await getActor();
   const [account, rights] = await Promise.all([
     orNotFound(getAccount(actor, id)),
-    canAll(actor, [
+    canAllGlobally(actor, [
       ERP_PERMISSIONS.ACCOUNT_UPDATE,
       ERP_PERMISSIONS.ACCOUNT_ADMINISTER,
       ERP_PERMISSIONS.JOURNAL_READ,

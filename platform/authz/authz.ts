@@ -2,7 +2,7 @@ import { ForbiddenError, UnauthenticatedError } from "@/lib/errors";
 import { recordAuditSafely } from "@/platform/audit/audit";
 import { getPermissionSet } from "@/platform/iam/permission-loader";
 import { logger } from "@/platform/observability/logger";
-import { describeDenial, evaluate, scopeFilterFor } from "./evaluate";
+import { describeDenial, evaluate, evaluateGlobal, scopeFilterFor } from "./evaluate";
 import type { Decision, PermissionSet, ScopeFilter, ScopeTarget } from "./types";
 
 /**
@@ -66,6 +66,48 @@ export async function requirePermission(
     permission,
     reason: decision.reason,
   });
+}
+
+/**
+ * Asserts a permission held ORGANISATION-WIDE, throwing `ForbiddenError` otherwise.
+ *
+ * Use it for operations on records with no org unit or owner to scope by (ERP's
+ * ledger, for example): a unit- or own-scoped grant authorises nothing here. Denials
+ * are logged and audited exactly like `requirePermission`.
+ */
+export async function requireGlobalPermission(
+  actor: Actor,
+  permission: string,
+): Promise<void> {
+  const set = await permissionSetFor(actor);
+  const decision = evaluateGlobal(set, permission);
+
+  if (decision.allowed) return;
+
+  await reportDenial(actor, permission, undefined, decision);
+  throw new ForbiddenError(describeDenial(decision.reason), {
+    permission,
+    reason: decision.reason,
+  });
+}
+
+/** `can()` for organisation-wide operations: true only for a GLOBAL grant. */
+export async function canGlobally(actor: Actor, permission: string): Promise<boolean> {
+  const set = await permissionSetFor(actor);
+  return evaluateGlobal(set, permission).allowed;
+}
+
+/** `canAll()` for organisation-wide operations: true only for GLOBAL grants. */
+export async function canAllGlobally(
+  actor: Actor,
+  permissions: readonly string[],
+): Promise<Record<string, boolean>> {
+  const set = await permissionSetFor(actor);
+  const result: Record<string, boolean> = {};
+  for (const permission of permissions) {
+    result[permission] = evaluateGlobal(set, permission).allowed;
+  }
+  return result;
 }
 
 /**

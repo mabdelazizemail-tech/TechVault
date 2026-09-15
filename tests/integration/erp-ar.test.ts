@@ -36,6 +36,7 @@ import {
   reverseJournal,
   submitInvoice,
   unallocateReceipt,
+  updateArCustomerProfile,
   updateArSettings,
   updateInvoice,
 } from "@/modules/erp/contracts/service";
@@ -44,6 +45,7 @@ import {
   DEFAULT_PAYMENT_METHODS,
 } from "@/modules/erp/domain/ar-defaults";
 import {
+  createOrgUnit,
   createRole,
   createUser,
   grantRole,
@@ -775,6 +777,49 @@ describe.skipIf(!hasTestDatabase)("ERP accounts receivable (integration)", () =>
       expect(
         await failure(createReceipt(as(viewer), { crmAccountId: acme })),
       ).toBeInstanceOf(ForbiddenError);
+    });
+
+    it("a finance administrator scoped to a unit approves nothing, and customer terms need erp.ar_customer.update", async () => {
+      const unit = await createOrgUnit("finance-branch", "/root/finance-branch", 1);
+      const adminRole = await prisma.role.findUniqueOrThrow({
+        where: { key: "finance-admin" },
+      });
+      const scoped = await createUser({
+        email: "branch.admin@example.com",
+        orgUnitId: unit.id,
+      });
+      await grantRole(scoped.id, adminRole.id, { scopeType: "OWN_ORG_UNIT" });
+
+      const { id } = await createInvoice(as(accountant), simpleInvoice("1,000"));
+      await submitInvoice(as(accountant), id);
+      expect(await failure(approveInvoice(as(scoped), id))).toBeInstanceOf(
+        ForbiddenError,
+      );
+      expect(await failure(listInvoices(as(scoped)))).toBeInstanceOf(ForbiddenError);
+      expect((await getInvoice(as(viewer), id)).status).toBe("PENDING_APPROVAL");
+
+      const terms = {
+        paymentTermsDays: "45",
+        creditLimit: "250,000",
+        receivableAccountId: "",
+        notes: "",
+      };
+      for (const user of [accountant, viewer, outsider, scoped]) {
+        expect(
+          await failure(updateArCustomerProfile(as(user), acme, terms)),
+        ).toBeInstanceOf(ForbiddenError);
+      }
+      expect(
+        await prisma.erpArCustomerProfile.findUnique({ where: { crmAccountId: acme } }),
+      ).toBeNull();
+      await updateArCustomerProfile(as(admin), acme, terms);
+      const profile = await prisma.erpArCustomerProfile.findUniqueOrThrow({
+        where: { crmAccountId: acme },
+      });
+      expect([profile.paymentTermsDays, profile.creditLimitMinor]).toEqual([
+        45,
+        25_000_000n,
+      ]);
     });
   });
 

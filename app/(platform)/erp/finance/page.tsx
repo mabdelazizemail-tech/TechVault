@@ -15,7 +15,7 @@ import { getFinanceOverview } from "@/modules/erp/contracts/service";
 import { JournalStatusBadge, PeriodStatusBadge } from "@/modules/erp/ui/badges";
 import { formatAmount, formatDate } from "@/modules/erp/ui/format";
 import { getActor } from "@/platform/auth/current-user";
-import { canAll } from "@/platform/authz/authz";
+import { canAllGlobally } from "@/platform/authz/authz";
 
 export const metadata: Metadata = { title: "Finance" };
 
@@ -24,7 +24,7 @@ export default async function FinanceDashboardPage() {
   const actor = await getActor();
   const [overview, rights] = await Promise.all([
     getFinanceOverview(actor),
-    canAll(actor, [ERP_PERMISSIONS.JOURNAL_CREATE, ERP_PERMISSIONS.PERIOD_READ]),
+    canAllGlobally(actor, [ERP_PERMISSIONS.JOURNAL_CREATE, ERP_PERMISSIONS.PERIOD_READ]),
   ]);
 
   return (
