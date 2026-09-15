@@ -11,3 +11,8 @@ const RECORD_PATH: Record<RecordKind, string> = {
 export function recordHref(ref: Pick<RecordRef, "kind" | "id">): string {
   return `${RECORD_PATH[ref.kind]}/${ref.id}`;
 }
+
+/** The list page of a CRM record type — where a deleted record's page sends you. */
+export function recordListHref(kind: RecordKind): string {
+  return RECORD_PATH[kind];
+}

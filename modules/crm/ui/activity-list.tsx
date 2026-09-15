@@ -9,6 +9,7 @@ export function ActivityList({
   basePath,
   searchParams,
   canUpdateActivities,
+  canDeleteActivities = false,
   emptyTitle,
   emptyDescription,
 }: {
@@ -16,6 +17,7 @@ export function ActivityList({
   basePath: string;
   searchParams: Record<string, string | undefined>;
   canUpdateActivities: boolean;
+  canDeleteActivities?: boolean;
   emptyTitle: string;
   emptyDescription: string;
 }) {
@@ -31,6 +33,7 @@ export function ActivityList({
                 key={activity.id}
                 activity={activity}
                 canUpdateActivities={canUpdateActivities}
+                canDeleteActivities={canDeleteActivities}
               />
             ))}
           </ol>

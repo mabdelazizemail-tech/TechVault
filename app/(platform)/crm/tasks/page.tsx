@@ -25,7 +25,7 @@ export default async function TasksPage({
 
   const [result, rights] = await Promise.all([
     listActivities(actor, params, { view: "tasks", taskStatus: status ?? "open", mine }),
-    canAll(actor, [CRM_PERMISSIONS.ACTIVITY_UPDATE]),
+    canAll(actor, [CRM_PERMISSIONS.ACTIVITY_UPDATE, CRM_PERMISSIONS.ACTIVITY_DELETE]),
   ]);
 
   return (
@@ -63,6 +63,7 @@ export default async function TasksPage({
         basePath="/crm/tasks"
         searchParams={params}
         canUpdateActivities={rights[CRM_PERMISSIONS.ACTIVITY_UPDATE] === true}
+        canDeleteActivities={rights[CRM_PERMISSIONS.ACTIVITY_DELETE] === true}
         emptyTitle={status === "done" ? "No completed tasks" : "No open tasks"}
         emptyDescription="Add a task from a record’s timeline with Add activity → Task."
       />

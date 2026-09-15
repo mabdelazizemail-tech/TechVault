@@ -51,6 +51,16 @@ export {
   type ActivityView,
 } from "../services/activity-service";
 
+/** Administrator deletion (ADR-024): soft delete, cascading to what exists only under the record. */
+export {
+  deleteAccount,
+  deleteActivity,
+  deleteContact,
+  deleteLead,
+  deleteOpportunity,
+  getDeletionImpact,
+} from "../services/deletion-service";
+
 export { searchCrm } from "../services/search-service";
 export { getCrmDashboard } from "../services/dashboard-service";
 

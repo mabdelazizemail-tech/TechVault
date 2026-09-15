@@ -335,6 +335,12 @@ export const activitySchema = activityFields
     { message: "An activity must be linked to a record.", path: ["subject"] },
   );
 
+/** A CRM record an administrator is about to delete. */
+export const deletionTargetSchema = z.object({
+  kind: z.enum(["lead", "account", "contact", "opportunity"]),
+  id: z.string(),
+});
+
 /* -------------------------------------------------------------------------- */
 /* Lists                                                                      */
 /* -------------------------------------------------------------------------- */

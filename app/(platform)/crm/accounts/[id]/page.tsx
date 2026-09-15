@@ -13,6 +13,7 @@ import { AccountFormButton } from "@/modules/crm/ui/account-form";
 import { AddActivityButton } from "@/modules/crm/ui/add-activity";
 import { Avatar, LeadStatusBadge } from "@/modules/crm/ui/badges";
 import { ContactFormButton } from "@/modules/crm/ui/contact-form";
+import { DeleteRecordButton } from "@/modules/crm/ui/delete-record";
 import { DetailList } from "@/modules/crm/ui/detail-list";
 import { formatDate, formatMoney } from "@/modules/crm/ui/format";
 import { orNotFound, uuidParam } from "@/modules/crm/ui/page-helpers";
@@ -42,6 +43,8 @@ export default async function AccountPage({
     CRM_PERMISSIONS.ACTIVITY_READ,
     CRM_PERMISSIONS.ACTIVITY_CREATE,
     CRM_PERMISSIONS.ACTIVITY_UPDATE,
+    CRM_PERMISSIONS.ACCOUNT_DELETE,
+    CRM_PERMISSIONS.ACTIVITY_DELETE,
   ]);
   const [account, rights, timeline] = await Promise.all([
     orNotFound(getAccount(actor, id)),
@@ -80,6 +83,9 @@ export default async function AccountPage({
               >
                 New opportunity
               </ButtonLink>
+            )}
+            {rights[CRM_PERMISSIONS.ACCOUNT_DELETE] === true && (
+              <DeleteRecordButton kind="account" id={account.id} name={account.name} />
             )}
           </>
         }
@@ -258,6 +264,7 @@ export default async function AccountPage({
               activities={timeline}
               currentRecordId={account.id}
               canUpdateActivities={rights[CRM_PERMISSIONS.ACTIVITY_UPDATE] === true}
+              canDeleteActivities={rights[CRM_PERMISSIONS.ACTIVITY_DELETE] === true}
             />
           </Panel>
         </div>

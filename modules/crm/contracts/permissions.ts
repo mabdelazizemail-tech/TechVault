@@ -113,7 +113,22 @@ export const CRM_PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
 /** Role key for the seeded sales role. */
 export const CRM_SALES_ROLE = "sales";
 
-/** Everything a salesperson needs day to day — no pipeline configuration. */
+/**
+ * The CRM's delete permissions. Deleting is administration, not day-to-day sales
+ * work (ADR-024): only `platform-admin`, which holds the whole catalogue, has them.
+ */
+export const CRM_DELETE_PERMISSIONS: readonly string[] = [
+  CRM_PERMISSIONS.LEAD_DELETE,
+  CRM_PERMISSIONS.ACCOUNT_DELETE,
+  CRM_PERMISSIONS.CONTACT_DELETE,
+  CRM_PERMISSIONS.OPPORTUNITY_DELETE,
+  CRM_PERMISSIONS.ACTIVITY_DELETE,
+];
+
+/** Everything a salesperson needs day to day — no pipeline configuration, no deleting. */
 export const CRM_SALES_PERMISSIONS: readonly string[] = Object.values(
   CRM_PERMISSIONS,
-).filter((key) => key !== CRM_PERMISSIONS.PIPELINE_ADMINISTER);
+).filter(
+  (key) =>
+    key !== CRM_PERMISSIONS.PIPELINE_ADMINISTER && !CRM_DELETE_PERMISSIONS.includes(key),
+);

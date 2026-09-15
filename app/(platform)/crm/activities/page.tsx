@@ -26,7 +26,7 @@ export default async function ActivitiesPage({
 
   const [result, rights] = await Promise.all([
     listActivities(actor, params, { view: "all", type, mine }),
-    canAll(actor, [CRM_PERMISSIONS.ACTIVITY_UPDATE]),
+    canAll(actor, [CRM_PERMISSIONS.ACTIVITY_UPDATE, CRM_PERMISSIONS.ACTIVITY_DELETE]),
   ]);
 
   return (
@@ -64,6 +64,7 @@ export default async function ActivitiesPage({
         basePath="/crm/activities"
         searchParams={params}
         canUpdateActivities={rights[CRM_PERMISSIONS.ACTIVITY_UPDATE] === true}
+        canDeleteActivities={rights[CRM_PERMISSIONS.ACTIVITY_DELETE] === true}
         emptyTitle="No activity matches"
         emptyDescription="Try clearing the filters. New activity is logged from a record’s timeline."
       />

@@ -413,6 +413,16 @@ export type ActivityDto = {
   metadata: Record<string, unknown> | null;
 };
 
+/** What deleting a record takes with it, shown before an administrator confirms. */
+export type DeletionImpact = {
+  kind: RecordKind;
+  id: string;
+  label: string;
+  contacts: number;
+  opportunities: number;
+  activities: number;
+};
+
 /* -------------------------------------------------------------------------- */
 /* Search and dashboard                                                       */
 /* -------------------------------------------------------------------------- */

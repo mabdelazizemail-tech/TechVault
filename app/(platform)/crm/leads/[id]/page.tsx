@@ -16,6 +16,7 @@ import {
 import { ActivityTimeline } from "@/modules/crm/ui/activity-timeline";
 import { AddActivityButton } from "@/modules/crm/ui/add-activity";
 import { LeadStatusBadge, ScoreMeter, scoreLabel } from "@/modules/crm/ui/badges";
+import { DeleteRecordButton } from "@/modules/crm/ui/delete-record";
 import { DetailList } from "@/modules/crm/ui/detail-list";
 import { formatDate, formatMoney, formatRelative } from "@/modules/crm/ui/format";
 import { LeadEditButton } from "@/modules/crm/ui/lead-edit";
@@ -41,6 +42,8 @@ export default async function LeadPage({ params }: { params: Promise<{ id: strin
     CRM_PERMISSIONS.ACTIVITY_READ,
     CRM_PERMISSIONS.ACTIVITY_CREATE,
     CRM_PERMISSIONS.ACTIVITY_UPDATE,
+    CRM_PERMISSIONS.LEAD_DELETE,
+    CRM_PERMISSIONS.ACTIVITY_DELETE,
   ]);
   const [lead, rights, timeline] = await Promise.all([
     orNotFound(getLead(actor, id)),
@@ -68,18 +71,23 @@ export default async function LeadPage({ params }: { params: Promise<{ id: strin
           .filter((part) => part !== null)
           .join(" · ")}
         actions={
-          canUpdate && !converted ? (
-            <>
-              <LeadEditButton lead={lead} />
-              <ButtonLink
-                href={`/crm/leads/${lead.id}/convert`}
-                variant="primary"
-                icon={<Sparkles aria-hidden="true" size={15} />}
-              >
-                Convert
-              </ButtonLink>
-            </>
-          ) : undefined
+          <>
+            {canUpdate && !converted && (
+              <>
+                <LeadEditButton lead={lead} />
+                <ButtonLink
+                  href={`/crm/leads/${lead.id}/convert`}
+                  variant="primary"
+                  icon={<Sparkles aria-hidden="true" size={15} />}
+                >
+                  Convert
+                </ButtonLink>
+              </>
+            )}
+            {rights[CRM_PERMISSIONS.LEAD_DELETE] === true && (
+              <DeleteRecordButton kind="lead" id={lead.id} name={lead.name} />
+            )}
+          </>
         }
       />
 
@@ -246,6 +254,7 @@ export default async function LeadPage({ params }: { params: Promise<{ id: strin
             activities={timeline}
             currentRecordId={lead.id}
             canUpdateActivities={rights[CRM_PERMISSIONS.ACTIVITY_UPDATE] === true}
+            canDeleteActivities={rights[CRM_PERMISSIONS.ACTIVITY_DELETE] === true}
           />
         </Panel>
       </div>

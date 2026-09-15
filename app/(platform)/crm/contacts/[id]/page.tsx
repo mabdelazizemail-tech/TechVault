@@ -10,6 +10,7 @@ import { getContact, listTimeline } from "@/modules/crm/contracts/service";
 import { ActivityTimeline } from "@/modules/crm/ui/activity-timeline";
 import { AddActivityButton } from "@/modules/crm/ui/add-activity";
 import { ContactFormButton } from "@/modules/crm/ui/contact-form";
+import { DeleteRecordButton } from "@/modules/crm/ui/delete-record";
 import { DetailList } from "@/modules/crm/ui/detail-list";
 import { formatDate } from "@/modules/crm/ui/format";
 import { orNotFound, uuidParam } from "@/modules/crm/ui/page-helpers";
@@ -39,6 +40,8 @@ export default async function ContactPage({
     CRM_PERMISSIONS.ACTIVITY_READ,
     CRM_PERMISSIONS.ACTIVITY_CREATE,
     CRM_PERMISSIONS.ACTIVITY_UPDATE,
+    CRM_PERMISSIONS.CONTACT_DELETE,
+    CRM_PERMISSIONS.ACTIVITY_DELETE,
   ]);
   const [contact, rights, timeline] = await Promise.all([
     orNotFound(getContact(actor, id)),
@@ -77,6 +80,9 @@ export default async function ContactPage({
                   New opportunity
                 </ButtonLink>
               )}
+            {rights[CRM_PERMISSIONS.CONTACT_DELETE] === true && (
+              <DeleteRecordButton kind="contact" id={contact.id} name={contact.name} />
+            )}
           </>
         }
       />
@@ -161,6 +167,7 @@ export default async function ContactPage({
             activities={timeline}
             currentRecordId={contact.id}
             canUpdateActivities={rights[CRM_PERMISSIONS.ACTIVITY_UPDATE] === true}
+            canDeleteActivities={rights[CRM_PERMISSIONS.ACTIVITY_DELETE] === true}
           />
         </Panel>
       </div>

@@ -15,6 +15,7 @@ import { LEAD_SOURCE_LABELS, LOST_REASON_LABELS } from "@/modules/crm/contracts/
 import { ActivityTimeline } from "@/modules/crm/ui/activity-timeline";
 import { AddActivityButton } from "@/modules/crm/ui/add-activity";
 import { ChannelBadge, PriorityBadge, StageBadge } from "@/modules/crm/ui/badges";
+import { DeleteRecordButton } from "@/modules/crm/ui/delete-record";
 import { DetailList } from "@/modules/crm/ui/detail-list";
 import {
   formatDate,
@@ -50,6 +51,8 @@ export default async function OpportunityPage({
     CRM_PERMISSIONS.ACTIVITY_READ,
     CRM_PERMISSIONS.ACTIVITY_CREATE,
     CRM_PERMISSIONS.ACTIVITY_UPDATE,
+    CRM_PERMISSIONS.OPPORTUNITY_DELETE,
+    CRM_PERMISSIONS.ACTIVITY_DELETE,
   ]);
   const [opportunity, rights, timeline, stages] = await Promise.all([
     orNotFound(getOpportunity(actor, id)),
@@ -79,13 +82,22 @@ export default async function OpportunityPage({
           .filter((part) => part !== null)
           .join(" · ")}
         actions={
-          canEdit ? (
-            <EditOpportunityButton
-              opportunity={opportunity}
-              stages={stages}
-              currentUserId={actor.id}
-            />
-          ) : undefined
+          <>
+            {canEdit && (
+              <EditOpportunityButton
+                opportunity={opportunity}
+                stages={stages}
+                currentUserId={actor.id}
+              />
+            )}
+            {rights[CRM_PERMISSIONS.OPPORTUNITY_DELETE] === true && (
+              <DeleteRecordButton
+                kind="opportunity"
+                id={opportunity.id}
+                name={opportunity.name}
+              />
+            )}
+          </>
         }
       />
 
@@ -267,6 +279,7 @@ export default async function OpportunityPage({
             activities={timeline}
             currentRecordId={opportunity.id}
             canUpdateActivities={rights[CRM_PERMISSIONS.ACTIVITY_UPDATE] === true}
+            canDeleteActivities={rights[CRM_PERMISSIONS.ACTIVITY_DELETE] === true}
           />
         </Panel>
       </div>

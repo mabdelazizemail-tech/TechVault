@@ -23,7 +23,11 @@ export default async function NotesPage({
 
   const [result, rights] = await Promise.all([
     listActivities(actor, params, { view: "notes", mine }),
-    canAll(actor, [CRM_PERMISSIONS.ACTIVITY_CREATE, CRM_PERMISSIONS.ACTIVITY_UPDATE]),
+    canAll(actor, [
+      CRM_PERMISSIONS.ACTIVITY_CREATE,
+      CRM_PERMISSIONS.ACTIVITY_UPDATE,
+      CRM_PERMISSIONS.ACTIVITY_DELETE,
+    ]),
   ]);
   const canCreate = rights[CRM_PERMISSIONS.ACTIVITY_CREATE] === true;
 
@@ -53,6 +57,7 @@ export default async function NotesPage({
         basePath="/crm/notes"
         searchParams={params}
         canUpdateActivities={rights[CRM_PERMISSIONS.ACTIVITY_UPDATE] === true}
+        canDeleteActivities={rights[CRM_PERMISSIONS.ACTIVITY_DELETE] === true}
         emptyTitle="No notes yet"
         emptyDescription={
           canCreate

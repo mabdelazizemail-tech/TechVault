@@ -20,4 +20,9 @@ export const CRM_EVENTS = {
   OPPORTUNITY_WON: "crm.OpportunityWon",
   OPPORTUNITY_LOST: "crm.OpportunityLost",
   ACTIVITY_LOGGED: "crm.ActivityLogged",
+  LEAD_DELETED: "crm.LeadDeleted",
+  CUSTOMER_DELETED: "crm.CustomerDeleted",
+  CONTACT_DELETED: "crm.ContactDeleted",
+  OPPORTUNITY_DELETED: "crm.OpportunityDeleted",
+  ACTIVITY_DELETED: "crm.ActivityDeleted",
 } as const;

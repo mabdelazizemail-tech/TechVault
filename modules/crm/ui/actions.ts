@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { isAppError, ValidationError } from "@/lib/errors";
 import type { Actor } from "@/platform/authz/authz";
 import { getActor } from "@/platform/auth/current-user";
@@ -10,9 +11,11 @@ import {
   LEAD_STATUSES,
   type ActivityDto,
   type ConversionResult,
+  type DeletionImpact,
   type LeadStatus,
   type OpportunityListItem,
 } from "../contracts/types";
+import { recordListHref } from "./links";
 
 /**
  * CRM Server Actions — the entry points every CRM screen calls (CLAUDE.md §9).
@@ -194,6 +197,64 @@ export async function setTaskCompletedAction(
 ): Promise<ActionResult> {
   return run("crm.task.complete", async (actor) => {
     await crm.setTaskCompleted(actor, { activityId, completed });
+    return null;
+  });
+}
+
+/* Deletion — administrators only; the services decide who may -------------- */
+
+export async function getDeletionImpactAction(
+  target: unknown,
+): Promise<ActionResult<DeletionImpact>> {
+  return run("crm.deletion.preview", (actor) => crm.getDeletionImpact(actor, target));
+}
+
+/*
+ * Deleting a lead, company, contact or opportunity ends on that record type's list.
+ * `redirect` throws to navigate, so it runs after `run`, outside its try block.
+ */
+
+export async function deleteLeadAction(leadId: string): Promise<ActionResult> {
+  const result = await run("crm.lead.delete", async (actor) => {
+    await crm.deleteLead(actor, leadId);
+    return null;
+  });
+  if (result.ok) redirect(recordListHref("lead"));
+  return result;
+}
+
+export async function deleteAccountAction(accountId: string): Promise<ActionResult> {
+  const result = await run("crm.account.delete", async (actor) => {
+    await crm.deleteAccount(actor, accountId);
+    return null;
+  });
+  if (result.ok) redirect(recordListHref("account"));
+  return result;
+}
+
+export async function deleteContactAction(contactId: string): Promise<ActionResult> {
+  const result = await run("crm.contact.delete", async (actor) => {
+    await crm.deleteContact(actor, contactId);
+    return null;
+  });
+  if (result.ok) redirect(recordListHref("contact"));
+  return result;
+}
+
+export async function deleteOpportunityAction(
+  opportunityId: string,
+): Promise<ActionResult> {
+  const result = await run("crm.opportunity.delete", async (actor) => {
+    await crm.deleteOpportunity(actor, opportunityId);
+    return null;
+  });
+  if (result.ok) redirect(recordListHref("opportunity"));
+  return result;
+}
+
+export async function deleteActivityAction(activityId: string): Promise<ActionResult> {
+  return run("crm.activity.delete", async (actor) => {
+    await crm.deleteActivity(actor, activityId);
     return null;
   });
 }

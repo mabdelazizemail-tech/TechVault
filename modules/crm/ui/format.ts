@@ -148,3 +148,28 @@ export function toMajorInput(amountMinor: number | null): string {
   const major = amountMinor / 100;
   return Number.isInteger(major) ? String(major) : major.toFixed(2);
 }
+
+function counted(count: number, one: string, many: string): string {
+  return `${count} ${count === 1 ? one : many}`;
+}
+
+/** The confirmation sentence for what a deletion takes with it. */
+export function describeAlsoDeleted(impact: {
+  contacts: number;
+  opportunities: number;
+  activities: number;
+}): string {
+  const parts = [
+    impact.contacts > 0 ? counted(impact.contacts, "contact", "contacts") : null,
+    impact.opportunities > 0
+      ? counted(impact.opportunities, "opportunity", "opportunities")
+      : null,
+    impact.activities > 0 ? counted(impact.activities, "activity", "activities") : null,
+  ].filter((part): part is string => part !== null);
+  if (parts.length === 0) return "Nothing else is deleted with it.";
+  const list =
+    parts.length === 1
+      ? parts[0]
+      : `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}`;
+  return `This also deletes ${list}.`;
+}

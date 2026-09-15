@@ -135,9 +135,11 @@ export const leadDetailSelect = {
   statusChangedAt: true,
   convertedAt: true,
   updatedAt: true,
-  convertedAccount: { select: { id: true, name: true } },
-  convertedContact: { select: { id: true, firstName: true, lastName: true } },
-  convertedOpportunity: { select: { id: true, name: true } },
+  convertedAccount: { select: { id: true, name: true, deletedAt: true } },
+  convertedContact: {
+    select: { id: true, firstName: true, lastName: true, deletedAt: true },
+  },
+  convertedOpportunity: { select: { id: true, name: true, deletedAt: true } },
 } as const satisfies Prisma.CrmLeadSelect;
 
 export type LeadDetailRow = Prisma.CrmLeadGetPayload<{ select: typeof leadDetailSelect }>;
@@ -164,7 +166,7 @@ export function toLeadDetail(row: LeadDetailRow): LeadDetail {
     statusChangedAt: row.statusChangedAt,
     convertedAt: row.convertedAt,
     convertedAccount:
-      row.convertedAccount === null
+      row.convertedAccount === null || row.convertedAccount.deletedAt !== null
         ? null
         : {
             kind: "account",
@@ -172,7 +174,7 @@ export function toLeadDetail(row: LeadDetailRow): LeadDetail {
             label: row.convertedAccount.name,
           },
     convertedContact:
-      row.convertedContact === null
+      row.convertedContact === null || row.convertedContact.deletedAt !== null
         ? null
         : {
             kind: "contact",
@@ -180,7 +182,7 @@ export function toLeadDetail(row: LeadDetailRow): LeadDetail {
             label: personName(row.convertedContact),
           },
     convertedOpportunity:
-      row.convertedOpportunity === null
+      row.convertedOpportunity === null || row.convertedOpportunity.deletedAt !== null
         ? null
         : {
             kind: "opportunity",
@@ -291,7 +293,7 @@ export const opportunityListSelect = {
   stage: { select: { id: true, name: true, kind: true } },
   owner: { select: userRefSelect },
   contacts: {
-    where: { isPrimary: true },
+    where: { isPrimary: true, contact: { deletedAt: null } },
     take: 1,
     select: {
       contact: {
@@ -396,26 +398,26 @@ export const activitySelect = {
   assigneeId: true,
   assignee: { select: userRefSelect },
   creator: { select: userRefSelect },
-  lead: { select: { id: true, firstName: true, lastName: true } },
-  account: { select: { id: true, name: true } },
-  contact: { select: { id: true, firstName: true, lastName: true } },
-  opportunity: { select: { id: true, name: true } },
+  lead: { select: { id: true, firstName: true, lastName: true, deletedAt: true } },
+  account: { select: { id: true, name: true, deletedAt: true } },
+  contact: { select: { id: true, firstName: true, lastName: true, deletedAt: true } },
+  opportunity: { select: { id: true, name: true, deletedAt: true } },
 } as const satisfies Prisma.CrmActivitySelect;
 
 export type ActivityRow = Prisma.CrmActivityGetPayload<{ select: typeof activitySelect }>;
 
 export function toActivityDto(row: ActivityRow): ActivityDto {
   const related: RecordRef[] = [];
-  if (row.lead !== null) {
+  if (row.lead !== null && row.lead.deletedAt === null) {
     related.push({ kind: "lead", id: row.lead.id, label: personName(row.lead) });
   }
-  if (row.contact !== null) {
+  if (row.contact !== null && row.contact.deletedAt === null) {
     related.push({ kind: "contact", id: row.contact.id, label: personName(row.contact) });
   }
-  if (row.account !== null) {
+  if (row.account !== null && row.account.deletedAt === null) {
     related.push({ kind: "account", id: row.account.id, label: row.account.name });
   }
-  if (row.opportunity !== null) {
+  if (row.opportunity !== null && row.opportunity.deletedAt === null) {
     related.push({
       kind: "opportunity",
       id: row.opportunity.id,

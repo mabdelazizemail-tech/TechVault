@@ -318,7 +318,9 @@ history, Forecast snapshot.
 - Pipelines and stages are **data, not code**. A new stage is a row, never a deploy.
 - Lead → Opportunity conversion is one transactional service operation that preserves the
   lead's history; never delete-and-recreate.
-- Activities are never deleted to rewrite history. Calls, emails, meetings, notes and tasks may be corrected by
+- Activities are never deleted to rewrite history by the people who work them: only an administrator holding
+  `crm.activity.delete` may delete a call, email, meeting, note or task (a soft delete, audited — ADR-024), and the
+  CRM's own status and stage entries go only with their record. Calls, emails, meetings, notes and tasks may be corrected by
   holders of `crm.activity.update` within their scope — subject, text, timing, and a task's due date, priority and
   assignee — with every edit audited; an activity's type and linked records never change, and the CRM's own
   status and stage entries are immutable.
@@ -327,7 +329,8 @@ history, Forecast snapshot.
 
 **Publishes:** `crm.CustomerCreated`, `crm.CustomerUpdated`, `crm.LeadConverted`,
 `crm.OpportunityCreated`, `crm.OpportunityStageChanged`, `crm.OpportunityWon`,
-`crm.OpportunityLost`, `crm.ActivityLogged`.
+`crm.OpportunityLost`, `crm.ActivityLogged`, and on administrator deletion `crm.LeadDeleted`, `crm.CustomerDeleted`,
+`crm.ContactDeleted`, `crm.OpportunityDeleted`, `crm.ActivityDeleted` (ADR-024).
 
 **Consumes:** `ecm.DocumentUploaded` (account timeline), `erp.InvoiceCreated` /
 `erp.PaymentCompleted` (commercial status on the account), `hris.EmployeeTerminated`
@@ -1957,6 +1960,31 @@ carry no billing-name, address or tax-registration snapshot, so they are not e-i
 aggregate transactional tables live. _Revisit when:_ credit notes, foreign currency or Egyptian e-invoicing are
 required; the workflow engine exists (route approval through it); or AR lists pass ~200 ms (rollups, §6.7).
 
+**ADR-024 — CRM deletion: administrators only, soft, taking what belongs to the record.** _Context:_ the owner asked that
+an administrator can delete any CRM record. The five `crm.*.delete` permissions had existed since the CRM shipped, held by
+`platform-admin` and by the Sales role, but no delete operation existed, and §6.1 said activities are never deleted. ERP
+invoices reference `crm_account_id`. Activities logged on a contact or an opportunity are filed under its company
+automatically, and conversion copies a lead's history onto the company, contact and opportunity it became. _Decision:_
+(1) Only administrators delete: `CRM_DELETE_PERMISSIONS` are removed from `CRM_SALES_PERMISSIONS`, so `platform-admin`
+alone holds them. (2) Deletion is soft — `deleted_at` and `updated_by` are set, every CRM read already filters them, and
+there is no restore screen and no permanent delete. Company names and contact emails become reusable through the
+existing live-row unique indexes; ERP keeps working because the reference contract reports a deleted company as no longer
+existing. (3) Each delete is one transaction in `services/deletion-service.ts`. A company takes its live contacts and
+opportunities and their activities, keeping any activity also attached to a record that stays (in practice a converted
+lead). A lead takes the activities attached to nothing else that stays, so the history it passed to a company remains
+there. A contact or an opportunity takes every activity logged on it, stage history included, because the
+automatically filled company must not keep them; only a converted lead's history stays, with the lead. The CRM's status
+and stage entries cannot be deleted one by one. (4) Each service checks that the caller may read the record (otherwise
+404) and then holds the delete permission for the record's scope target (otherwise 403); it marks the record with a
+conditional update, so a second simultaneous delete finds nothing; and it writes one WARNING audit record listing
+everything deleted with it plus one event (`crm.LeadDeleted`, `crm.CustomerDeleted`, `crm.ContactDeleted`,
+`crm.OpportunityDeleted`, `crm.ActivityDeleted`, ids only). (5) Reads never link to a deleted record: activity chips, a
+converted lead's links and an opportunity's primary contact skip them; opportunity–contact join rows are kept. (6) The
+confirmation shows counts from `getDeletionImpact`, computed with the same rule the delete uses. No migration.
+_Consequences:_ an accidental delete can only be undone by a database fix; salespeople can no longer delete anything;
+deleting a contact also removes a deal's calls or notes that named that contact; deleted rows stay in the database.
+_Revisit when:_ the owner wants a restore screen, bulk delete, or permanent deletion for data-protection requests.
+
 ---
 
 ## 28. Current Implementation Status
@@ -2043,6 +2071,7 @@ writer) and needs nothing from Phases 2–4 to work; what it gives up by going f
 | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Data model  | ✅ `crm` schema, 7 tables: accounts, contacts, leads, opportunity_stages, opportunities, opportunity_contacts, activities. Money is `Int` minor units with an explicit `EGP`/`USD` currency. CHECKs: closing details (WON needs `won_at`; LOST needs `lost_at` and a reason), partner required for indirect deals, scores and probabilities in range, every activity linked to at least one record. Partial unique indexes on live company name (case-insensitive) and live contact email. RLS deny-by-default, API roles revoked.                                                                                                                       |
 | Services    | ✅ Leads (wizard create, status, bulk status/owner, conversion that reuses an existing company by name and contact by email), companies, contacts, opportunities (board with per-stage counts and per-currency totals, moves with Won/Lost details), unified activities (call/email/meeting/task/note plus system status and stage rows), search, dashboard. Every write: permission → Zod → one transaction with audit entry, outbox event and timeline row. Reads are scope-filtered; an out-of-scope record is a 404.                                                                                                                                 |
+| Deletion    | ✅ Administrators (holders of `crm.*.delete`, i.e. `platform-admin`; Sales no longer holds them) soft-delete leads, companies, contacts, opportunities, and calls, emails, meetings, tasks and notes, from the record pages and the activity feeds, after a confirmation that shows server counts. A company takes its contacts, opportunities and their activities; a contact or opportunity takes every activity logged on it; a converted lead's history stays with the lead; status and stage entries go only with their record. One transaction, a WARNING audit record and a `crm.*Deleted` event per delete; reads never link to deleted records (ADR-024). 11 integration and 5 unit tests. |
 | UI          | ✅ `/crm` dashboard; leads table (status tabs, search, filters, sort, pagination, bulk selection); 4-step lead wizard; lead detail (status progression, timeline, edit slide-over); conversion confirmation screen; pipeline board (native drag and drop with drop-target feedback, optimistic move with rollback, Won/Lost modals, keyboard "Move to" menu, one-stage-at-a-time layout on phones) plus a table view and filters (owner, stage, currency, channel, amount, close date, industry, lead source); opportunity detail with stage tracker; companies and contacts with related records; activities, tasks and notes feeds; global CRM search. |
 | Tests       | ✅ 19 CRM integration tests (create → convert → dedupe → move → won/lost, board totals, EGP/USD kept apart, OWN scope, database invariants) and 19 unit tests (pure pipeline rules, schemas).                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | Data        | ✅ Migration applied to the local test database and to Supabase; `npm run db:seed` adds the `sales` role, CRM permissions and the 7 stages; `npm run db:seed:crm` loaded demo data into Supabase (8 companies, 15 contacts, 15 leads, 12 opportunities, 46 activities); on 2026-09-14 the owner had all CRM records removed (verified 0 rows in every CRM data table; the 7 stages, users, roles and audit log kept). Do not rerun `db:seed:crm` against Supabase without asking.                                                                                                                                                                        |
@@ -2201,6 +2230,8 @@ Open debt and risk:
 | 34  | **Aging as of a past date is approximate**                  | An as-of date leaves out documents dated after it and moves the days-past-due cut-off, but allocations (which carry no date) and voids made after it still count | Date allocations, or snapshot aging nightly into a rollup | 🟢 Low    |
 | 35  | **AR lists aggregate transactional tables live**            | The Customers list and aging group invoices and receipts on each request (§6.7 wants rollups) | Move to rollups with BI, or when a query passes ~200 ms | 🟢 Low    |
 | 36  | **Default approval needs two people**                       | AR settings start with approval required and self-approval off, so a finance administrator working alone cannot post their own invoice | Grant approval to a second person, or change AR settings (threshold, self-approval, or no approval) | 🟢 Low    |
+| 37  | **No restore for deleted CRM records**                      | Deletion is soft, but there is no screen to view or restore deleted records; undoing an accidental delete needs a database fix (ADR-024) | A "Deleted records" admin page with restore, if mistakes happen | 🟢 Low    |
+| 38  | **No bulk delete in the CRM**                               | Administrators delete one record at a time | Add delete to the leads bulk-action bar and the other lists when volume demands it | 🟢 Low    |
 
 Add real debt here as it accrues, with why it was accepted and the trigger to repay it. A
 TODO in code without a row here is invisible debt.

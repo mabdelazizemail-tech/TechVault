@@ -19,6 +19,7 @@ import {
 import { PriorityBadge } from "./badges";
 import { formatDateTime, formatRelative, isPast } from "./format";
 import { recordHref } from "./links";
+import { DeleteActivityButton } from "./delete-record";
 import { EditActivityButton } from "./edit-activity";
 import { TaskToggle } from "./task-toggle";
 
@@ -41,6 +42,7 @@ export function ActivityTimeline({
   activities,
   currentRecordId,
   canUpdateActivities,
+  canDeleteActivities = false,
   emptyAction,
 }: {
   activities: ActivityDto[];
@@ -48,6 +50,8 @@ export function ActivityTimeline({
   currentRecordId?: string;
   /** Holds `crm.activity.update`: may complete tasks and edit entries (re-checked on the server). */
   canUpdateActivities: boolean;
+  /** Holds `crm.activity.delete`: an administrator (re-checked on the server). */
+  canDeleteActivities?: boolean;
   emptyAction?: React.ReactNode;
 }) {
   if (activities.length === 0) {
@@ -68,6 +72,7 @@ export function ActivityTimeline({
           activity={activity}
           currentRecordId={currentRecordId}
           canUpdateActivities={canUpdateActivities}
+          canDeleteActivities={canDeleteActivities}
         />
       ))}
     </ol>
@@ -78,10 +83,12 @@ export function TimelineItem({
   activity,
   currentRecordId,
   canUpdateActivities,
+  canDeleteActivities = false,
 }: {
   activity: ActivityDto;
   currentRecordId?: string;
   canUpdateActivities: boolean;
+  canDeleteActivities?: boolean;
 }) {
   const Icon = TYPE_ICON[activity.type];
   const isSystem = activity.type === "STATUS_CHANGE" || activity.type === "STAGE_CHANGE";
@@ -127,6 +134,9 @@ export function TimelineItem({
             </time>
             {canUpdateActivities && !isSystem && (
               <EditActivityButton activity={activity} />
+            )}
+            {canDeleteActivities && !isSystem && (
+              <DeleteActivityButton activity={activity} />
             )}
           </span>
         </div>
