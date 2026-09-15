@@ -17,6 +17,8 @@ import type { AccountType } from "../contracts/types";
  *     2100 Accounts Payable
  *   3000 Equity                       (heading)
  *     3100 Share Capital
+ *     3200 Retained Earnings          (year-end close, ADR-027)
+ *     3900 Opening Balance Equity     (opening balance journals, ADR-027)
  *   4000 Revenue                      (heading)
  *     4100 Sales Revenue
  *   5000 Expenses                     (heading)
@@ -30,6 +32,10 @@ export type ChartSeedAccount = {
   parentCode: string | null;
   isPostable: boolean;
 };
+
+/** The seeded finance settings point at these accounts when the chart has them. */
+export const DEFAULT_RETAINED_EARNINGS_ACCOUNT_CODE = "3200";
+export const DEFAULT_OPENING_BALANCE_ACCOUNT_CODE = "3900";
 
 export const DEFAULT_CHART: readonly ChartSeedAccount[] = [
   {
@@ -100,6 +106,22 @@ export const DEFAULT_CHART: readonly ChartSeedAccount[] = [
     code: "3100",
     name: "Share Capital",
     nameAr: "رأس المال",
+    type: "EQUITY",
+    parentCode: "3000",
+    isPostable: true,
+  },
+  {
+    code: "3200",
+    name: "Retained Earnings",
+    nameAr: "الأرباح المحتجزة",
+    type: "EQUITY",
+    parentCode: "3000",
+    isPostable: true,
+  },
+  {
+    code: "3900",
+    name: "Opening Balance Equity",
+    nameAr: "حقوق ملكية الأرصدة الافتتاحية",
     type: "EQUITY",
     parentCode: "3000",
     isPostable: true,

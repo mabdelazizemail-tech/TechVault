@@ -10,7 +10,11 @@ import {
   journalDraftSchema,
   periodCreateSchema,
 } from "@/modules/erp/contracts/schemas";
-import { DEFAULT_CHART } from "@/modules/erp/domain/chart";
+import {
+  DEFAULT_CHART,
+  DEFAULT_OPENING_BALANCE_ACCOUNT_CODE,
+  DEFAULT_RETAINED_EARNINGS_ACCOUNT_CODE,
+} from "@/modules/erp/domain/chart";
 import {
   formatJournalNumber,
   formatMinorAmount,
@@ -342,6 +346,46 @@ describe("ERP permissions and roles", () => {
         expect(parent?.isPostable).toBe(false);
       }
       seen.set(entry.code, entry);
+    }
+  });
+});
+
+describe("finance settings and journal kinds (ADR-027)", () => {
+  const draft = {
+    entryDate: "2026-09-14",
+    description: "Opening balances",
+    lines: [
+      { accountId: "11111111-1111-4111-8111-111111111111", debit: "100" },
+      { accountId: "22222222-2222-4222-8222-222222222222", credit: "100" },
+    ],
+  };
+
+  it("makes a draft a standard entry by default and never lets a person enter a year-end close", () => {
+    expect(journalDraftSchema.parse(draft).kind).toBe("STANDARD");
+    expect(journalDraftSchema.parse({ ...draft, kind: "OPENING_BALANCE" }).kind).toBe(
+      "OPENING_BALANCE",
+    );
+    expect(
+      journalDraftSchema.safeParse({ ...draft, kind: "YEAR_END_CLOSE" }).success,
+    ).toBe(false);
+  });
+
+  it("keeps finance settings with the finance administrator and seeds the equity accounts they use", () => {
+    expect(ERP_FINANCE_ADMIN_PERMISSIONS).toContain(
+      ERP_PERMISSIONS.FINANCE_SETTINGS_ADMINISTER,
+    );
+    expect(ERP_ACCOUNTANT_PERMISSIONS).not.toContain(
+      ERP_PERMISSIONS.FINANCE_SETTINGS_ADMINISTER,
+    );
+    for (const code of [
+      DEFAULT_RETAINED_EARNINGS_ACCOUNT_CODE,
+      DEFAULT_OPENING_BALANCE_ACCOUNT_CODE,
+    ]) {
+      expect(DEFAULT_CHART.find((account) => account.code === code)).toMatchObject({
+        type: "EQUITY",
+        isPostable: true,
+        parentCode: "3000",
+      });
     }
   });
 });

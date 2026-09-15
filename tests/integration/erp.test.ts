@@ -21,7 +21,9 @@ import {
   getAccount,
   getBalanceSheet,
   getFinanceOverview,
+  getFinanceSettings,
   getJournal,
+  getJournalDefaults,
   getProfitAndLoss,
   getTrialBalance,
   listAccountActivity,
@@ -33,6 +35,7 @@ import {
   setAccountActive,
   updateAccount,
   updateCostCentre,
+  updateFinanceSettings,
   updateJournal,
 } from "@/modules/erp/contracts/service";
 import {
@@ -186,6 +189,9 @@ describe.skipIf(!hasTestDatabase)("ERP finance (integration)", () => {
         endDate: "2026-09-30",
       })
     ).id;
+    // Most tests post entries their own author wrote; separation of duties has its own
+    // tests (ADR-027).
+    await prisma.erpFinanceSettings.create({ data: { id: 1, allowSelfPosting: true } });
   });
 
   const purchase = (overrides: Record<string, unknown> = {}) => ({
@@ -207,6 +213,141 @@ describe.skipIf(!hasTestDatabase)("ERP finance (integration)", () => {
   const outbox = (name: string) =>
     prisma.eventOutbox.findMany({ where: { name }, orderBy: { occurredAt: "asc" } });
   const audits = (action: string) => prisma.auditLog.findMany({ where: { action } });
+
+  /* ======================================================================== */
+  /* Finance settings and opening balances (ADR-027)                          */
+  /* ======================================================================== */
+
+  describe("finance settings and opening balances", () => {
+    it("stops people posting journal entries they created or last edited, unless settings allow it", async () => {
+      await updateFinanceSettings(as(admin), { allowSelfPosting: false });
+      const [audit] = await audits("erp.finance_settings.updated");
+      expect(audit?.severity).toBe("NOTICE");
+
+      const { id } = await createJournal(as(accountant), purchase());
+      expect((await getJournal(as(accountant), id)).selfPostingBlocked).toBe(true);
+      expect((await getJournal(as(poster), id)).selfPostingBlocked).toBe(false);
+      const refused = await failure(postJournal(as(accountant), id));
+      expect(refused).toBeInstanceOf(BusinessRuleError);
+      expect(refused.message).toMatch(/created or last edited/);
+
+      // Whoever edits a draft may not post it either.
+      await updateJournal(
+        as(admin),
+        id,
+        purchase({ description: "Checked and corrected" }),
+      );
+      expect(await failure(postJournal(as(admin), id))).toBeInstanceOf(BusinessRuleError);
+      expect(await prisma.erpJournalEntry.count({ where: { status: "POSTED" } })).toBe(0);
+
+      await postJournal(as(poster), id);
+      expect((await getJournal(as(admin), id)).status).toBe("POSTED");
+    });
+
+    it("fails closed with no settings saved, and audits letting people post their own entries", async () => {
+      await prisma.erpFinanceSettings.delete({ where: { id: 1 } });
+      const { id } = await createJournal(as(accountant), purchase());
+      expect(await failure(postJournal(as(accountant), id))).toBeInstanceOf(
+        BusinessRuleError,
+      );
+
+      await updateFinanceSettings(as(admin), { allowSelfPosting: true });
+      const [audit] = await audits("erp.finance_settings.updated");
+      expect(audit?.severity).toBe("WARNING");
+      await postJournal(as(accountant), id);
+      expect((await getJournal(as(admin), id)).status).toBe("POSTED");
+    });
+
+    it("finance settings need erp.finance_settings.administer and two different equity accounts", async () => {
+      for (const user of [accountant, viewer, outsider]) {
+        expect(
+          await failure(updateFinanceSettings(as(user), { allowSelfPosting: false })),
+        ).toBeInstanceOf(ForbiddenError);
+        expect(await failure(getFinanceSettings(as(user)))).toBeInstanceOf(
+          ForbiddenError,
+        );
+      }
+
+      const notEquity = await failure(
+        updateFinanceSettings(as(admin), {
+          allowSelfPosting: true,
+          retainedEarningsAccountId: cash,
+        }),
+      );
+      expect(notEquity).toBeInstanceOf(ValidationError);
+      expect(
+        (notEquity as ValidationError).fieldErrors.retainedEarningsAccountId,
+      ).toBeDefined();
+      const same = await failure(
+        updateFinanceSettings(as(admin), {
+          allowSelfPosting: true,
+          retainedEarningsAccountId: capital,
+          openingBalanceAccountId: capital,
+        }),
+      );
+      expect((same as ValidationError).fieldErrors.openingBalanceAccountId).toBeDefined();
+
+      const opening = (
+        await createAccount(as(admin), {
+          code: "3900",
+          name: "Opening Balance Equity",
+          type: "EQUITY",
+        })
+      ).id;
+      await updateFinanceSettings(as(admin), {
+        allowSelfPosting: true,
+        retainedEarningsAccountId: capital,
+        openingBalanceAccountId: opening,
+      });
+      const settings = await getFinanceSettings(as(admin));
+      expect([
+        settings.allowSelfPosting,
+        settings.retainedEarningsAccount?.code,
+        settings.openingBalanceAccount?.code,
+      ]).toEqual([true, "3100", "3900"]);
+      expect((await getJournalDefaults(as(accountant))).openingBalanceAccount?.code).toBe(
+        "3900",
+      );
+      expect(await failure(getJournalDefaults(as(viewer)))).toBeInstanceOf(
+        ForbiddenError,
+      );
+    });
+
+    it("records opening balance journals as their own kind, and never lets a person enter a year-end close", async () => {
+      const opening = (
+        await createAccount(as(admin), {
+          code: "3900",
+          name: "Opening Balance Equity",
+          type: "EQUITY",
+        })
+      ).id;
+      const { id } = await createJournal(as(accountant), {
+        kind: "OPENING_BALANCE",
+        entryDate: "2026-09-01",
+        description: "Opening balances from the previous system",
+        lines: [
+          { accountId: bank, debit: "80,000" },
+          { accountId: equipment, debit: "20,000" },
+          { accountId: opening, credit: "100,000" },
+        ],
+      });
+      await postJournal(as(accountant), id);
+      const entry = await getJournal(as(viewer), id);
+      expect([entry.kind, entry.status]).toEqual(["OPENING_BALANCE", "POSTED"]);
+      expect(
+        (await listJournals(as(viewer), { kind: "OPENING_BALANCE" })).rows.map(
+          (row) => row.id,
+        ),
+      ).toEqual([id]);
+      expect((await listJournals(as(viewer), { kind: "STANDARD" })).rows).toHaveLength(0);
+
+      const refused = await failure(
+        createJournal(as(accountant), { ...purchase(), kind: "YEAR_END_CLOSE" }),
+      );
+      expect(refused).toBeInstanceOf(ValidationError);
+      expect((refused as ValidationError).fieldErrors.kind).toBeDefined();
+    });
+  });
 
   /* ======================================================================== */
   /* Ledger reports (ADR-026)                                                 */

@@ -6,7 +6,7 @@ import {
   parseQuantityText,
   parseRateText,
 } from "../domain/ar";
-import { ACCOUNT_TYPES, JOURNAL_STATUSES, NORMAL_BALANCES } from "./types";
+import { ACCOUNT_TYPES, JOURNAL_KINDS, JOURNAL_STATUSES, NORMAL_BALANCES } from "./types";
 
 /**
  * Input schemas for ERP finance (CLAUDE.md §9 rule 3). The server validates every
@@ -95,6 +95,10 @@ export const journalLineSchema = z
 /** A draft journal entry. Balance is checked at posting, so a draft may be saved
  * while it is still being worked on. */
 export const journalDraftSchema = z.object({
+  /** People enter standard entries and opening balances; year-end close writes its own. */
+  kind: z
+    .enum(["STANDARD", "OPENING_BALANCE"], { error: "Choose an entry type." })
+    .default("STANDARD"),
   entryDate: isoDate,
   description: requiredText("Description", 500),
   reference: optionalText(100),
@@ -172,11 +176,21 @@ export const listParamsSchema = z.object({
   page: z.coerce.number().int().min(1).max(100_000).catch(1),
   q: z.string().trim().max(100).optional().catch(undefined),
   status: z.enum(JOURNAL_STATUSES).optional().catch(undefined),
+  kind: z.enum(JOURNAL_KINDS).optional().catch(undefined),
   type: z.enum(ACCOUNT_TYPES).optional().catch(undefined),
   active: z.enum(["active", "inactive", "all"]).catch("all"),
   from: isoDate.optional().catch(undefined),
   to: isoDate.optional().catch(undefined),
   period: z.uuid().optional().catch(undefined),
+});
+
+/** Finance settings (ADR-027). Account types are checked by the service. */
+export const financeSettingsSchema = z.object({
+  allowSelfPosting: z.boolean({
+    error: "Choose whether people may post their own entries.",
+  }),
+  retainedEarningsAccountId: optionalUuid,
+  openingBalanceAccountId: optionalUuid,
 });
 
 /** Dates for the ledger reports (ADR-026). The service applies the defaults. */

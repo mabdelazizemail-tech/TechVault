@@ -7,7 +7,7 @@ import {
   ValidationError,
   isAppError,
 } from "@/lib/errors";
-import type { PrismaTransaction } from "@/lib/prisma";
+import { type PrismaTransaction, prisma } from "@/lib/prisma";
 import type { Actor } from "@/platform/authz/authz";
 import type {
   AccountListItem,
@@ -165,6 +165,8 @@ export async function lockJournalEntry(
   reversesEntryId: string | null;
   /** The document type that raised the entry (e.g. "ar_invoice"), if any. */
   sourceType: string | null;
+  createdBy: string;
+  updatedBy: string | null;
 }> {
   const rows = await tx.$queryRaw<
     {
@@ -174,10 +176,12 @@ export async function lockJournalEntry(
       journal_number: string | null;
       reverses_entry_id: string | null;
       source_type: string | null;
+      created_by: string;
+      updated_by: string | null;
     }[]
   >`
     SELECT id, status::text AS status, entry_date::text AS entry_date,
-           journal_number, reverses_entry_id, source_type
+           journal_number, reverses_entry_id, source_type, created_by, updated_by
       FROM erp.journal_entries
      WHERE id = ${id}::uuid
        FOR UPDATE`;
@@ -190,7 +194,53 @@ export async function lockJournalEntry(
     journalNumber: row.journal_number,
     reversesEntryId: row.reverses_entry_id,
     sourceType: row.source_type,
+    createdBy: row.created_by,
+    updatedBy: row.updated_by,
   };
+}
+
+/* Finance settings (ADR-027) -------------------------------------------------- */
+
+export type FinanceSettingsRow = {
+  allowSelfPosting: boolean;
+  retainedEarningsAccountId: string | null;
+  openingBalanceAccountId: string | null;
+};
+
+/** Finance settings, or the fail-closed defaults when none have been saved. */
+export async function loadFinanceSettings(
+  client: PrismaTransaction | typeof prisma = prisma,
+): Promise<FinanceSettingsRow> {
+  const row = await client.erpFinanceSettings.findUnique({
+    where: { id: 1 },
+    select: {
+      allowSelfPosting: true,
+      retainedEarningsAccountId: true,
+      openingBalanceAccountId: true,
+    },
+  });
+  return (
+    row ?? {
+      allowSelfPosting: false,
+      retainedEarningsAccountId: null,
+      openingBalanceAccountId: null,
+    }
+  );
+}
+
+/**
+ * Separation of duties on manual journals (§13.3, ADR-027): unless finance settings
+ * allow it, nobody posts an entry they created or were the last to edit.
+ */
+export function selfPostingBlocked(
+  settings: Pick<FinanceSettingsRow, "allowSelfPosting">,
+  entry: { createdBy: string; updatedBy: string | null },
+  actorId: string,
+): boolean {
+  return (
+    !settings.allowSelfPosting &&
+    (entry.createdBy === actorId || entry.updatedBy === actorId)
+  );
 }
 
 /* Mappers -------------------------------------------------------------------- */
@@ -256,6 +306,7 @@ export function toJournalListItem(row: JournalListRow): JournalListItem {
     description: row.description,
     reference: row.reference,
     status: row.status,
+    kind: row.kind,
     totalMinor: toAmount(row.totalMinor),
     lineCount: row._count.lines,
     createdBy: toPerson(row.creator) ?? { id: "", name: "Unknown" },

@@ -28,6 +28,8 @@ export function JournalActions({
     isReversal: boolean;
     /** Raised by an invoice or receipt: corrected by voiding that document instead. */
     isSourced: boolean;
+    /** Finance settings stop this viewer posting it: they created or last edited it. */
+    selfPostingBlocked: boolean;
     debitTotalMinor: number;
     creditTotalMinor: number;
   };
@@ -46,7 +48,14 @@ export function JournalActions({
           </ButtonLink>
         )}
         {can.delete && <DeleteDraftButton entryId={entry.id} />}
-        {can.post && <PostButton entry={entry} />}
+        {can.post &&
+          (entry.selfPostingBlocked ? (
+            <p className="text-foreground-muted max-w-60 text-xs">
+              You created or last edited this entry, so someone else must post it.
+            </p>
+          ) : (
+            <PostButton entry={entry} />
+          ))}
       </>
     );
   }

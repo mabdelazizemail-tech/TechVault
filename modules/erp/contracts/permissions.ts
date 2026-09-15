@@ -35,6 +35,8 @@ export const ERP_PERMISSIONS = {
   JOURNAL_POST: "erp.journal.post",
   JOURNAL_REVERSE: "erp.journal.reverse",
 
+  FINANCE_SETTINGS_ADMINISTER: "erp.finance_settings.administer",
+
   AR_INVOICE_READ: "erp.ar_invoice.read",
   AR_INVOICE_CREATE: "erp.ar_invoice.create",
   AR_INVOICE_UPDATE: "erp.ar_invoice.update",
@@ -124,6 +126,11 @@ export const ERP_PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
     ERP_PERMISSIONS.JOURNAL_REVERSE,
     "REVERSE",
     "Reverse posted journal entries with an equal and opposite entry.",
+  ),
+  define(
+    ERP_PERMISSIONS.FINANCE_SETTINGS_ADMINISTER,
+    "ADMINISTER",
+    "Configure finance: whether people may post journal entries they created or edited, and the retained earnings and opening balance accounts.",
   ),
 
   define(ERP_PERMISSIONS.AR_INVOICE_READ, "READ", "View customer invoices."),

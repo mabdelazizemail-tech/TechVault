@@ -13,7 +13,11 @@ import {
   ERP_FINANCE_ADMIN_PERMISSIONS,
   ERP_FINANCE_ADMIN_ROLE,
 } from "../modules/erp/contracts/permissions";
-import { DEFAULT_CHART } from "../modules/erp/domain/chart";
+import {
+  DEFAULT_CHART,
+  DEFAULT_OPENING_BALANCE_ACCOUNT_CODE,
+  DEFAULT_RETAINED_EARNINGS_ACCOUNT_CODE,
+} from "../modules/erp/domain/chart";
 import {
   DEFAULT_NUMBER_SERIES,
   DEFAULT_PAYMENT_METHODS,
@@ -290,6 +294,32 @@ async function main(): Promise<void> {
   process.stdout.write(
     `  ${accountsCreated} of ${DEFAULT_CHART.length} accounts created\n`,
   );
+
+  process.stdout.write("Seeding finance settings...\n");
+  // Create only (ADR-027): separation of posting starts switched on, and the settings
+  // point at the starter chart's retained earnings and opening balance accounts when
+  // they exist. An administrator's later choices are never overwritten.
+  const equityAccount = async (code: string) => {
+    const account = await prisma.erpAccount.findUnique({
+      where: { code },
+      select: { id: true, type: true, isPostable: true },
+    });
+    return account !== null && account.type === "EQUITY" && account.isPostable
+      ? account.id
+      : null;
+  };
+  await prisma.erpFinanceSettings.upsert({
+    where: { id: 1 },
+    create: {
+      id: 1,
+      allowSelfPosting: false,
+      retainedEarningsAccountId: await equityAccount(
+        DEFAULT_RETAINED_EARNINGS_ACCOUNT_CODE,
+      ),
+      openingBalanceAccountId: await equityAccount(DEFAULT_OPENING_BALANCE_ACCOUNT_CODE),
+    },
+    update: {},
+  });
 
   process.stdout.write("Seeding accounts receivable configuration...\n");
   // Create only: numbering, payment methods and AR settings are an administrator's to

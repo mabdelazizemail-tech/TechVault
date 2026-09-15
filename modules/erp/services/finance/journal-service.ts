@@ -25,8 +25,10 @@ import {
   assertId,
   auditFields,
   dateFromIso,
+  loadFinanceSettings,
   lockJournalEntry,
   parseInput,
+  selfPostingBlocked,
   todayIso,
   toAmount,
   toJournalListItem,
@@ -61,6 +63,7 @@ export async function listJournals(
 
   const where: Prisma.ErpJournalEntryWhereInput = {
     ...(params.status !== undefined ? { status: params.status } : {}),
+    ...(params.kind !== undefined ? { kind: params.kind } : {}),
     ...(params.period !== undefined ? { fiscalPeriodId: params.period } : {}),
     ...(params.from !== undefined || params.to !== undefined
       ? {
@@ -112,6 +115,8 @@ export async function getJournal(actor: Actor, entryId: string): Promise<Journal
       sourceType: true,
       sourceId: true,
       reversedAt: true,
+      createdBy: true,
+      updatedBy: true,
       createdAt: true,
       updatedAt: true,
       poster: { select: personSelect },
@@ -133,6 +138,7 @@ export async function getJournal(actor: Actor, entryId: string): Promise<Journal
     },
   });
   if (row === null) throw new NotFoundError("journal entry");
+  const settings = await loadFinanceSettings();
 
   const summary = summarizeLines(row.lines);
   return {
@@ -152,6 +158,8 @@ export async function getJournal(actor: Actor, entryId: string): Promise<Journal
     postedBy: toPerson(row.poster),
     reversedAt: row.reversedAt,
     reversedBy: toPerson(row.reverser),
+    selfPostingBlocked:
+      row.status === "DRAFT" && selfPostingBlocked(settings, row, actor.id),
     source:
       row.sourceModule !== null && row.sourceType !== null && row.sourceId !== null
         ? { module: row.sourceModule, type: row.sourceType, id: row.sourceId }
@@ -248,6 +256,7 @@ export async function createJournal(
           entryDate: dateFromIso(draft.entryDate),
           description: draft.description,
           reference: draft.reference,
+          kind: draft.kind,
           totalMinor: summarizeLines(lines).debitMinor,
           createdBy: actor.id,
           updatedBy: actor.id,
@@ -263,7 +272,11 @@ export async function createJournal(
           entityType: "journal_entry",
           entityId: entry.id,
           summary: `Created a draft journal entry dated ${draft.entryDate}`,
-          changes: { entryDate: draft.entryDate, lineCount: lines.length },
+          changes: {
+            entryDate: draft.entryDate,
+            kind: draft.kind,
+            lineCount: lines.length,
+          },
         },
         tx,
       );
@@ -300,6 +313,7 @@ export async function updateJournal(
           entryDate: dateFromIso(draft.entryDate),
           description: draft.description,
           reference: draft.reference,
+          kind: draft.kind,
           totalMinor: summarizeLines(lines).debitMinor,
           updatedBy: actor.id,
           lines: { create: lines },
@@ -371,6 +385,12 @@ export async function postJournal(
           entry.status === "POSTED"
             ? "This journal entry is already posted."
             : "This journal entry has been reversed.",
+        );
+      }
+      const settings = await loadFinanceSettings(tx);
+      if (selfPostingBlocked(settings, entry, actor.id)) {
+        throw new BusinessRuleError(
+          "You cannot post a journal entry you created or last edited. Ask someone else with posting rights to post it, or allow it in finance settings.",
         );
       }
 

@@ -57,6 +57,16 @@ enum ErpJournalStatus {
   @@schema("erp")
 }
 
+/// What a journal entry records (ADR-027). People enter STANDARD entries and
+/// OPENING_BALANCE journals; YEAR_END_CLOSE entries are written only by year-end close.
+enum ErpJournalKind {
+  STANDARD
+  OPENING_BALANCE
+  YEAR_END_CLOSE
+
+  @@schema("erp")
+}
+
 /// DRAFT → PENDING_APPROVAL → APPROVED → POSTED → PARTIALLY_PAID → PAID, or
 /// CANCELLED (before posting, or voided by reversal while unpaid).
 enum ErpArInvoiceStatus {
@@ -110,6 +120,9 @@ model ErpAccount {
   arInvoiceLines        ErpArInvoiceLine[]     @relation("ErpArInvoiceLineRevenue")
   arReceiptsDeposit     ErpArReceipt[]         @relation("ErpArReceiptDeposit")
   arReceiptsReceivable  ErpArReceipt[]         @relation("ErpArReceiptReceivable")
+
+  financeRetainedEarnings ErpFinanceSettings[] @relation("ErpFinanceRetainedEarnings")
+  financeOpeningBalance   ErpFinanceSettings[] @relation("ErpFinanceOpeningBalance")
 
   @@index([parentId])
   @@index([type, code])
@@ -180,6 +193,7 @@ model ErpJournalEntry {
   description     String
   reference       String?
   status          ErpJournalStatus @default(DRAFT)
+  kind            ErpJournalKind   @default(STANDARD)
   /// Set when the entry is posted: the open period containing its date.
   fiscalPeriodId  String?          @map("fiscal_period_id") @db.Uuid
   /// Total debits (= total credits), kept in step with the lines and verified by the
@@ -217,6 +231,7 @@ model ErpJournalEntry {
   @@index([status, entryDate(sort: Desc)])
   @@index([entryDate(sort: Desc)])
   @@index([fiscalPeriodId])
+  @@index([kind, entryDate(sort: Desc)])
   @@index([sourceModule, sourceType, sourceId])
   @@index([createdBy])
   @@map("journal_entries")
@@ -553,5 +568,29 @@ model ErpArReceiptAllocation {
   @@unique([receiptId, invoiceId])
   @@index([invoiceId])
   @@map("ar_receipt_allocations")
+  @@schema("erp")
+}
+
+// ---------------------------------------------------------------------------
+// Finance settings (ADR-027)
+// ---------------------------------------------------------------------------
+
+/// Finance configuration: one row, id = 1. Data an administrator changes, never code.
+model ErpFinanceSettings {
+  id                        Int     @id @default(1)
+  /// Off by default: nobody posts a manual journal entry they created or last edited.
+  allowSelfPosting          Boolean @default(false) @map("allow_self_posting")
+  /// The equity account year-end close moves each year's profit or loss into.
+  retainedEarningsAccountId String? @map("retained_earnings_account_id") @db.Uuid
+  /// The equity account that balances an opening balance journal.
+  openingBalanceAccountId   String? @map("opening_balance_account_id") @db.Uuid
+
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  updatedBy String?  @map("updated_by") @db.Uuid
+
+  retainedEarningsAccount ErpAccount? @relation("ErpFinanceRetainedEarnings", fields: [retainedEarningsAccountId], references: [id], onDelete: Restrict)
+  openingBalanceAccount   ErpAccount? @relation("ErpFinanceOpeningBalance", fields: [openingBalanceAccountId], references: [id], onDelete: Restrict)
+
+  @@map("finance_settings")
   @@schema("erp")
 }

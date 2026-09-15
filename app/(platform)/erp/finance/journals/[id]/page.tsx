@@ -5,7 +5,7 @@ import { BreadcrumbTitle } from "@/components/shell/breadcrumbs";
 import { PageHeader, Panel, PanelHeader } from "@/components/ui/primitives";
 import { ERP_PERMISSIONS } from "@/modules/erp/contracts/permissions";
 import { getJournal } from "@/modules/erp/contracts/service";
-import { ACCOUNT_TYPE_LABELS } from "@/modules/erp/contracts/types";
+import { ACCOUNT_TYPE_LABELS, JOURNAL_KIND_LABELS } from "@/modules/erp/contracts/types";
 import { formatMinorAmount } from "@/modules/erp/domain/journal";
 import {
   BalanceBadge,
@@ -61,6 +61,7 @@ export default async function JournalPage({
               entryDate: entry.entryDate,
               isReversal: entry.reverses !== null,
               isSourced: entry.source !== null,
+              selfPostingBlocked: entry.selfPostingBlocked,
               debitTotalMinor: entry.debitTotalMinor,
               creditTotalMinor: entry.creditTotalMinor,
             }}
@@ -101,6 +102,7 @@ export default async function JournalPage({
             <Fact label="Status">
               <JournalStatusBadge status={entry.status} />
             </Fact>
+            <Fact label="Type">{JOURNAL_KIND_LABELS[entry.kind]}</Fact>
             <Fact label="Date">{formatDate(entry.entryDate)}</Fact>
             <Fact label="Period">
               {entry.period === null ? (

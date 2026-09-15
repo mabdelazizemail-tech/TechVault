@@ -7,7 +7,9 @@ import { expect, test } from "@playwright/test";
  * Needs a running app against a NON-production database that has:
  *   - a user holding the `finance-admin` role;
  *   - the seeded starter chart (accounts 1110 Cash and 1120 Bank);
- *   - an OPEN accounting period containing today's date (Africa/Cairo).
+ *   - an OPEN accounting period containing today's date (Africa/Cairo);
+ *   - finance settings that allow people to post entries they created (ADR-027),
+ *     because the journey posts its own entry.
  *
  * The user's credentials come from the environment — E2E_EMAIL and E2E_PASSWORD, in
  * .env.local or the CI secret store — and are never committed (§18.1). Without them

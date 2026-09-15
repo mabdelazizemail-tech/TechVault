@@ -2017,6 +2017,27 @@ clear error rather than a truncated total. _Consequences:_ no migration; figures
 lines (§29 #41). _Revisit when:_ a report query passes ~200 ms (rollups, §6.7), or the fiscal year and year-end close are
 decided.
 
+**ADR-027 — Finance settings: separation of posting, opening balance journals, a calendar fiscal year.** _Context:_ the
+ERP audit's open decisions. The owner chose a setting that blocks posting your own journal by default, credit notes
+against one posted invoice (built later), the calendar year as the fiscal year, and opening balance journals for
+balances brought over from a previous system. _Decision:_ (1) Migration `20260915100000_erp_finance_settings` adds
+`erp.finance_settings` (one row, CHECK `id = 1`, deny-by-default RLS): `allow_self_posting` (default false) and the
+retained earnings and opening balance accounts (equity, checked by the service, `ON DELETE RESTRICT`). It also adds
+`journal_entries.kind` — `STANDARD` (existing rows), `OPENING_BALANCE`, `YEAR_END_CLOSE` — with an index on
+`(kind, entry_date)`; `YEAR_END_CLOSE` exists now so year-end close needs no second enum migration, and a posted entry's
+kind is already frozen by `journal_entries_guard`. (2) `postJournal` refuses, inside the posting transaction, when the
+actor created or last edited the draft, unless settings allow it; with no settings row it is not allowed. Documents
+keep their own rules (AR approval, ADR-023). The journal page says why posting is unavailable; switching self-posting on
+is audited at WARNING. (3) An opening balance journal is an ordinary journal of kind `OPENING_BALANCE`: the same posting
+rules, period and reversal, listed and filtered as its own type, and the form adds the balancing line to the
+configured opening balance account. People can never enter `YEAR_END_CLOSE`. (4) `erp.finance_settings.administer`
+(finance-admin, not accountant) guards `/erp/finance/settings`. The starter chart gains 3200 Retained Earnings and 3900
+Opening Balance Equity, and the seed creates the settings row pointing at them — create only. (5) The fiscal year is the
+calendar year, which year-end close and the profit and loss default use. _Consequences:_ a one-person finance team must
+switch self-posting on (audited) before posting its own journals; after deploying, run the seed (new permission,
+settings row, two accounts); the ERP E2E journey needs self-posting allowed. _Revisit when:_ the workflow engine exists
+(route journal approval through it), or a fiscal year other than the calendar year is needed.
+
 ---
 
 ## 28. Current Implementation Status
@@ -2153,6 +2174,7 @@ triggers (the balance check deferrable), 19 CHECK constraints and the period exc
 | Area        | State |
 | ----------- | ----- |
 | Data model  | ✅ `erp` schema, 6 tables: accounts, cost_centres, fiscal_periods, journal_entries, journal_lines, journal_sequences. Ledger invariants enforced in the database (ADR-022). `prisma migrate diff` reports no drift. |
+| Finance settings | ✅ Separation of posting — nobody posts a manual journal they created or last edited unless finance settings allow it, and with no settings saved it is not allowed — plus opening balance journals with a one-step balancing line, and finance settings at `/erp/finance/settings` (ADR-027). 2 unit tests and 4 integration tests. Migration `20260915100000_erp_finance_settings` is applied to the local test database only; Supabase awaits the owner's schema review. |
 | Reports     | ✅ Trial balance (with optional opening balances), profit and loss and balance sheet at `/erp/finance/reports`, read from posted and reversed journal entries (ADR-026). 8 unit tests on the pure rules and 2 integration tests (a reversal netting to zero and a draft left out; totals, opening balances, net profit and a balancing sheet; refusals and dates in the wrong order). Not yet walked through signed in. |
 | Authorisation | ✅ Every ERP service, page and the ERP layout require an organisation-wide grant (ADR-025): a finance or AR role scoped to an org unit or to own records authorises nothing. Found by the 2026-09-15 ERP audit, fixed the same day; 7 unit tests on `evaluateGlobal` and 2 integration tests (journals and the finance overview for all three scopes; AR approval and lists), plus refusals for journal update and customer credit terms. |
 | Services    | ✅ Chart of accounts (tree listing in code order, create, edit, activate/deactivate, totals, paginated activity), cost centres (tree, create, edit), periods (create without overlap, close — refused while drafts are dated inside — and reopen with a reason), journal (drafts create/edit/delete; post with server re-validation and a gap-free number; reverse with an equal and opposite posted entry), finance overview. Every write: permission → Zod → one transaction with audit record and, where others may react, an outbox event. |
@@ -2253,7 +2275,7 @@ Open debt and risk:
 | 23  | **Abandoned uploads are never cleaned up**                  | A PENDING file whose form was never saved stays in storage and in `innovation.files` | A scheduled job (Phase 2) removing PENDING files older than a day | 🟢 Low    |
 | 24  | **Think Tank files live outside ECM**                       | The platform's single document store is meant to be ECM (§6.3); the knowledge library holds files until it exists | Migrate files and knowledge documents into ECM when Phase 3 ships | 🟢 Low    |
 | 25  | **No accounting period in production yet**                  | ERP is migrated and seeded on Supabase, but no period exists, so no journal entry can be posted; and only `platform-admin` holds the finance permissions until someone is given `finance-admin` or `accountant` | A finance administrator creates the first periods in the UI and the right people are granted the finance roles | 🟢 Low    |
-| 26  | **No maker–checker on posting**                             | §6.2 routes approvals through the workflow engine (Phase 4). Until then posting is a direct permission (`erp.journal.post`), and one person holding create and post can record and post the same entry | Add a configurable "cannot post your own entry" rule or a workflow step when Phase 4 lands | 🟡 Medium |
+| 26  | **Journal maker–checker is a setting, not a routed approval** | Since ADR-027 nobody posts a manual journal they created or last edited unless finance settings allow it, but a finance administrator can switch that on and there is no approval step or queue | Route journal approval through the workflow engine when Phase 4 lands | 🟢 Low    |
 | 27  | **Signed-in ERP browser journey not run**                   | `tests/e2e/erp-finance.spec.ts` needs `E2E_EMAIL`/`E2E_PASSWORD` for a finance administrator on a non-production database with the starter chart and an open period containing today; without them it skips | Owner provides a test account and database, then runs `npm run test:e2e` | 🟡 Medium |
 | 28  | **Finance pickers load capped lists**                       | The journal form loads at most 1,000 postable accounts and 500 cost centres | Replace with a type-ahead picker before the chart grows past that | 🟢 Low    |
 | 29  | **Single-currency ledger**                                  | ERP records EGP only. (The trial balance, profit and loss and balance sheet shipped on 2026-09-15, ADR-026; opening balances and year-end close are #40) | Add currency and rate when foreign-currency receivables or payables are required | 🟢 Low    |
@@ -2266,7 +2288,7 @@ Open debt and risk:
 | 36  | **Default approval needs two people**                       | AR settings start with approval required and self-approval off, so a finance administrator working alone cannot post their own invoice | Grant approval to a second person, or change AR settings (threshold, self-approval, or no approval) | 🟢 Low    |
 | 37  | **No restore for deleted CRM records**                      | Deletion is soft, but there is no screen to view or restore deleted records; undoing an accidental delete needs a database fix (ADR-024) | A "Deleted records" admin page with restore, if mistakes happen | 🟢 Low    |
 | 38  | **No bulk delete in the CRM**                               | Administrators delete one record at a time | Add delete to the leads bulk-action bar and the other lists when volume demands it | 🟢 Low    |
-| 40  | **No fiscal year, year-end close or opening-balance import** | Periods are free-standing; the balance sheet carries revenue less expenses as "not yet closed" instead of retained earnings; the profit and loss defaults to the calendar year; balances from a previous system can only be entered as ordinary journal entries | Owner decides the fiscal year, retained-earnings account and opening-balance method (audit decision D3), then build year-end close | 🟠 High   |
+| 40  | **No year-end close yet**                                   | The fiscal year (calendar) and opening balance journals are decided and built (ADR-027), but nothing yet closes a year into retained earnings, so the balance sheet shows profit or loss "not yet closed" | Build year-end close into the retained earnings account named in finance settings | 🟠 High   |
 | 41  | **Ledger reports aggregate journal lines live**             | Each report sums every posted line up to its end date on request (ADR-026) | Move to rollups with BI, or when a report query passes ~200 ms | 🟢 Low    |
 | 39  | **Sidebar can show ERP to a user with only scoped finance grants** | Navigation evaluates without a target, so any scope shows the section; the ERP layout then returns not-found (ADR-025). Nothing is exposed | Let a navigation section require global grants | 🟢 Low    |
 

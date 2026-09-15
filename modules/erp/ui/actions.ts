@@ -151,3 +151,12 @@ export async function reverseJournalAction(
 ): Promise<ActionResult<{ reversalId: string; journalNumber: string }>> {
   return run("erp.journal.reverse", (actor) => erp.reverseJournal(actor, entryId, input));
 }
+
+/* Finance settings ---------------------------------------------------------- */
+
+export async function updateFinanceSettingsAction(input: unknown): Promise<ActionResult> {
+  return run("erp.finance_settings.administer", async (actor) => {
+    await erp.updateFinanceSettings(actor, input);
+    return null;
+  });
+}

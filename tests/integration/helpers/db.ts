@@ -73,6 +73,7 @@ const TABLES = [
   "erp.number_series_counters",
   "erp.number_series",
   "erp.ar_settings",
+  "erp.finance_settings",
   "erp.journal_lines",
   "erp.journal_entries",
   "erp.journal_sequences",

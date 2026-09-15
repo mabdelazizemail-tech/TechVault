@@ -3,10 +3,12 @@ import type { Metadata } from "next";
 import { ButtonLink } from "@/components/ui/button";
 import { DataTable, type Column } from "@/components/ui/data-table";
 import { FilterBar } from "@/components/ui/filter-bar";
-import { PageHeader, Panel } from "@/components/ui/primitives";
+import { Badge, PageHeader, Panel } from "@/components/ui/primitives";
 import { ERP_PERMISSIONS } from "@/modules/erp/contracts/permissions";
 import { listJournals } from "@/modules/erp/contracts/service";
 import {
+  JOURNAL_KINDS,
+  JOURNAL_KIND_LABELS,
   JOURNAL_STATUSES,
   JOURNAL_STATUS_LABELS,
   type JournalListItem,
@@ -32,7 +34,9 @@ export default async function JournalsPage({
     orNotFound(listJournals(actor, params)),
     canGlobally(actor, ERP_PERMISSIONS.JOURNAL_CREATE),
   ]);
-  const filtered = [params.q, params.status].some((value) => (value ?? "") !== "");
+  const filtered = [params.q, params.status, params.kind].some(
+    (value) => (value ?? "") !== "",
+  );
 
   const columns: Column<JournalListItem>[] = [
     {
@@ -55,6 +59,11 @@ export default async function JournalsPage({
       cell: (entry) => (
         <span className="flex flex-col">
           <span dir="auto">{entry.description}</span>
+          {entry.kind !== "STANDARD" && (
+            <span>
+              <Badge tone="info">{JOURNAL_KIND_LABELS[entry.kind]}</Badge>
+            </span>
+          )}
           {entry.reverses !== null && (
             <span className="text-foreground-muted text-xs">
               Reverses {entry.reverses.journalNumber}
@@ -124,6 +133,16 @@ export default async function JournalsPage({
             options: JOURNAL_STATUSES.map((status) => ({
               value: status,
               label: JOURNAL_STATUS_LABELS[status],
+            })),
+          },
+          {
+            name: "kind",
+            label: "Type",
+            value: params.kind,
+            allLabel: "Any type",
+            options: JOURNAL_KINDS.map((kind) => ({
+              value: kind,
+              label: JOURNAL_KIND_LABELS[kind],
             })),
           },
         ]}

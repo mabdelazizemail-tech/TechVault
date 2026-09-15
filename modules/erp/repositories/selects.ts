@@ -59,6 +59,7 @@ export const journalListSelect = {
   description: true,
   reference: true,
   status: true,
+  kind: true,
   totalMinor: true,
   postedAt: true,
   creator: { select: personSelect },

@@ -11,7 +11,9 @@ import { cn } from "@/lib/cn";
 import {
   ACCOUNT_TYPES,
   ACCOUNT_TYPE_LABELS,
+  JOURNAL_KIND_LABELS,
   type AccountOption,
+  type AccountRef,
   type CostCentreRef,
 } from "../contracts/types";
 import {
@@ -43,6 +45,7 @@ type LineState = {
 };
 
 export type JournalFormInitial = {
+  kind: "STANDARD" | "OPENING_BALANCE";
   entryDate: string;
   description: string;
   reference: string | null;
@@ -74,6 +77,7 @@ export function JournalForm({
   costCentres,
   initial,
   defaultDate,
+  openingBalanceAccount,
 }: {
   mode: "create" | "edit";
   entryId?: string;
@@ -81,11 +85,16 @@ export function JournalForm({
   costCentres: CostCentreRef[];
   initial?: JournalFormInitial;
   defaultDate: string;
+  /** Finance settings' opening balance account, used to balance opening balances. */
+  openingBalanceAccount: AccountRef | null;
 }) {
   const router = useRouter();
   const [entryDate, setEntryDate] = useState(initial?.entryDate ?? defaultDate);
   const [description, setDescription] = useState(initial?.description ?? "");
   const [reference, setReference] = useState(initial?.reference ?? "");
+  const [kind, setKind] = useState<"STANDARD" | "OPENING_BALANCE">(
+    initial?.kind ?? "STANDARD",
+  );
   const [lines, setLines] = useState<LineState[]>(() =>
     initial === undefined
       ? [blankLine(), blankLine()]
@@ -126,10 +135,25 @@ export function JournalForm({
     options: accounts.filter((account) => account.type === type),
   })).filter((group) => group.options.length > 0);
 
+  /** Opening balances: put the difference on the opening balance account, on the side that balances. */
+  const balanceToOpeningAccount = () => {
+    if (openingBalanceAccount === null || summary.differenceMinor === 0n) return;
+    const amount = formatMinorAmount(difference);
+    setLines((current) => [
+      ...current,
+      {
+        ...blankLine(),
+        accountId: openingBalanceAccount.id,
+        ...(summary.differenceMinor > 0n ? { credit: amount } : { debit: amount }),
+      },
+    ]);
+  };
+
   const submit = () => {
     setMessage(null);
     setErrors(undefined);
     const payload = {
+      kind,
       entryDate,
       description,
       reference,
@@ -168,7 +192,7 @@ export function JournalForm({
 
       <Panel>
         <PanelHeader title="Entry" />
-        <div className="grid gap-4 p-4 sm:grid-cols-[12rem_minmax(0,1fr)_14rem]">
+        <div className="grid gap-4 p-4 sm:grid-cols-2 lg:grid-cols-[11rem_12rem_minmax(0,1fr)_14rem]">
           <FieldBlock
             id="entryDate"
             label="Date"
@@ -184,6 +208,28 @@ export function JournalForm({
               aria-invalid={fieldError(errors, "entryDate") !== undefined || undefined}
               className={cn(controlClasses, "border-border-strong min-h-10")}
             />
+          </FieldBlock>
+          <FieldBlock id="kind" label="Entry type" error={fieldError(errors, "kind")}>
+            <select
+              id="kind"
+              value={kind}
+              onChange={(event) =>
+                setKind(
+                  event.target.value === "OPENING_BALANCE"
+                    ? "OPENING_BALANCE"
+                    : "STANDARD",
+                )
+              }
+              className={cn(
+                controlClasses,
+                "border-border-strong min-h-10 cursor-pointer",
+              )}
+            >
+              <option value="STANDARD">{JOURNAL_KIND_LABELS.STANDARD}</option>
+              <option value="OPENING_BALANCE">
+                {JOURNAL_KIND_LABELS.OPENING_BALANCE}
+              </option>
+            </select>
           </FieldBlock>
           <FieldBlock
             id="description"
@@ -232,6 +278,29 @@ export function JournalForm({
             />
           }
         />
+
+        {kind === "OPENING_BALANCE" && (
+          <div className="border-border flex flex-wrap items-center gap-3 border-b px-4 py-3 text-sm">
+            <span className="text-foreground-muted min-w-0 flex-1">
+              {openingBalanceAccount === null
+                ? "Enter each account's balance. Choose an opening balance account in finance settings to balance the entry in one step."
+                : `Enter each account's balance, then put the difference on ${openingBalanceAccount.code} — ${openingBalanceAccount.name}.`}
+            </span>
+            {openingBalanceAccount !== null && (
+              <Button
+                size="sm"
+                disabled={
+                  hasInvalidAmount ||
+                  summary.differenceMinor === 0n ||
+                  lines.length >= MAX_JOURNAL_LINES
+                }
+                onClick={balanceToOpeningAccount}
+              >
+                Add balancing line
+              </Button>
+            )}
+          </div>
+        )}
 
         {(fieldError(errors, "lines") ?? fieldError(errors, "_")) !== undefined && (
           <p role="alert" className="text-danger px-4 pt-3 text-sm">

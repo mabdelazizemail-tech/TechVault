@@ -40,6 +40,12 @@ export {
 export { getFinanceOverview } from "../services/finance/overview-service";
 
 export {
+  getFinanceSettings,
+  getJournalDefaults,
+  updateFinanceSettings,
+} from "../services/finance/finance-settings-service";
+
+export {
   getBalanceSheet,
   getProfitAndLoss,
   getTrialBalance,

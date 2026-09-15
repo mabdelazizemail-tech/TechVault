@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/ui/primitives";
 import { ERP_PERMISSIONS } from "@/modules/erp/contracts/permissions";
 import {
   getJournal,
+  getJournalDefaults,
   listAccountOptions,
   listCostCentreOptions,
 } from "@/modules/erp/contracts/service";
@@ -35,13 +36,14 @@ export default async function EditJournalPage({
   if (rights[ERP_PERMISSIONS.JOURNAL_UPDATE] !== true) notFound();
   if (entry.status !== "DRAFT") redirect(`/erp/finance/journals/${id}`);
 
-  const [accounts, costCentres] = await Promise.all([
+  const [accounts, costCentres, defaults] = await Promise.all([
     rights[ERP_PERMISSIONS.ACCOUNT_READ] === true
       ? listAccountOptions(actor, { postable: true })
       : Promise.resolve([]),
     rights[ERP_PERMISSIONS.COST_CENTRE_READ] === true
       ? listCostCentreOptions(actor)
       : Promise.resolve([]),
+    getJournalDefaults(actor),
   ]);
 
   return (
@@ -54,7 +56,9 @@ export default async function EditJournalPage({
         accounts={accounts}
         costCentres={costCentres}
         defaultDate={todayInCairo()}
+        openingBalanceAccount={defaults.openingBalanceAccount}
         initial={{
+          kind: entry.kind === "OPENING_BALANCE" ? "OPENING_BALANCE" : "STANDARD",
           entryDate: entry.entryDate,
           description: entry.description,
           reference: entry.reference,

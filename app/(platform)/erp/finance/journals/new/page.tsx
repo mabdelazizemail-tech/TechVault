@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/ui/primitives";
 import { ERP_PERMISSIONS } from "@/modules/erp/contracts/permissions";
 import {
+  getJournalDefaults,
   listAccountOptions,
   listCostCentreOptions,
 } from "@/modules/erp/contracts/service";
@@ -22,13 +23,14 @@ export default async function NewJournalPage() {
   ]);
   if (rights[ERP_PERMISSIONS.JOURNAL_CREATE] !== true) notFound();
 
-  const [accounts, costCentres] = await Promise.all([
+  const [accounts, costCentres, defaults] = await Promise.all([
     rights[ERP_PERMISSIONS.ACCOUNT_READ] === true
       ? listAccountOptions(actor, { postable: true })
       : Promise.resolve([]),
     rights[ERP_PERMISSIONS.COST_CENTRE_READ] === true
       ? listCostCentreOptions(actor)
       : Promise.resolve([]),
+    getJournalDefaults(actor),
   ]);
 
   return (
@@ -42,6 +44,7 @@ export default async function NewJournalPage() {
         accounts={accounts}
         costCentres={costCentres}
         defaultDate={todayInCairo()}
+        openingBalanceAccount={defaults.openingBalanceAccount}
       />
     </div>
   );

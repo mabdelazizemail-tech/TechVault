@@ -62,6 +62,16 @@ export const JOURNAL_STATUS_LABELS: Record<JournalStatus, string> = {
   REVERSED: "Reversed",
 };
 
+/** What a journal entry records (ADR-027). */
+export const JOURNAL_KINDS = ["STANDARD", "OPENING_BALANCE", "YEAR_END_CLOSE"] as const;
+export type JournalKind = (typeof JOURNAL_KINDS)[number];
+
+export const JOURNAL_KIND_LABELS: Record<JournalKind, string> = {
+  STANDARD: "Standard",
+  OPENING_BALANCE: "Opening balances",
+  YEAR_END_CLOSE: "Year-end close",
+};
+
 export type Paginated<T> = { rows: T[]; total: number; page: number; pageSize: number };
 
 export type PersonRef = { id: string; name: string };
@@ -157,6 +167,7 @@ export type JournalListItem = {
   description: string;
   reference: string | null;
   status: JournalStatus;
+  kind: JournalKind;
   totalMinor: number;
   lineCount: number;
   createdBy: PersonRef;
@@ -185,10 +196,24 @@ export type JournalDetail = JournalListItem & {
   postedBy: PersonRef | null;
   reversedAt: Date | null;
   reversedBy: PersonRef | null;
+  /** Finance settings stop the viewer posting this draft: they created or last edited it. */
+  selfPostingBlocked: boolean;
   source: { module: string; type: string; id: string } | null;
   createdAt: Date;
   updatedAt: Date;
 };
+
+/* Finance settings (ADR-027) ------------------------------------------------ */
+
+export type FinanceSettingsDto = {
+  /** When false, nobody posts a manual journal entry they created or last edited. */
+  allowSelfPosting: boolean;
+  retainedEarningsAccount: AccountRef | null;
+  openingBalanceAccount: AccountRef | null;
+};
+
+/** What the journal form needs from finance settings. */
+export type JournalDefaults = { openingBalanceAccount: AccountRef | null };
 
 /* Overview ------------------------------------------------------------------ */
 
