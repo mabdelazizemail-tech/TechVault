@@ -3,6 +3,7 @@ import { ledgerReportParamsSchema } from "@/modules/erp/contracts/schemas";
 import type { AccountType } from "@/modules/erp/contracts/types";
 import {
   buildBalanceSheet,
+  buildClosingLines,
   buildProfitAndLoss,
   buildTrialBalance,
   signedForType,
@@ -143,6 +144,64 @@ describe("balance sheet", () => {
     expect(result.unclosedProfitMinor).toBe(18_000n);
     expect(result.liabilitiesAndEquityMinor).toBe(118_000n);
     expect(result.isBalanced).toBe(true);
+  });
+});
+
+describe("year-end closing lines (ADR-028)", () => {
+  it("zeroes revenue and expenses and credits the profit to retained earnings", () => {
+    const result = buildClosingLines(
+      [
+        balance("5100", "EXPENSE", 20_000n, 0n),
+        balance("4100", "REVENUE", 0n, 50_000n),
+        balance("1120", "ASSET", 50_000n, 20_000n),
+      ],
+      "account-3200",
+    );
+    expect(result.lines).toEqual([
+      { accountId: "account-4100", debitMinor: 50_000n, creditMinor: 0n },
+      { accountId: "account-5100", debitMinor: 0n, creditMinor: 20_000n },
+      { accountId: "account-3200", debitMinor: 0n, creditMinor: 30_000n },
+    ]);
+    expect([result.netIncomeMinor, result.accountCount]).toEqual([30_000n, 2]);
+  });
+
+  it("debits a loss to retained earnings and closes only the year's movement", () => {
+    const result = buildClosingLines(
+      [
+        balance("4100", "REVENUE", 0n, 10_000n, [0n, 90_000n]),
+        balance("5100", "EXPENSE", 25_000n, 0n),
+      ],
+      "account-3200",
+    );
+    expect(result.lines.at(-1)).toEqual({
+      accountId: "account-3200",
+      debitMinor: 15_000n,
+      creditMinor: 0n,
+    });
+    expect(result.netIncomeMinor).toBe(-15_000n);
+  });
+
+  it("writes nothing when revenue and expenses did not move", () => {
+    expect(
+      buildClosingLines(
+        [balance("1120", "ASSET", 5n, 0n), balance("4100", "REVENUE", 7n, 7n)],
+        "account-3200",
+      ),
+    ).toEqual({ lines: [], netIncomeMinor: 0n, accountCount: 0 });
+  });
+
+  it("always balances", () => {
+    const { lines } = buildClosingLines(
+      [
+        balance("4100", "REVENUE", 3n, 11n),
+        balance("4200", "REVENUE", 0n, 4n),
+        balance("5100", "EXPENSE", 9n, 2n),
+      ],
+      "account-3200",
+    );
+    const debit = lines.reduce((sum, line) => sum + line.debitMinor, 0n);
+    const credit = lines.reduce((sum, line) => sum + line.creditMinor, 0n);
+    expect(debit).toBe(credit);
   });
 });
 

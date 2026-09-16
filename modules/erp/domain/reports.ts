@@ -182,3 +182,45 @@ export function buildBalanceSheet(balances: readonly LedgerBalance[]): {
     isBalanced: assets.totalMinor === liabilitiesAndEquityMinor,
   };
 }
+
+export type ClosingLine = { accountId: string; debitMinor: bigint; creditMinor: bigint };
+
+/**
+ * Year-end close (ADR-028): the lines that bring every revenue and expense account's
+ * movement for the year to zero, with the difference — the year's profit or loss —
+ * credited (profit) or debited (loss) to retained earnings. No lines when nothing moved.
+ */
+export function buildClosingLines(
+  balances: readonly LedgerBalance[],
+  retainedEarningsAccountId: string,
+): { lines: ClosingLine[]; netIncomeMinor: bigint; accountCount: number } {
+  const lines: ClosingLine[] = [];
+  // Debits less credits across revenue and expenses: negative is a profit.
+  let net = 0n;
+  for (const balance of [...balances].sort(byCode)) {
+    if (balance.type !== "REVENUE" && balance.type !== "EXPENSE") continue;
+    const movement = balance.debitMinor - balance.creditMinor;
+    if (movement === 0n) continue;
+    lines.push(
+      movement > 0n
+        ? { accountId: balance.accountId, debitMinor: 0n, creditMinor: movement }
+        : { accountId: balance.accountId, debitMinor: -movement, creditMinor: 0n },
+    );
+    net += movement;
+  }
+  const accountCount = lines.length;
+  if (net > 0n) {
+    lines.push({
+      accountId: retainedEarningsAccountId,
+      debitMinor: net,
+      creditMinor: 0n,
+    });
+  } else if (net < 0n) {
+    lines.push({
+      accountId: retainedEarningsAccountId,
+      debitMinor: 0n,
+      creditMinor: -net,
+    });
+  }
+  return { lines, netIncomeMinor: -net, accountCount };
+}

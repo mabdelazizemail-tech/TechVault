@@ -215,6 +215,34 @@ export type FinanceSettingsDto = {
 /** What the journal form needs from finance settings. */
 export type JournalDefaults = { openingBalanceAccount: AccountRef | null };
 
+/* Fiscal years (ADR-028) ------------------------------------------------------ */
+
+export type FiscalYearDto = {
+  /** The calendar year (ADR-027). */
+  year: number;
+  status: "OPEN" | "CLOSED";
+  /** 31 December has passed, so the year can be closed. */
+  hasEnded: boolean;
+  closedAt: Date | null;
+  closedBy: PersonRef | null;
+  /** The profit (positive) or loss (negative) moved into retained earnings. */
+  netIncomeMinor: number | null;
+  closingJournal: JournalRef | null;
+  /** On an open year that was closed before: the latest reopening. */
+  reopenedAt: Date | null;
+  reopenedBy: PersonRef | null;
+};
+
+export type YearEndPreview = {
+  year: number;
+  netIncomeMinor: number;
+  /** Revenue and expense accounts the closing entry brings to zero. */
+  accountCount: number;
+  retainedEarningsAccount: AccountRef | null;
+  /** Why the year cannot be closed yet; empty when it can. */
+  problems: string[];
+};
+
 /* Overview ------------------------------------------------------------------ */
 
 /** Each figure is null when the viewer may not read what it counts. */

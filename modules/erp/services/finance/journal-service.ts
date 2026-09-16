@@ -434,6 +434,11 @@ export async function reverseJournal(
           "This entry was posted from an invoice or receipt. Void that document instead.",
         );
       }
+      if (original.kind === "YEAR_END_CLOSE") {
+        throw new BusinessRuleError(
+          "This entry closed a fiscal year. Reopen the year on the accounting periods page instead.",
+        );
+      }
       const reversal = await reverseJournalInTransaction(tx, actor, entryId, {
         reversalDate,
         description: data.description,

@@ -30,6 +30,8 @@ export function JournalActions({
     isSourced: boolean;
     /** Finance settings stop this viewer posting it: they created or last edited it. */
     selfPostingBlocked: boolean;
+    /** Closed a fiscal year: corrected by reopening the year instead. */
+    isYearEndClose: boolean;
     debitTotalMinor: number;
     creditTotalMinor: number;
   };
@@ -59,7 +61,13 @@ export function JournalActions({
       </>
     );
   }
-  if (entry.status === "POSTED" && !entry.isReversal && !entry.isSourced && can.reverse) {
+  if (
+    entry.status === "POSTED" &&
+    !entry.isReversal &&
+    !entry.isSourced &&
+    !entry.isYearEndClose &&
+    can.reverse
+  ) {
     return <ReverseButton entry={entry} today={today} />;
   }
   return null;

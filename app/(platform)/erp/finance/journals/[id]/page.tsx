@@ -62,6 +62,7 @@ export default async function JournalPage({
               isReversal: entry.reverses !== null,
               isSourced: entry.source !== null,
               selfPostingBlocked: entry.selfPostingBlocked,
+              isYearEndClose: entry.kind === "YEAR_END_CLOSE",
               debitTotalMinor: entry.debitTotalMinor,
               creditTotalMinor: entry.creditTotalMinor,
             }}

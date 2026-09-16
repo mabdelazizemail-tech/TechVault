@@ -28,6 +28,9 @@ export const ERP_PERMISSIONS = {
   PERIOD_CLOSE: "erp.period.close",
   PERIOD_REOPEN: "erp.period.reopen",
 
+  FISCAL_YEAR_CLOSE: "erp.fiscal_year.close",
+  FISCAL_YEAR_REOPEN: "erp.fiscal_year.reopen",
+
   JOURNAL_READ: "erp.journal.read",
   JOURNAL_CREATE: "erp.journal.create",
   JOURNAL_UPDATE: "erp.journal.update",
@@ -111,6 +114,16 @@ export const ERP_PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
     ERP_PERMISSIONS.PERIOD_REOPEN,
     "REOPEN",
     "Reopen a closed accounting period. Every reopening is audited with a reason.",
+  ),
+  define(
+    ERP_PERMISSIONS.FISCAL_YEAR_CLOSE,
+    "CLOSE",
+    "Close a fiscal year: move its profit or loss into retained earnings and stop all posting into it.",
+  ),
+  define(
+    ERP_PERMISSIONS.FISCAL_YEAR_REOPEN,
+    "REOPEN",
+    "Reopen a closed fiscal year by reversing its close. Every reopening is audited with a reason.",
   ),
 
   define(ERP_PERMISSIONS.JOURNAL_READ, "READ", "View journal entries."),

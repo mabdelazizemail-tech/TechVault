@@ -167,6 +167,7 @@ export async function lockJournalEntry(
   sourceType: string | null;
   createdBy: string;
   updatedBy: string | null;
+  kind: "STANDARD" | "OPENING_BALANCE" | "YEAR_END_CLOSE";
 }> {
   const rows = await tx.$queryRaw<
     {
@@ -178,10 +179,12 @@ export async function lockJournalEntry(
       source_type: string | null;
       created_by: string;
       updated_by: string | null;
+      kind: "STANDARD" | "OPENING_BALANCE" | "YEAR_END_CLOSE";
     }[]
   >`
     SELECT id, status::text AS status, entry_date::text AS entry_date,
-           journal_number, reverses_entry_id, source_type, created_by, updated_by
+           journal_number, reverses_entry_id, source_type, created_by, updated_by,
+           kind::text AS kind
       FROM erp.journal_entries
      WHERE id = ${id}::uuid
        FOR UPDATE`;
@@ -196,6 +199,7 @@ export async function lockJournalEntry(
     sourceType: row.source_type,
     createdBy: row.created_by,
     updatedBy: row.updated_by,
+    kind: row.kind,
   };
 }
 

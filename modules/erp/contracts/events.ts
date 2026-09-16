@@ -15,6 +15,8 @@ export const ERP_EVENTS = {
   PERIOD_CREATED: "erp.PeriodCreated",
   PERIOD_CLOSED: "erp.PeriodClosed",
   PERIOD_REOPENED: "erp.PeriodReopened",
+  FISCAL_YEAR_CLOSED: "erp.FiscalYearClosed",
+  FISCAL_YEAR_REOPENED: "erp.FiscalYearReopened",
   JOURNAL_ENTRY_POSTED: "erp.JournalEntryPosted",
   JOURNAL_ENTRY_REVERSED: "erp.JournalEntryReversed",
   AR_INVOICE_APPROVED: "erp.ARInvoiceApproved",
@@ -48,6 +50,22 @@ export type PeriodClosedPayload = {
   name: string;
   startDate: string;
   endDate: string;
+};
+
+/* Year-end close (ADR-028) ----------------------------------------------------- */
+
+export type FiscalYearClosedPayload = {
+  year: number;
+  fiscalYearCloseId: string;
+  /** The closing entry; null when nothing moved in revenue or expenses. */
+  journalEntryId: string | null;
+};
+
+export type FiscalYearReopenedPayload = {
+  year: number;
+  fiscalYearCloseId: string;
+  /** The reversal of the closing entry, when there was one. */
+  reversalEntryId: string | null;
 };
 
 /* Accounts receivable -------------------------------------------------------- */

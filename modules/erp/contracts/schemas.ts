@@ -193,6 +193,20 @@ export const financeSettingsSchema = z.object({
   openingBalanceAccountId: optionalUuid,
 });
 
+/** A calendar fiscal year (ADR-028). */
+const fiscalYear = z.coerce
+  .number({ error: "Choose a year." })
+  .int("Choose a year.")
+  .min(1900, "Choose a year.")
+  .max(9999, "Choose a year.");
+
+export const fiscalYearSchema = z.object({ year: fiscalYear });
+
+export const fiscalYearReopenSchema = z.object({
+  year: fiscalYear,
+  reason: requiredText("Reason", 500),
+});
+
 /** Dates for the ledger reports (ADR-026). The service applies the defaults. */
 export const ledgerReportParamsSchema = z.object({
   from: isoDate.optional().catch(undefined),

@@ -40,6 +40,13 @@ export {
 export { getFinanceOverview } from "../services/finance/overview-service";
 
 export {
+  closeFiscalYear,
+  listFiscalYears,
+  previewYearEnd,
+  reopenFiscalYear,
+} from "../services/finance/year-end-service";
+
+export {
   getFinanceSettings,
   getJournalDefaults,
   updateFinanceSettings,

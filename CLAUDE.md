@@ -2038,6 +2038,31 @@ switch self-posting on (audited) before posting its own journals; after deployin
 settings row, two accounts); the ERP E2E journey needs self-posting allowed. _Revisit when:_ the workflow engine exists
 (route journal approval through it), or a fiscal year other than the calendar year is needed.
 
+**ADR-028 — Year-end close: one closing entry, a closed year refused by the database, reopening by reversal.**
+_Context:_ the owner fixed the fiscal year as the calendar year and retained earnings as a finance-settings account
+(ADR-027); the balance sheet carried every year's profit as "not yet closed". _Decision:_ (1) Migration
+`20260915120000_erp_year_end_close` adds `erp.fiscal_year_closes` — year, closing entry, net income, retained earnings
+account, who closed and who reopened with a reason and the reversal — with a partial unique index allowing one live
+(not reopened) close per year, CHECKs, a guard trigger that forbids deleting a close or changing it except by
+reopening it once, and deny-by-default RLS. (2) `closeFiscalYear` locks every period touching the year, refuses while
+the year has not ended, the retained earnings account is missing or unusable, drafts or unposted AR documents are dated
+in the year, or no open period contains 31 December; then posts one `YEAR_END_CLOSE` entry dated 31 December through
+the ledger engine that brings each revenue and expense account's movement for the year to zero, with the difference in
+retained earnings (pure rule `buildClosingLines`), records the close, audits it and publishes `erp.FiscalYearClosed`.
+A year with no revenue or expense movement is closed with no entry. (3) A closed year takes no postings: the ledger
+engine refuses with a clear message, and `journal_entries_guard` (replaced by this migration) refuses any posting
+dated in a year with a live close, for every writer. (4) `reopenFiscalYear` needs its own permission and a reason,
+refuses while a later year is closed, marks the close reopened, reverses the closing entry on 31 December (a reversal
+keeps its original's kind), audits at CRITICAL and publishes `erp.FiscalYearReopened`; the year can then be closed
+again. A closing entry cannot be reversed from the journal screens. (5) The profit and loss leaves `YEAR_END_CLOSE`
+entries (and their reversals) out, so a closed year still shows its trading; the trial balance and balance sheet keep
+them, so after closing the balance sheet shows the profit in retained earnings and nothing "not yet closed" for that
+year. (6) Permissions `erp.fiscal_year.close` and `erp.fiscal_year.reopen` (existing CLOSE and REOPEN actions, so no
+IAM migration) go to finance-admin; the periods page gains a Fiscal years panel whose close dialog shows the server's
+preview first. _Consequences:_ a deactivated revenue or expense account that still has movement in the year blocks the
+closing entry until reactivated; the seed must run after deploy for the permissions; closing is not reversible without
+the reopen permission. _Revisit when:_ a non-calendar fiscal year, or closing per legal entity, is needed.
+
 ---
 
 ## 28. Current Implementation Status
@@ -2174,6 +2199,7 @@ triggers (the balance check deferrable), 19 CHECK constraints and the period exc
 | Area        | State |
 | ----------- | ----- |
 | Data model  | ✅ `erp` schema, 6 tables: accounts, cost_centres, fiscal_periods, journal_entries, journal_lines, journal_sequences. Ledger invariants enforced in the database (ADR-022). `prisma migrate diff` reports no drift. |
+| Year-end close | ✅ Close a calendar year into retained earnings with one `YEAR_END_CLOSE` entry, preview first, a closed year refused by the ledger engine and the journal guard trigger, reopening with a reason by reversal, from the Fiscal years panel on the periods page (ADR-028). 4 unit tests and 4 integration tests. Migration `20260915120000_erp_year_end_close` is applied to the local test database only; Supabase awaits the owner's schema review. |
 | Finance settings | ✅ Separation of posting — nobody posts a manual journal they created or last edited unless finance settings allow it, and with no settings saved it is not allowed — plus opening balance journals with a one-step balancing line, and finance settings at `/erp/finance/settings` (ADR-027). 2 unit tests and 4 integration tests. Migration `20260915100000_erp_finance_settings` is applied to the local test database only; Supabase awaits the owner's schema review. |
 | Reports     | ✅ Trial balance (with optional opening balances), profit and loss and balance sheet at `/erp/finance/reports`, read from posted and reversed journal entries (ADR-026). 8 unit tests on the pure rules and 2 integration tests (a reversal netting to zero and a draft left out; totals, opening balances, net profit and a balancing sheet; refusals and dates in the wrong order). Not yet walked through signed in. |
 | Authorisation | ✅ Every ERP service, page and the ERP layout require an organisation-wide grant (ADR-025): a finance or AR role scoped to an org unit or to own records authorises nothing. Found by the 2026-09-15 ERP audit, fixed the same day; 7 unit tests on `evaluateGlobal` and 2 integration tests (journals and the finance overview for all three scopes; AR approval and lists), plus refusals for journal update and customer credit terms. |
@@ -2288,7 +2314,7 @@ Open debt and risk:
 | 36  | **Default approval needs two people**                       | AR settings start with approval required and self-approval off, so a finance administrator working alone cannot post their own invoice | Grant approval to a second person, or change AR settings (threshold, self-approval, or no approval) | 🟢 Low    |
 | 37  | **No restore for deleted CRM records**                      | Deletion is soft, but there is no screen to view or restore deleted records; undoing an accidental delete needs a database fix (ADR-024) | A "Deleted records" admin page with restore, if mistakes happen | 🟢 Low    |
 | 38  | **No bulk delete in the CRM**                               | Administrators delete one record at a time | Add delete to the leads bulk-action bar and the other lists when volume demands it | 🟢 Low    |
-| 40  | **No year-end close yet**                                   | The fiscal year (calendar) and opening balance journals are decided and built (ADR-027), but nothing yet closes a year into retained earnings, so the balance sheet shows profit or loss "not yet closed" | Build year-end close into the retained earnings account named in finance settings | 🟠 High   |
+| 40  | **Year-end close is calendar-year only, for one entity**    | Year-end close shipped (ADR-028), but the fiscal year is fixed to January–December and there is one ledger, so a different fiscal year or per-entity close is not possible | Add a fiscal-year start setting and entity scoping if the business needs them | 🟢 Low    |
 | 41  | **Ledger reports aggregate journal lines live**             | Each report sums every posted line up to its end date on request (ADR-026) | Move to rollups with BI, or when a report query passes ~200 ms | 🟢 Low    |
 | 39  | **Sidebar can show ERP to a user with only scoped finance grants** | Navigation evaluates without a target, so any scope shows the section; the ERP layout then returns not-found (ADR-025). Nothing is exposed | Let a navigation section require global grants | 🟢 Low    |
 

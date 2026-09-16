@@ -69,7 +69,7 @@ export async function postLockedDraft(
   entry: { id: string; entryDate: string },
 ): Promise<{ journalNumber: string; fiscalPeriodId: string }> {
   const date = dateFromIso(entry.entryDate);
-  const [lines, period] = await Promise.all([
+  const [lines, period, closedYear] = await Promise.all([
     tx.erpJournalLine.findMany({
       where: { journalEntryId: entry.id },
       orderBy: { lineNo: "asc" },
@@ -84,7 +84,17 @@ export async function postLockedDraft(
       where: { startDate: { lte: date }, endDate: { gte: date } },
       select: { id: true, name: true, status: true, startDate: true, endDate: true },
     }),
+    tx.erpFiscalYearClose.findFirst({
+      where: { year: yearOfIsoDate(entry.entryDate), reopenedAt: null },
+      select: { year: true },
+    }),
   ]);
+  // A closed fiscal year takes no postings (ADR-028); the journal guard refuses them too.
+  if (closedYear !== null) {
+    throw new BusinessRuleError(
+      `The fiscal year ${closedYear.year} is closed. Reopen the year before posting into it.`,
+    );
+  }
 
   const problems = postingProblems({
     entryDate: entry.entryDate,
@@ -180,6 +190,8 @@ export async function recordPostedJournal(
     reference: string | null;
     source: JournalSource | null;
     lines: readonly LedgerLine[];
+    /** STANDARD unless the entry closes a fiscal year. */
+    kind?: "STANDARD" | "YEAR_END_CLOSE";
   },
 ): Promise<{ id: string; journalNumber: string; fiscalPeriodId: string }> {
   const lines = input.lines.map((line, index) => ({ lineNo: index + 1, ...line }));
@@ -192,6 +204,7 @@ export async function recordPostedJournal(
       sourceModule: input.source?.module ?? null,
       sourceType: input.source?.type ?? null,
       sourceId: input.source?.id ?? null,
+      kind: input.kind ?? "STANDARD",
       createdBy: actor.id,
       updatedBy: actor.id,
       lines: { create: lines },
@@ -276,6 +289,8 @@ export async function reverseJournalInTransaction(
       ).slice(0, 500),
       reference: originalNumber,
       reversesEntryId: entryId,
+      // A reversal is the same kind of entry, so reports treat the pair alike.
+      kind: original.kind,
       totalMinor: summarizeLines(lines).debitMinor,
       createdBy: actor.id,
       updatedBy: actor.id,

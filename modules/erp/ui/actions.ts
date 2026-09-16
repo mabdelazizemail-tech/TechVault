@@ -6,6 +6,7 @@ import type { Actor } from "@/platform/authz/authz";
 import { getActor } from "@/platform/auth/current-user";
 import { logger, newCorrelationId } from "@/platform/observability/logger";
 import * as erp from "../contracts/service";
+import type { YearEndPreview } from "../contracts/types";
 
 /**
  * ERP finance Server Actions (CLAUDE.md §9): authenticate, delegate to the service —
@@ -157,6 +158,30 @@ export async function reverseJournalAction(
 export async function updateFinanceSettingsAction(input: unknown): Promise<ActionResult> {
   return run("erp.finance_settings.administer", async (actor) => {
     await erp.updateFinanceSettings(actor, input);
+    return null;
+  });
+}
+
+/* Year-end close ------------------------------------------------------------ */
+
+export async function previewYearEndAction(
+  year: number,
+): Promise<ActionResult<YearEndPreview>> {
+  return run("erp.fiscal_year.preview", (actor) => erp.previewYearEnd(actor, { year }));
+}
+
+export async function closeFiscalYearAction(
+  year: number,
+): Promise<ActionResult<{ journalNumber: string | null; netIncomeMinor: number }>> {
+  return run("erp.fiscal_year.close", (actor) => erp.closeFiscalYear(actor, { year }));
+}
+
+export async function reopenFiscalYearAction(
+  year: number,
+  reason: string,
+): Promise<ActionResult> {
+  return run("erp.fiscal_year.reopen", async (actor) => {
+    await erp.reopenFiscalYear(actor, { year, reason });
     return null;
   });
 }

@@ -12,6 +12,7 @@ import {
   ERP_PERMISSIONS,
 } from "@/modules/erp/contracts/permissions";
 import {
+  closeFiscalYear,
   closePeriod,
   createAccount,
   createCostCentre,
@@ -28,8 +29,11 @@ import {
   getTrialBalance,
   listAccountActivity,
   listAccounts,
+  listFiscalYears,
   listJournals,
   postJournal,
+  previewYearEnd,
+  reopenFiscalYear,
   reopenPeriod,
   reverseJournal,
   setAccountActive,
@@ -346,6 +350,272 @@ describe.skipIf(!hasTestDatabase)("ERP finance (integration)", () => {
       );
       expect(refused).toBeInstanceOf(ValidationError);
       expect((refused as ValidationError).fieldErrors.kind).toBeDefined();
+    });
+  });
+
+  /* ======================================================================== */
+  /* Year-end close (ADR-028)                                                 */
+  /* ======================================================================== */
+
+  describe("year-end close", () => {
+    let sales: string;
+    let rent: string;
+    let retained: string;
+    let december2025: string;
+
+    const entry = (
+      entryDate: string,
+      debitAccount: string,
+      creditAccount: string,
+      amount: string,
+    ) => ({
+      entryDate,
+      description: `Entry of ${amount}`,
+      lines: [
+        { accountId: debitAccount, debit: amount },
+        { accountId: creditAccount, credit: amount },
+      ],
+    });
+    const post = async (input: Record<string, unknown>) => {
+      const { id } = await createJournal(as(admin), input);
+      return { id, ...(await postJournal(as(admin), id)) };
+    };
+    /** A database error's full text, wherever the driver put the message. */
+    const errorText = (error: Error) =>
+      `${error.message} ${JSON.stringify((error as { meta?: unknown }).meta ?? {})} ${String((error as { cause?: unknown }).cause ?? "")}`;
+
+    beforeEach(async () => {
+      sales = (
+        await createAccount(as(admin), { code: "4100", name: "Sales", type: "REVENUE" })
+      ).id;
+      rent = (
+        await createAccount(as(admin), { code: "5100", name: "Rent", type: "EXPENSE" })
+      ).id;
+      retained = (
+        await createAccount(as(admin), {
+          code: "3200",
+          name: "Retained Earnings",
+          type: "EQUITY",
+        })
+      ).id;
+      await createPeriod(as(admin), {
+        name: "November 2025",
+        startDate: "2025-11-01",
+        endDate: "2025-11-30",
+      });
+      december2025 = (
+        await createPeriod(as(admin), {
+          name: "December 2025",
+          startDate: "2025-12-01",
+          endDate: "2025-12-31",
+        })
+      ).id;
+      await updateFinanceSettings(as(admin), {
+        allowSelfPosting: true,
+        retainedEarningsAccountId: retained,
+      });
+      await post(entry("2025-11-10", bank, sales, "50,000"));
+      await post(entry("2025-12-05", rent, bank, "20,000"));
+    });
+
+    it("closes a year into retained earnings, keeps its profit and loss, and stops posting into it", async () => {
+      const preview = await previewYearEnd(as(admin), { year: 2025 });
+      expect([
+        preview.problems,
+        preview.netIncomeMinor,
+        preview.accountCount,
+        preview.retainedEarningsAccount?.code,
+      ]).toEqual([[], 3_000_000, 2, "3200"]);
+
+      expect(await closeFiscalYear(as(admin), { year: 2025 })).toEqual({
+        journalNumber: "JE-2025-000003",
+        netIncomeMinor: 3_000_000,
+      });
+      const [closing] = (await listJournals(as(viewer), { kind: "YEAR_END_CLOSE" })).rows;
+      const detail = await getJournal(as(viewer), closing?.id ?? "");
+      expect([detail.entryDate, detail.status]).toEqual(["2025-12-31", "POSTED"]);
+      expect(
+        detail.lines.map((line) => [
+          line.account.code,
+          line.debitMinor,
+          line.creditMinor,
+        ]),
+      ).toEqual([
+        ["4100", 5_000_000, 0],
+        ["5100", 0, 2_000_000],
+        ["3200", 0, 3_000_000],
+      ]);
+
+      const trial = await getTrialBalance(as(viewer), { to: "2025-12-31" });
+      const row = (code: string) => trial.rows.find((line) => line.account.code === code);
+      expect(row("4100")).toMatchObject({ closingDebitMinor: 0, closingCreditMinor: 0 });
+      expect(row("3200")).toMatchObject({ closingCreditMinor: 3_000_000 });
+      expect(trial.isBalanced).toBe(true);
+      expect(
+        (await getProfitAndLoss(as(viewer), { from: "2025-01-01", to: "2025-12-31" }))
+          .netIncomeMinor,
+      ).toBe(3_000_000);
+      const sheet = await getBalanceSheet(as(viewer), { to: "2025-12-31" });
+      expect([
+        sheet.unclosedProfitMinor,
+        sheet.equity.totalMinor,
+        sheet.isBalanced,
+      ]).toEqual([0, 3_000_000, true]);
+
+      // Nothing more is posted into 2025 — through the services or straight at the table.
+      const late = await createJournal(
+        as(admin),
+        entry("2025-12-20", rent, bank, "1,000"),
+      );
+      expect((await failure(postJournal(as(admin), late.id))).message).toMatch(
+        /fiscal year 2025 is closed/,
+      );
+      const direct = await failure(
+        prisma.erpJournalEntry.update({
+          where: { id: late.id },
+          data: {
+            status: "POSTED",
+            journalNumber: "JE-2025-999999",
+            fiscalPeriodId: december2025,
+            postedAt: new Date(),
+            postedBy: admin.id,
+          },
+        }),
+      );
+      expect(errorText(direct)).toMatch(/fiscal year of this entry is closed/);
+      expect((await getJournal(as(admin), late.id)).status).toBe("DRAFT");
+      await deleteJournal(as(admin), late.id);
+
+      expect(
+        (
+          await failure(
+            reverseJournal(as(admin), detail.id, { reversalDate: "2025-12-31" }),
+          )
+        ).message,
+      ).toMatch(/Reopen the year/);
+      expect((await failure(closeFiscalYear(as(admin), { year: 2025 }))).message).toMatch(
+        /already closed/,
+      );
+      expect(
+        (await listFiscalYears(as(viewer))).map((year) => [
+          year.year,
+          year.status,
+          year.netIncomeMinor,
+        ]),
+      ).toEqual([
+        [2026, "OPEN", null],
+        [2025, "CLOSED", 3_000_000],
+      ]);
+      expect(await audits("erp.fiscal_year.closed")).toHaveLength(1);
+      expect(await outbox("erp.FiscalYearClosed")).toHaveLength(1);
+    });
+
+    it("refuses a year that has not ended, lacks a retained earnings account, holds drafts or has no open December period", async () => {
+      expect((await failure(closeFiscalYear(as(admin), { year: 2026 }))).message).toMatch(
+        /2026 has not ended/,
+      );
+
+      await updateFinanceSettings(as(admin), { allowSelfPosting: true });
+      expect((await failure(closeFiscalYear(as(admin), { year: 2025 }))).message).toMatch(
+        /retained earnings account/,
+      );
+      await updateFinanceSettings(as(admin), {
+        allowSelfPosting: true,
+        retainedEarningsAccountId: retained,
+      });
+
+      const draft = await createJournal(
+        as(accountant),
+        entry("2025-12-10", rent, bank, "500"),
+      );
+      expect((await failure(closeFiscalYear(as(admin), { year: 2025 }))).message).toMatch(
+        /1 draft journal entry/,
+      );
+      await deleteJournal(as(admin), draft.id);
+
+      await closePeriod(as(admin), december2025);
+      expect((await failure(closeFiscalYear(as(admin), { year: 2025 }))).message).toMatch(
+        /open accounting period must contain/,
+      );
+      expect(await prisma.erpFiscalYearClose.count()).toBe(0);
+    });
+
+    it("erp.fiscal_year.close and erp.fiscal_year.reopen: finance administrators only", async () => {
+      for (const user of [accountant, viewer, outsider]) {
+        expect(await failure(previewYearEnd(as(user), { year: 2025 }))).toBeInstanceOf(
+          ForbiddenError,
+        );
+        expect(await failure(closeFiscalYear(as(user), { year: 2025 }))).toBeInstanceOf(
+          ForbiddenError,
+        );
+      }
+      await closeFiscalYear(as(admin), { year: 2025 });
+      for (const user of [accountant, closer]) {
+        expect(
+          await failure(
+            reopenFiscalYear(as(user), { year: 2025, reason: "Late invoice" }),
+          ),
+        ).toBeInstanceOf(ForbiddenError);
+      }
+      expect(await prisma.erpFiscalYearClose.count({ where: { reopenedAt: null } })).toBe(
+        1,
+      );
+    });
+
+    it("reopens a year with a reason by reversing its close, then closes it again", async () => {
+      await createPeriod(as(admin), {
+        name: "December 2024",
+        startDate: "2024-12-01",
+        endDate: "2024-12-31",
+      });
+      expect(await closeFiscalYear(as(admin), { year: 2024 })).toEqual({
+        journalNumber: null,
+        netIncomeMinor: 0,
+      });
+      const { journalNumber } = await closeFiscalYear(as(admin), { year: 2025 });
+
+      expect(
+        (
+          await failure(
+            reopenFiscalYear(as(admin), { year: 2024, reason: "Audit adjustment" }),
+          )
+        ).message,
+      ).toMatch(/Reopen 2025 first/);
+      expect(
+        await failure(reopenFiscalYear(as(admin), { year: 2025, reason: "" })),
+      ).toBeInstanceOf(ValidationError);
+
+      await reopenFiscalYear(as(admin), { year: 2025, reason: "Late supplier invoice" });
+      const closings = (await listJournals(as(viewer), { kind: "YEAR_END_CLOSE" })).rows;
+      expect(closings).toHaveLength(2);
+      expect(closings.find((row) => row.journalNumber === journalNumber)?.status).toBe(
+        "REVERSED",
+      );
+      const [audit] = await audits("erp.fiscal_year.reopened");
+      expect(audit?.severity).toBe("CRITICAL");
+      expect(audit?.changes).toMatchObject({ reason: "Late supplier invoice" });
+
+      // The year takes postings again, and its figures move with them.
+      await post(entry("2025-12-20", rent, bank, "1,000"));
+      expect(
+        (await getProfitAndLoss(as(viewer), { from: "2025-01-01", to: "2025-12-31" }))
+          .netIncomeMinor,
+      ).toBe(2_900_000);
+      expect(
+        (await getBalanceSheet(as(viewer), { to: "2025-12-31" })).unclosedProfitMinor,
+      ).toBe(2_900_000);
+
+      expect(await closeFiscalYear(as(admin), { year: 2025 })).toMatchObject({
+        netIncomeMinor: 2_900_000,
+      });
+      expect(
+        (await getBalanceSheet(as(viewer), { to: "2025-12-31" })).unclosedProfitMinor,
+      ).toBe(0);
+      expect(await outbox("erp.FiscalYearReopened")).toHaveLength(1);
+      expect(
+        (await listFiscalYears(as(viewer))).find((year) => year.year === 2024)
+          ?.netIncomeMinor,
+      ).toBe(0);
     });
   });
 

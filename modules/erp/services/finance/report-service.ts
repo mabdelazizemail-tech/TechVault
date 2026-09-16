@@ -1,5 +1,5 @@
 import { BusinessRuleError, ValidationError } from "@/lib/errors";
-import { prisma } from "@/lib/prisma";
+import { type PrismaTransaction, prisma } from "@/lib/prisma";
 import { type Actor, requireGlobalPermission } from "@/platform/authz/authz";
 import { ERP_PERMISSIONS } from "../../contracts/permissions";
 import { ledgerReportParamsSchema } from "../../contracts/schemas";
@@ -54,9 +54,22 @@ function reportDates(
   return { from, to };
 }
 
-/** Per-account posted totals: before `from` (opening) and from `from` to `to`. */
-async function ledgerBalances(from: string | null, to: string): Promise<LedgerBalance[]> {
-  const rows = await prisma.$queryRaw<
+/**
+ * Per-account posted totals: before `from` (opening) and from `from` to `to`. With
+ * `excludeYearEndClose`, year-end close entries (and their reversals) are left out, so a
+ * profit and loss shows the year's trading rather than the entry that closed it (ADR-028).
+ */
+export async function ledgerBalances(
+  from: string | null,
+  to: string,
+  options: {
+    client?: PrismaTransaction | typeof prisma;
+    excludeYearEndClose?: boolean;
+  } = {},
+): Promise<LedgerBalance[]> {
+  const client = options.client ?? prisma;
+  const excludeYearEndClose = options.excludeYearEndClose === true;
+  const rows = await client.$queryRaw<
     {
       id: string;
       code: string;
@@ -79,6 +92,7 @@ async function ledgerBalances(from: string | null, to: string): Promise<LedgerBa
       JOIN erp.accounts a ON a.id = l.account_id
      WHERE e.status IN ('POSTED', 'REVERSED')
        AND e.entry_date <= ${to}::date
+       AND (NOT ${excludeYearEndClose}::boolean OR e.kind <> 'YEAR_END_CLOSE')
      GROUP BY a.id, a.code, a.name, a.name_ar, a.type
      LIMIT ${MAX_REPORT_ACCOUNTS + 1}`;
 
@@ -153,8 +167,8 @@ export async function getTrialBalance(
 }
 
 /**
- * Revenue and expenses posted between two dates. Without `from`, the calendar year to
- * date — a display default until a fiscal year is configured (§29 #40).
+ * Revenue and expenses posted between two dates, leaving out year-end close entries.
+ * Without `from`, the fiscal year to date — the calendar year (ADR-027).
  */
 export async function getProfitAndLoss(
   actor: Actor,
@@ -162,7 +176,9 @@ export async function getProfitAndLoss(
 ): Promise<ProfitAndLoss> {
   await requireLedgerRead(actor);
   const { from, to } = reportDates(rawParams, (end) => `${end.slice(0, 4)}-01-01`);
-  const result = buildProfitAndLoss(await ledgerBalances(from, to));
+  const result = buildProfitAndLoss(
+    await ledgerBalances(from, to, { excludeYearEndClose: true }),
+  );
   return {
     from: from ?? to,
     to,

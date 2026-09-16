@@ -123,6 +123,7 @@ model ErpAccount {
 
   financeRetainedEarnings ErpFinanceSettings[] @relation("ErpFinanceRetainedEarnings")
   financeOpeningBalance   ErpFinanceSettings[] @relation("ErpFinanceOpeningBalance")
+  fiscalYearCloses        ErpFiscalYearClose[] @relation("ErpFiscalYearCloseRetained")
 
   @@index([parentId])
   @@index([type, code])
@@ -227,6 +228,9 @@ model ErpJournalEntry {
   arInvoiceVoid ErpArInvoice? @relation("ErpArInvoiceVoidJournal")
   arReceipt     ErpArReceipt? @relation("ErpArReceiptJournal")
   arReceiptVoid ErpArReceipt? @relation("ErpArReceiptVoidJournal")
+
+  fiscalYearClose  ErpFiscalYearClose? @relation("ErpFiscalYearCloseEntry")
+  fiscalYearReopen ErpFiscalYearClose? @relation("ErpFiscalYearReopenEntry")
 
   @@index([status, entryDate(sort: Desc)])
   @@index([entryDate(sort: Desc)])
@@ -592,5 +596,38 @@ model ErpFinanceSettings {
   openingBalanceAccount   ErpAccount? @relation("ErpFinanceOpeningBalance", fields: [openingBalanceAccountId], references: [id], onDelete: Restrict)
 
   @@map("finance_settings")
+  @@schema("erp")
+}
+
+// ---------------------------------------------------------------------------
+// Year-end close (ADR-028)
+// ---------------------------------------------------------------------------
+
+/// A calendar fiscal year closed into retained earnings. Reopening keeps the row as
+/// history; a partial unique index allows one live (not reopened) close per year.
+model ErpFiscalYearClose {
+  id                        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  year                      Int
+  /// The YEAR_END_CLOSE entry; null when nothing moved in the year's revenue or expenses.
+  journalEntryId            String?   @unique @map("journal_entry_id") @db.Uuid
+  /// The profit (positive) or loss (negative) moved into retained earnings.
+  netIncomeMinor            BigInt    @map("net_income_minor")
+  retainedEarningsAccountId String    @map("retained_earnings_account_id") @db.Uuid
+  closedAt                  DateTime  @default(now()) @map("closed_at") @db.Timestamptz(6)
+  closedBy                  String    @map("closed_by") @db.Uuid
+  reopenedAt                DateTime? @map("reopened_at") @db.Timestamptz(6)
+  reopenedBy                String?   @map("reopened_by") @db.Uuid
+  reopenReason              String?   @map("reopen_reason")
+  /// The reversal of the closing entry, posted when the year was reopened.
+  reopenJournalEntryId      String?   @unique @map("reopen_journal_entry_id") @db.Uuid
+
+  journalEntry            ErpJournalEntry? @relation("ErpFiscalYearCloseEntry", fields: [journalEntryId], references: [id], onDelete: Restrict)
+  reopenJournalEntry      ErpJournalEntry? @relation("ErpFiscalYearReopenEntry", fields: [reopenJournalEntryId], references: [id], onDelete: Restrict)
+  retainedEarningsAccount ErpAccount       @relation("ErpFiscalYearCloseRetained", fields: [retainedEarningsAccountId], references: [id], onDelete: Restrict)
+  closer                  User             @relation("ErpFiscalYearCloser", fields: [closedBy], references: [id], onDelete: Restrict)
+  reopener                User?            @relation("ErpFiscalYearReopener", fields: [reopenedBy], references: [id], onDelete: Restrict)
+
+  @@index([year])
+  @@map("fiscal_year_closes")
   @@schema("erp")
 }
