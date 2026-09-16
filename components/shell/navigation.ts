@@ -252,6 +252,19 @@ export const NAV_SECTIONS: readonly NavSection[] = [
   },
 ];
 
+/**
+ * The sections a set of `<module>.module.access` permissions reveals, in
+ * navigation order. Used by the Users screen to say what a role checkbox does
+ * (ADR-030); unbuilt modules name permissions that cannot be granted, so they
+ * never appear here either.
+ */
+export function sectionLabelsForAccessKeys(keys: readonly string[]): string[] {
+  const held = new Set(keys);
+  return NAV_SECTIONS.filter((section) => held.has(section.permission)).map(
+    (section) => section.label,
+  );
+}
+
 /** Every permission the shell needs to decide what to render, in one batch. */
 export function navigationPermissionKeys(): string[] {
   const keys = new Set<string>();

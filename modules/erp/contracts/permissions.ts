@@ -299,3 +299,26 @@ export const ERP_ACCOUNTANT_PERMISSIONS: readonly string[] = [
   ERP_PERMISSIONS.AR_CUSTOMER_READ,
   ERP_PERMISSIONS.AR_AGING_READ,
 ];
+
+/** Role key for the seeded ERP Finance section role. */
+export const ERP_USER_ROLE = "erp-user";
+
+/**
+ * What ticking "ERP Finance" gives someone: the section appears and they can read
+ * the books — the chart of accounts, journals, the financial reports, periods,
+ * cost centres, invoices, credit notes, receipts, customers and aging. Nothing
+ * writes. Recording and posting stays with the Accountant, and the controls with
+ * the Finance administrator (ADR-030).
+ */
+export const ERP_VIEWER_PERMISSIONS: readonly string[] = [
+  ERP_PERMISSIONS.ACCESS,
+  ERP_PERMISSIONS.ACCOUNT_READ,
+  ERP_PERMISSIONS.COST_CENTRE_READ,
+  ERP_PERMISSIONS.PERIOD_READ,
+  ERP_PERMISSIONS.JOURNAL_READ,
+  ERP_PERMISSIONS.AR_INVOICE_READ,
+  ERP_PERMISSIONS.AR_CREDIT_NOTE_READ,
+  ERP_PERMISSIONS.AR_RECEIPT_READ,
+  ERP_PERMISSIONS.AR_CUSTOMER_READ,
+  ERP_PERMISSIONS.AR_AGING_READ,
+];

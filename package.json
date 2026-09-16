@@ -27,7 +27,8 @@
     "db:studio": "dotenv -e .env.local -- prisma studio",
     "db:seed": "dotenv -e .env.local -- tsx prisma/seed.ts",
     "db:seed:crm": "dotenv -e .env.local -- tsx prisma/seed-crm.ts",
-    "db:bootstrap-admin": "dotenv -e .env.local -- tsx prisma/bootstrap-admin.ts"
+    "db:bootstrap-admin": "dotenv -e .env.local -- tsx prisma/bootstrap-admin.ts",
+    "db:backfill-section-roles": "dotenv -e .env.local -- tsx prisma/backfill-section-roles.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "5.9.1",

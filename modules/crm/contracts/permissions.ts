@@ -132,3 +132,23 @@ export const CRM_SALES_PERMISSIONS: readonly string[] = Object.values(
   (key) =>
     key !== CRM_PERMISSIONS.PIPELINE_ADMINISTER && !CRM_DELETE_PERMISSIONS.includes(key),
 );
+
+/** Role key for the seeded CRM section role. */
+export const CRM_USER_ROLE = "crm-user";
+
+/**
+ * What ticking "CRM" gives someone: the section appears, they can see every kind
+ * of record in it, and they can log a call, a meeting, a note or a task against
+ * one. Creating and editing leads, companies, contacts and deals stays with the
+ * Sales role, so the section role is safe to hand out widely (ADR-030).
+ */
+export const CRM_MEMBER_PERMISSIONS: readonly string[] = [
+  CRM_PERMISSIONS.ACCESS,
+  CRM_PERMISSIONS.LEAD_READ,
+  CRM_PERMISSIONS.ACCOUNT_READ,
+  CRM_PERMISSIONS.CONTACT_READ,
+  CRM_PERMISSIONS.OPPORTUNITY_READ,
+  CRM_PERMISSIONS.ACTIVITY_READ,
+  CRM_PERMISSIONS.ACTIVITY_CREATE,
+  CRM_PERMISSIONS.ACTIVITY_UPDATE,
+];

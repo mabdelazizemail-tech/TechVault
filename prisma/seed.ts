@@ -1,18 +1,12 @@
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 import { config as loadEnv } from "dotenv";
-import { PERMISSION_CATALOGUE, findDuplicatePermissionKeys } from "../modules/catalogue";
 import {
-  CRM_SALES_PERMISSIONS,
-  CRM_SALES_ROLE,
-} from "../modules/crm/contracts/permissions";
+  PERMISSION_CATALOGUE,
+  SYSTEM_ROLE_DEFINITIONS,
+  findDuplicatePermissionKeys,
+} from "../modules/catalogue";
 import { DEFAULT_STAGES } from "../modules/crm/domain/pipeline";
-import {
-  ERP_ACCOUNTANT_PERMISSIONS,
-  ERP_ACCOUNTANT_ROLE,
-  ERP_FINANCE_ADMIN_PERMISSIONS,
-  ERP_FINANCE_ADMIN_ROLE,
-} from "../modules/erp/contracts/permissions";
 import {
   DEFAULT_CHART,
   DEFAULT_OPENING_BALANCE_ACCOUNT_CODE,
@@ -24,18 +18,7 @@ import {
   DEFAULT_RECEIVABLE_ACCOUNT_CODE,
 } from "../modules/erp/domain/ar-defaults";
 import { DEFAULT_NORMAL_BALANCE } from "../modules/erp/contracts/types";
-import { MESSAGING_MEMBER_PERMISSIONS } from "../modules/messaging/contracts/permissions";
-import {
-  INNOVATION_ADMIN_PERMISSIONS,
-  INNOVATION_ADMIN_ROLE,
-  INNOVATION_MEMBER_PERMISSIONS,
-} from "../modules/innovation/contracts/permissions";
 import { INNOVATION_DEFAULT_CATEGORIES } from "../modules/innovation/domain/categories";
-import {
-  IAM_PERMISSIONS,
-  PLATFORM_PERMISSIONS,
-  SYSTEM_ROLES,
-} from "../platform/iam/permissions";
 
 /**
  * Seeds the permission catalogue, the system roles and the root organisational
@@ -59,89 +42,6 @@ if (connectionString === undefined || connectionString === "") {
 }
 
 const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString }) });
-
-/** Which permissions each system role grants. */
-const ROLE_DEFINITIONS: Record<
-  string,
-  { name: string; description: string; permissions: string[] }
-> = {
-  [SYSTEM_ROLES.PLATFORM_ADMIN]: {
-    name: "Platform administrator",
-    description:
-      "Full administrative control, including granting roles. Assign sparingly — this role can change what everyone else may do.",
-    // Every permission in the catalogue, explicitly. There is no implication
-    // between actions in the evaluator, so an admin role must enumerate them.
-    permissions: PERMISSION_CATALOGUE.map((permission) => permission.key),
-  },
-  [SYSTEM_ROLES.IAM_ADMIN]: {
-    name: "Identity administrator",
-    description: "Manages users, roles and organisational structure.",
-    permissions: [
-      IAM_PERMISSIONS.ACCESS,
-      IAM_PERMISSIONS.USER_READ,
-      IAM_PERMISSIONS.USER_CREATE,
-      IAM_PERMISSIONS.USER_UPDATE,
-      IAM_PERMISSIONS.USER_ADMINISTER,
-      IAM_PERMISSIONS.ROLE_READ,
-      IAM_PERMISSIONS.PERMISSION_READ,
-      IAM_PERMISSIONS.ORG_UNIT_READ,
-      IAM_PERMISSIONS.ORG_UNIT_CREATE,
-      IAM_PERMISSIONS.ORG_UNIT_UPDATE,
-      IAM_PERMISSIONS.GROUP_READ,
-      IAM_PERMISSIONS.GROUP_ADMINISTER,
-      IAM_PERMISSIONS.LOGIN_HISTORY_READ,
-    ],
-  },
-  [SYSTEM_ROLES.AUDITOR]: {
-    name: "Auditor",
-    description:
-      "Read-only access to the audit trail and access configuration. Cannot change anything — which is what makes the role useful for assurance.",
-    permissions: [
-      IAM_PERMISSIONS.ACCESS,
-      IAM_PERMISSIONS.USER_READ,
-      IAM_PERMISSIONS.ROLE_READ,
-      IAM_PERMISSIONS.PERMISSION_READ,
-      IAM_PERMISSIONS.ORG_UNIT_READ,
-      IAM_PERMISSIONS.LOGIN_HISTORY_READ,
-      PLATFORM_PERMISSIONS.AUDIT_READ,
-      PLATFORM_PERMISSIONS.AUDIT_EXPORT,
-    ],
-  },
-  [CRM_SALES_ROLE]: {
-    name: "Sales",
-    description:
-      "Works leads, contacts, companies and opportunities, and logs activity. Cannot change how the pipeline is configured.",
-    permissions: [
-      ...CRM_SALES_PERMISSIONS,
-      ...MESSAGING_MEMBER_PERMISSIONS,
-      ...INNOVATION_MEMBER_PERMISSIONS,
-    ],
-  },
-  [INNOVATION_ADMIN_ROLE]: {
-    name: "Think Tank admin",
-    description:
-      "Manages THE THINK TANK: reviews and assigns ideas, curates knowledge, runs projects and maintains categories.",
-    permissions: [...INNOVATION_ADMIN_PERMISSIONS, ...MESSAGING_MEMBER_PERMISSIONS],
-  },
-  [ERP_FINANCE_ADMIN_ROLE]: {
-    name: "Finance administrator",
-    description:
-      "Runs ERP finance: the chart of accounts, cost centres, accounting periods (including closing and reopening them) and the journal.",
-    permissions: [...ERP_FINANCE_ADMIN_PERMISSIONS, ...MESSAGING_MEMBER_PERMISSIONS],
-  },
-  [ERP_ACCOUNTANT_ROLE]: {
-    name: "Accountant",
-    description:
-      "Records, posts and reverses journal entries and maintains accounts and cost centres. Cannot create, close or reopen accounting periods, or deactivate accounts.",
-    permissions: [...ERP_ACCOUNTANT_PERMISSIONS, ...MESSAGING_MEMBER_PERMISSIONS],
-  },
-  [SYSTEM_ROLES.EMPLOYEE]: {
-    name: "Employee",
-    description:
-      "The baseline role every member of staff receives: messaging with colleagues, and no administrative access. Module access is added by assigning further roles.",
-    permissions: [...MESSAGING_MEMBER_PERMISSIONS, ...INNOVATION_MEMBER_PERMISSIONS],
-  },
-};
 
 async function main(): Promise<void> {
   const duplicates = findDuplicatePermissionKeys();
@@ -183,7 +83,8 @@ async function main(): Promise<void> {
   });
 
   process.stdout.write("Seeding system roles…\n");
-  for (const [key, definition] of Object.entries(ROLE_DEFINITIONS)) {
+  for (const definition of SYSTEM_ROLE_DEFINITIONS) {
+    const key = definition.key;
     const role = await prisma.role.upsert({
       where: { key },
       create: {
@@ -197,7 +98,7 @@ async function main(): Promise<void> {
     });
 
     const permissions = await prisma.permission.findMany({
-      where: { key: { in: definition.permissions } },
+      where: { key: { in: [...definition.permissions] } },
       select: { id: true, key: true },
     });
 

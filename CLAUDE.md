@@ -2086,6 +2086,21 @@ nothing outstanding; credit notes carry no link back to individual invoice lines
 amounts rather than picked per line. _Revisit when:_ credit notes must stand alone (not against one invoice), or
 Egyptian e-invoicing requires credit-note reporting.
 
+**ADR-030 — Section roles: one checkbox per navigation section.** _Context:_ the owner asked that ticking a role in
+"Change role" shows the matching section — "if I select Amr as CRM user he will see the CRM section". Sections were
+reachable only through job roles (Sales, Accountant, Finance administrator), and `employee` and `sales` also carried
+The Think Tank, so no checkbox could hide it. _Decision:_ (1) Three section roles, named after their sections:
+`crm-user` "CRM" (view every CRM record and log calls, meetings, notes and tasks — creating and editing records stays
+with Sales), `erp-user` "ERP Finance" (read-only books and receivables) and `think-tank-user` "The Think Tank" (today's
+member tier). The owner chose "view and log, not edit". (2) `employee` is now messaging only and `sales` no longer
+includes The Think Tank; `npm run db:backfill-section-roles -- --apply` grants `think-tank-user` to everyone holding
+either, so nobody loses access — run it immediately after the seed. (3) System role definitions moved from
+`prisma/seed.ts` to `modules/catalogue.ts` (`SYSTEM_ROLE_DEFINITIONS`) so tests can check them. (4) The role checklist
+shows under each role which sections it reveals, from the role's `*.module.access` permissions. No migration.
+_Consequences:_ new staff need Employee plus each section role; the seed reconciles permissions, so seeding without the
+backfill removes The Think Tank from existing employees until the backfill runs. _Revisit when:_ ECM, HRIS or BI ship
+(add their section role), or sections need scoped rather than organisation-wide grants.
+
 ---
 
 ## 28. Current Implementation Status

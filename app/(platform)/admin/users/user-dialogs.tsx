@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition, type FormEvent, type ReactNode } from "react";
+import { sectionLabelsForAccessKeys } from "@/components/shell/navigation";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogActions } from "@/components/ui/dialog";
 import {
@@ -75,6 +76,22 @@ const LANGUAGE_OPTIONS: Option[] = [
   { value: "ar", label: "العربية (Arabic)" },
 ];
 
+/**
+ * What ticking a role actually reveals in the sidebar, so an administrator is not
+ * guessing from the role name (ADR-030). A role that unlocks no section — the
+ * baseline Employee — says so rather than showing nothing.
+ */
+function RoleSections({ accessKeys }: { accessKeys: string[] }) {
+  const sections = sectionLabelsForAccessKeys(accessKeys);
+  return (
+    <span className="text-foreground-muted block text-xs">
+      {sections.length === 0
+        ? "Messages only — no section"
+        : `Shows: ${sections.join(", ")}`}
+    </span>
+  );
+}
+
 function RoleChecklist({
   selected,
   onChange,
@@ -114,6 +131,7 @@ function RoleChecklist({
                 <span className="min-w-0">
                   <span className="font-extrabold">{role.name}</span>{" "}
                   <span className="text-foreground-subtle text-xs">{role.key}</span>
+                  <RoleSections accessKeys={role.accessKeys} />
                 </span>
               }
             />

@@ -110,3 +110,10 @@ export const INNOVATION_ADMIN_ROLE = "think-tank-admin";
 /** Everything in THE THINK TANK. */
 export const INNOVATION_ADMIN_PERMISSIONS: readonly string[] =
   Object.values(INNOVATION_PERMISSIONS);
+
+/**
+ * Role key for the seeded Think Tank section role — the member tier above, as its
+ * own checkbox. Until ADR-030 these permissions rode along with `employee`, which
+ * meant unticking nothing could hide the section.
+ */
+export const INNOVATION_MEMBER_ROLE = "think-tank-user";

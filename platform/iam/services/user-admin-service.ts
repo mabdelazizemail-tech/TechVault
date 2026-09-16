@@ -221,9 +221,23 @@ export async function syncSignInBan(
 /* Filter options ---------------------------------------------------------- */
 
 export type UserAdminOptions = {
-  roles: { id: string; key: string; name: string }[];
+  roles: {
+    id: string;
+    key: string;
+    name: string;
+    /**
+     * The `<module>.module.access` permissions this role grants. The Users screen
+     * turns them into the list of sections the role reveals, so an administrator
+     * can see what a checkbox does before ticking it (ADR-030). Kept as plain
+     * keys because platform services may not import domain modules.
+     */
+    accessKeys: string[];
+  }[];
   units: { id: string; name: string; depth: number }[];
 };
+
+/** Permissions shaped `<module>.module.access` gate a navigation section. */
+const MODULE_ACCESS_SUFFIX = ".module.access";
 
 /** The roles and units the list filters and forms offer. Small, bounded lists. */
 export async function listUserAdminOptions(actor: Actor): Promise<UserAdminOptions> {
@@ -234,7 +248,15 @@ export async function listUserAdminOptions(actor: Actor): Promise<UserAdminOptio
       where: { deletedAt: null, isActive: true },
       orderBy: [{ isSystem: "desc" }, { name: "asc" }],
       take: 200,
-      select: { id: true, key: true, name: true },
+      select: {
+        id: true,
+        key: true,
+        name: true,
+        permissions: {
+          where: { permission: { key: { endsWith: MODULE_ACCESS_SUFFIX } } },
+          select: { permission: { select: { key: true } } },
+        },
+      },
     }),
     prisma.organizationalUnit.findMany({
       where: { deletedAt: null, isActive: true },
@@ -244,7 +266,15 @@ export async function listUserAdminOptions(actor: Actor): Promise<UserAdminOptio
     }),
   ]);
 
-  return { roles, units };
+  return {
+    roles: roles.map((role) => ({
+      id: role.id,
+      key: role.key,
+      name: role.name,
+      accessKeys: role.permissions.map((link) => link.permission.key),
+    })),
+    units,
+  };
 }
 
 /* Create ------------------------------------------------------------------ */
