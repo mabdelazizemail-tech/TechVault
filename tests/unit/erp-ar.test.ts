@@ -7,6 +7,7 @@ import {
 } from "@/modules/erp/contracts/permissions";
 import {
   arAllocationSchema,
+  arCreditNoteDraftSchema,
   arInvoiceDraftSchema,
   arSettingsSchema,
   taxRateSchema,
@@ -355,5 +356,53 @@ describe("AR permissions and roles", () => {
       expect(ERP_FINANCE_ADMIN_PERMISSIONS).toContain(control);
     }
     expect(ERP_ACCOUNTANT_PERMISSIONS).toContain(ERP_PERMISSIONS.AR_RECEIPT_ALLOCATE);
+  });
+});
+
+describe("credit notes (ADR-029)", () => {
+  const line = {
+    description: "Goods returned",
+    quantity: "1",
+    unitPrice: "1,000",
+    discount: "",
+    taxRateId: "",
+    revenueAccountId: "11111111-1111-4111-8111-111111111111",
+  };
+  const draft = {
+    invoiceId: "22222222-2222-4222-8222-222222222222",
+    creditNoteDate: "2026-09-15",
+    reason: "Goods returned",
+    lines: [line],
+  };
+
+  it("needs an invoice, a reason and at least one line", () => {
+    expect(arCreditNoteDraftSchema.safeParse(draft).success).toBe(true);
+    expect(arCreditNoteDraftSchema.safeParse({ ...draft, invoiceId: "" }).success).toBe(
+      false,
+    );
+    expect(arCreditNoteDraftSchema.safeParse({ ...draft, reason: "  " }).success).toBe(
+      false,
+    );
+    expect(arCreditNoteDraftSchema.safeParse({ ...draft, lines: [] }).success).toBe(
+      false,
+    );
+  });
+
+  it("lets accountants raise and post credit notes, but not approve or void them", () => {
+    for (const held of [
+      ERP_PERMISSIONS.AR_CREDIT_NOTE_READ,
+      ERP_PERMISSIONS.AR_CREDIT_NOTE_CREATE,
+      ERP_PERMISSIONS.AR_CREDIT_NOTE_UPDATE,
+      ERP_PERMISSIONS.AR_CREDIT_NOTE_POST,
+    ]) {
+      expect(ERP_ACCOUNTANT_PERMISSIONS, held).toContain(held);
+    }
+    for (const control of [
+      ERP_PERMISSIONS.AR_CREDIT_NOTE_APPROVE,
+      ERP_PERMISSIONS.AR_CREDIT_NOTE_CANCEL,
+    ]) {
+      expect(ERP_ACCOUNTANT_PERMISSIONS, control).not.toContain(control);
+      expect(ERP_FINANCE_ADMIN_PERMISSIONS, control).toContain(control);
+    }
   });
 });

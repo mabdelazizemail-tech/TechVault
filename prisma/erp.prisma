@@ -112,14 +112,16 @@ model ErpAccount {
   children ErpAccount[]     @relation("ErpAccountTree")
   lines    ErpJournalLine[]
 
-  arSettingsDefaults    ErpArSettings[]        @relation("ErpArDefaultReceivable")
-  taxRates              ErpTaxRate[]           @relation("ErpTaxRateAccount")
-  paymentMethodDeposits ErpPaymentMethod[]     @relation("ErpPaymentMethodDeposit")
-  arProfiles            ErpArCustomerProfile[] @relation("ErpArProfileReceivable")
-  arInvoicesReceivable  ErpArInvoice[]         @relation("ErpArInvoiceReceivable")
-  arInvoiceLines        ErpArInvoiceLine[]     @relation("ErpArInvoiceLineRevenue")
-  arReceiptsDeposit     ErpArReceipt[]         @relation("ErpArReceiptDeposit")
-  arReceiptsReceivable  ErpArReceipt[]         @relation("ErpArReceiptReceivable")
+  arSettingsDefaults      ErpArSettings[]        @relation("ErpArDefaultReceivable")
+  taxRates                ErpTaxRate[]           @relation("ErpTaxRateAccount")
+  paymentMethodDeposits   ErpPaymentMethod[]     @relation("ErpPaymentMethodDeposit")
+  arProfiles              ErpArCustomerProfile[] @relation("ErpArProfileReceivable")
+  arInvoicesReceivable    ErpArInvoice[]         @relation("ErpArInvoiceReceivable")
+  arInvoiceLines          ErpArInvoiceLine[]     @relation("ErpArInvoiceLineRevenue")
+  arReceiptsDeposit       ErpArReceipt[]         @relation("ErpArReceiptDeposit")
+  arReceiptsReceivable    ErpArReceipt[]         @relation("ErpArReceiptReceivable")
+  arCreditNotesReceivable ErpArCreditNote[]      @relation("ErpArCreditNoteReceivable")
+  arCreditNoteLines       ErpArCreditNoteLine[]  @relation("ErpArCreditNoteLineRevenue")
 
   financeRetainedEarnings ErpFinanceSettings[] @relation("ErpFinanceRetainedEarnings")
   financeOpeningBalance   ErpFinanceSettings[] @relation("ErpFinanceOpeningBalance")
@@ -145,10 +147,11 @@ model ErpCostCentre {
   createdBy String?  @map("created_by") @db.Uuid
   updatedBy String?  @map("updated_by") @db.Uuid
 
-  parent         ErpCostCentre?     @relation("ErpCostCentreTree", fields: [parentId], references: [id], onDelete: Restrict)
-  children       ErpCostCentre[]    @relation("ErpCostCentreTree")
-  lines          ErpJournalLine[]
-  arInvoiceLines ErpArInvoiceLine[]
+  parent            ErpCostCentre?        @relation("ErpCostCentreTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children          ErpCostCentre[]       @relation("ErpCostCentreTree")
+  lines             ErpJournalLine[]
+  arInvoiceLines    ErpArInvoiceLine[]
+  arCreditNoteLines ErpArCreditNoteLine[]
 
   @@index([parentId])
   @@index([isActive])
@@ -174,11 +177,12 @@ model ErpFiscalPeriod {
   createdBy String?  @map("created_by") @db.Uuid
   updatedBy String?  @map("updated_by") @db.Uuid
 
-  closer     User?             @relation("ErpPeriodCloser", fields: [closedBy], references: [id], onDelete: Restrict)
-  reopener   User?             @relation("ErpPeriodReopener", fields: [reopenedBy], references: [id], onDelete: Restrict)
-  entries    ErpJournalEntry[]
-  arInvoices ErpArInvoice[]
-  arReceipts ErpArReceipt[]
+  closer        User?             @relation("ErpPeriodCloser", fields: [closedBy], references: [id], onDelete: Restrict)
+  reopener      User?             @relation("ErpPeriodReopener", fields: [reopenedBy], references: [id], onDelete: Restrict)
+  entries       ErpJournalEntry[]
+  arInvoices    ErpArInvoice[]
+  arReceipts    ErpArReceipt[]
+  arCreditNotes ErpArCreditNote[]
 
   @@index([startDate])
   @@index([status])
@@ -228,6 +232,9 @@ model ErpJournalEntry {
   arInvoiceVoid ErpArInvoice? @relation("ErpArInvoiceVoidJournal")
   arReceipt     ErpArReceipt? @relation("ErpArReceiptJournal")
   arReceiptVoid ErpArReceipt? @relation("ErpArReceiptVoidJournal")
+
+  arCreditNote     ErpArCreditNote? @relation("ErpArCreditNoteJournal")
+  arCreditNoteVoid ErpArCreditNote? @relation("ErpArCreditNoteVoidJournal")
 
   fiscalYearClose  ErpFiscalYearClose? @relation("ErpFiscalYearCloseEntry")
   fiscalYearReopen ErpFiscalYearClose? @relation("ErpFiscalYearReopenEntry")
@@ -354,8 +361,9 @@ model ErpTaxRate {
   createdBy String?  @map("created_by") @db.Uuid
   updatedBy String?  @map("updated_by") @db.Uuid
 
-  taxAccount   ErpAccount         @relation("ErpTaxRateAccount", fields: [taxAccountId], references: [id], onDelete: Restrict)
-  invoiceLines ErpArInvoiceLine[]
+  taxAccount      ErpAccount            @relation("ErpTaxRateAccount", fields: [taxAccountId], references: [id], onDelete: Restrict)
+  invoiceLines    ErpArInvoiceLine[]
+  creditNoteLines ErpArCreditNoteLine[]
 
   @@index([isActive])
   @@map("tax_rates")
@@ -424,6 +432,8 @@ model ErpArInvoice {
   paidMinor           BigInt             @default(0) @map("paid_minor")
   /// total − paid while the invoice is in the ledger; 0 otherwise.
   outstandingMinor    BigInt             @default(0) @map("outstanding_minor")
+  /// Credited by posted credit notes (ADR-029), maintained by their trigger.
+  creditedMinor       BigInt             @default(0) @map("credited_minor")
   reference           String?
   notes               String?
   receivableAccountId String             @map("receivable_account_id") @db.Uuid
@@ -460,6 +470,7 @@ model ErpArInvoice {
   poster            User?                    @relation("ErpArInvoicePoster", fields: [postedBy], references: [id], onDelete: Restrict)
   lines             ErpArInvoiceLine[]
   allocations       ErpArReceiptAllocation[]
+  creditNotes       ErpArCreditNote[]
 
   @@index([crmAccountId, status])
   @@index([status, invoiceDate(sort: Desc)])
@@ -629,5 +640,116 @@ model ErpFiscalYearClose {
 
   @@index([year])
   @@map("fiscal_year_closes")
+  @@schema("erp")
+}
+
+// ---------------------------------------------------------------------------
+// Credit notes (ADR-029)
+// ---------------------------------------------------------------------------
+
+/// DRAFT → PENDING_APPROVAL → APPROVED → POSTED, or CANCELLED (before posting, or
+/// voided by reversal).
+enum ErpArCreditNoteStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  POSTED
+  CANCELLED
+
+  @@schema("erp")
+}
+
+/// A correction against ONE posted invoice, for at most what that invoice still owes.
+/// Posting it reduces the invoice's outstanding amount through a database trigger.
+model ErpArCreditNote {
+  id                  String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  /// Assigned at posting from the AR_CREDIT_NOTE number series.
+  creditNoteNumber    String?               @unique @map("credit_note_number")
+  invoiceId           String                @map("invoice_id") @db.Uuid
+  /// Copied from the invoice, so lists and balances need no join to filter by customer.
+  crmAccountId        String                @map("crm_account_id") @db.Uuid
+  creditNoteDate      DateTime              @map("credit_note_date") @db.Date
+  currency            String                @default("EGP") @db.Char(3)
+  status              ErpArCreditNoteStatus @default(DRAFT)
+  subtotalMinor       BigInt                @default(0) @map("subtotal_minor")
+  discountMinor       BigInt                @default(0) @map("discount_minor")
+  taxMinor            BigInt                @default(0) @map("tax_minor")
+  totalMinor          BigInt                @default(0) @map("total_minor")
+  reason              String
+  notes               String?
+  receivableAccountId String                @map("receivable_account_id") @db.Uuid
+  fiscalPeriodId      String?               @map("fiscal_period_id") @db.Uuid
+  journalEntryId      String?               @unique @map("journal_entry_id") @db.Uuid
+  voidJournalEntryId  String?               @unique @map("void_journal_entry_id") @db.Uuid
+
+  submittedAt     DateTime? @map("submitted_at") @db.Timestamptz(6)
+  submittedBy     String?   @map("submitted_by") @db.Uuid
+  approvalSkipped Boolean   @default(false) @map("approval_skipped")
+  approvedAt      DateTime? @map("approved_at") @db.Timestamptz(6)
+  approvedBy      String?   @map("approved_by") @db.Uuid
+  rejectedAt      DateTime? @map("rejected_at") @db.Timestamptz(6)
+  rejectedBy      String?   @map("rejected_by") @db.Uuid
+  rejectionReason String?   @map("rejection_reason")
+  postedAt        DateTime? @map("posted_at") @db.Timestamptz(6)
+  postedBy        String?   @map("posted_by") @db.Uuid
+  cancelledAt     DateTime? @map("cancelled_at") @db.Timestamptz(6)
+  cancelledBy     String?   @map("cancelled_by") @db.Uuid
+  cancelReason    String?   @map("cancel_reason")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy String   @map("created_by") @db.Uuid
+  updatedBy String?  @map("updated_by") @db.Uuid
+
+  invoice           ErpArInvoice          @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+  receivableAccount ErpAccount            @relation("ErpArCreditNoteReceivable", fields: [receivableAccountId], references: [id], onDelete: Restrict)
+  period            ErpFiscalPeriod?      @relation(fields: [fiscalPeriodId], references: [id], onDelete: Restrict)
+  journalEntry      ErpJournalEntry?      @relation("ErpArCreditNoteJournal", fields: [journalEntryId], references: [id], onDelete: Restrict)
+  voidJournalEntry  ErpJournalEntry?      @relation("ErpArCreditNoteVoidJournal", fields: [voidJournalEntryId], references: [id], onDelete: Restrict)
+  creator           User                  @relation("ErpArCreditNoteCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+  approver          User?                 @relation("ErpArCreditNoteApprover", fields: [approvedBy], references: [id], onDelete: Restrict)
+  poster            User?                 @relation("ErpArCreditNotePoster", fields: [postedBy], references: [id], onDelete: Restrict)
+  lines             ErpArCreditNoteLine[]
+
+  @@index([invoiceId])
+  @@index([crmAccountId, status])
+  @@index([status, creditNoteDate(sort: Desc)])
+  @@index([creditNoteDate(sort: Desc)])
+  @@index([fiscalPeriodId])
+  @@index([createdBy])
+  @@map("ar_credit_notes")
+  @@schema("erp")
+}
+
+model ErpArCreditNoteLine {
+  id                 String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  creditNoteId       String  @map("credit_note_id") @db.Uuid
+  lineNo             Int     @map("line_no")
+  description        String
+  quantity           Decimal @db.Decimal(18, 4)
+  unitPriceMinor     BigInt  @map("unit_price_minor")
+  grossMinor         BigInt  @map("gross_minor")
+  discountMinor      BigInt  @default(0) @map("discount_minor")
+  netMinor           BigInt  @map("net_minor")
+  taxRateId          String? @map("tax_rate_id") @db.Uuid
+  taxRateBasisPoints Int?    @map("tax_rate_basis_points")
+  taxMinor           BigInt  @default(0) @map("tax_minor")
+  totalMinor         BigInt  @map("total_minor")
+  revenueAccountId   String  @map("revenue_account_id") @db.Uuid
+  costCentreId       String? @map("cost_centre_id") @db.Uuid
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  creditNote     ErpArCreditNote @relation(fields: [creditNoteId], references: [id], onDelete: Cascade)
+  taxRate        ErpTaxRate?     @relation(fields: [taxRateId], references: [id], onDelete: Restrict)
+  revenueAccount ErpAccount      @relation("ErpArCreditNoteLineRevenue", fields: [revenueAccountId], references: [id], onDelete: Restrict)
+  costCentre     ErpCostCentre?  @relation(fields: [costCentreId], references: [id], onDelete: Restrict)
+
+  @@unique([creditNoteId, lineNo])
+  @@index([revenueAccountId])
+  @@index([taxRateId])
+  @@index([costCentreId])
+  @@map("ar_credit_note_lines")
   @@schema("erp")
 }

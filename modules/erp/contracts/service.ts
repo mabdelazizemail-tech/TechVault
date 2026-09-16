@@ -82,6 +82,20 @@ export {
 export { getAgingReport } from "../services/finance/ar/aging-service";
 
 export {
+  approveCreditNote,
+  cancelCreditNote,
+  createCreditNote,
+  deleteCreditNote,
+  getCreditNote,
+  getCreditableInvoice,
+  listCreditNotes,
+  postCreditNote,
+  rejectCreditNote,
+  submitCreditNote,
+  updateCreditNote,
+} from "../services/finance/ar/credit-note-service";
+
+export {
   approveInvoice,
   cancelInvoice,
   createInvoice,

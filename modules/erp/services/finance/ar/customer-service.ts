@@ -79,7 +79,7 @@ export async function listArCustomers(
   >`
     WITH invoices AS (
       SELECT crm_account_id,
-             sum(total_minor)::bigint AS invoiced,
+             sum(total_minor - credited_minor)::bigint AS invoiced,
              sum(outstanding_minor)::bigint AS outstanding,
              coalesce(sum(outstanding_minor) FILTER (WHERE due_date < ${today}::date), 0)::bigint AS overdue,
              count(*) FILTER (WHERE outstanding_minor > 0) AS open_invoices,
@@ -171,7 +171,7 @@ export async function getArCustomer(
       }[]
     >`
       SELECT
-        (SELECT coalesce(sum(total_minor), 0)::bigint FROM erp.ar_invoices
+        (SELECT coalesce(sum(total_minor - credited_minor), 0)::bigint FROM erp.ar_invoices
           WHERE crm_account_id = ${crmAccountId}::uuid AND status IN ('POSTED', 'PARTIALLY_PAID', 'PAID')) AS invoiced,
         (SELECT coalesce(sum(amount_minor), 0)::bigint FROM erp.ar_receipts
           WHERE crm_account_id = ${crmAccountId}::uuid AND status = 'POSTED') AS received,
@@ -182,13 +182,13 @@ export async function getArCustomer(
             AND due_date < ${today}::date) AS overdue,
         (SELECT coalesce(sum(amount_minor - allocated_minor), 0)::bigint FROM erp.ar_receipts
           WHERE crm_account_id = ${crmAccountId}::uuid AND status = 'POSTED') AS unapplied,
-        (SELECT coalesce(sum(total_minor), 0)::bigint FROM erp.ar_invoices
+        (SELECT coalesce(sum(total_minor - credited_minor), 0)::bigint FROM erp.ar_invoices
           WHERE crm_account_id = ${crmAccountId}::uuid AND status IN ('POSTED', 'PARTIALLY_PAID', 'PAID')
             AND ${from}::date IS NOT NULL AND invoice_date < ${from}::date) AS opening_invoiced,
         (SELECT coalesce(sum(amount_minor), 0)::bigint FROM erp.ar_receipts
           WHERE crm_account_id = ${crmAccountId}::uuid AND status = 'POSTED'
             AND ${from}::date IS NOT NULL AND receipt_date < ${from}::date) AS opening_received,
-        (SELECT coalesce(sum(total_minor), 0)::bigint FROM erp.ar_invoices
+        (SELECT coalesce(sum(total_minor - credited_minor), 0)::bigint FROM erp.ar_invoices
           WHERE crm_account_id = ${crmAccountId}::uuid AND status IN ('POSTED', 'PARTIALLY_PAID', 'PAID')
             AND (${from}::date IS NULL OR invoice_date >= ${from}::date)
             AND (${to}::date IS NULL OR invoice_date <= ${to}::date)) AS period_invoiced,

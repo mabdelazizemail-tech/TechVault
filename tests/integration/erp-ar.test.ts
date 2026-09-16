@@ -13,11 +13,14 @@ import {
 } from "@/modules/erp/contracts/permissions";
 import {
   allocateReceipt,
+  approveCreditNote,
   approveInvoice,
+  cancelCreditNote,
   cancelInvoice,
   cancelReceipt,
   closePeriod,
   createAccount,
+  createCreditNote,
   createInvoice,
   createPeriod,
   createReceipt,
@@ -25,15 +28,19 @@ import {
   getAccount,
   getAgingReport,
   getArCustomer,
+  getCreditNote,
   getInvoice,
   getJournal,
   getReceipt,
   listArCustomers,
+  listCreditNotes,
   listInvoices,
+  postCreditNote,
   postInvoice,
   postReceipt,
   rejectInvoice,
   reverseJournal,
+  submitCreditNote,
   submitInvoice,
   unallocateReceipt,
   updateArCustomerProfile,
@@ -824,6 +831,239 @@ describe.skipIf(!hasTestDatabase)("ERP accounts receivable (integration)", () =>
   });
 
   /* ========================================================================== */
+
+  describe("credit notes (ADR-029)", () => {
+    /** Create → submit (accountant) → approve (admin) → post (accountant). */
+    const postedCreditNote = async (
+      invoiceId: string,
+      amount: string,
+      overrides: Record<string, unknown> = {},
+    ) => {
+      const { id } = await createCreditNote(as(accountant), {
+        invoiceId,
+        creditNoteDate: "2026-09-15",
+        reason: "Goods returned",
+        lines: [
+          {
+            description: "Goods returned",
+            quantity: "1",
+            unitPrice: amount,
+            discount: "",
+            taxRateId: "",
+            revenueAccountId: sales,
+          },
+        ],
+        ...overrides,
+      });
+      await submitCreditNote(as(accountant), id);
+      await approveCreditNote(as(admin), id);
+      return { id, ...(await postCreditNote(as(accountant), id)) };
+    };
+
+    it("credits a posted invoice: revenue comes back out, and the invoice owes less", async () => {
+      const invoice = await postedInvoice(simpleInvoice("100,000"));
+      const credit = await postedCreditNote(invoice.id, "20,000");
+      expect(credit.creditNoteNumber).toBe("CRN-2026-000001");
+
+      const detail = await getCreditNote(as(admin), credit.id);
+      expect([detail.status, detail.totalMinor, detail.invoice.id]).toEqual([
+        "POSTED",
+        2_000_000,
+        invoice.id,
+      ]);
+      const journal = await getJournal(as(admin), detail.journal?.id ?? "");
+      expect(journal.source).toEqual({
+        module: "erp",
+        type: "ar_credit_note",
+        id: credit.id,
+      });
+      expect(
+        journal.lines.map((line) => [
+          line.account.code,
+          line.debitMinor,
+          line.creditMinor,
+        ]),
+      ).toEqual([
+        ["4100", 2_000_000, 0],
+        ["1200", 0, 2_000_000],
+      ]);
+
+      const credited = await getInvoice(as(viewer), invoice.id);
+      expect([
+        credited.creditedMinor,
+        credited.outstandingMinor,
+        credited.status,
+      ]).toEqual([2_000_000, 8_000_000, "POSTED"]);
+      const customer = await getArCustomer(as(viewer), acme);
+      expect([customer.invoicedMinor, customer.balanceMinor]).toEqual([
+        8_000_000, 8_000_000,
+      ]);
+      // The subledger still equals the receivables account in the ledger.
+      expect((await getAccount(as(admin), receivables)).totals.balanceMinor).toBe(
+        8_000_000,
+      );
+      expect(await outbox("erp.ARCreditNotePosted")).toHaveLength(1);
+    });
+
+    it("never credits more than the invoice still owes — in the service and in the database", async () => {
+      const invoice = await postedInvoice(simpleInvoice("10,000"));
+      const tooBig = await failure(
+        createCreditNote(as(accountant), {
+          invoiceId: invoice.id,
+          creditNoteDate: "2026-09-15",
+          reason: "Too much",
+          lines: [
+            {
+              description: "Goods",
+              quantity: "1",
+              unitPrice: "12,000",
+              discount: "",
+              taxRateId: "",
+              revenueAccountId: sales,
+            },
+          ],
+        }),
+      );
+      expect(tooBig).toBeInstanceOf(BusinessRuleError);
+      expect(tooBig.message).toMatch(/still outstanding/);
+
+      await postedCreditNote(invoice.id, "6,000");
+      expect((await getInvoice(as(viewer), invoice.id)).outstandingMinor).toBe(400_000);
+
+      // A second credit note is measured against what is left.
+      expect(
+        (
+          await failure(
+            createCreditNote(as(accountant), {
+              invoiceId: invoice.id,
+              creditNoteDate: "2026-09-15",
+              reason: "Again",
+              lines: [
+                {
+                  description: "Goods",
+                  quantity: "1",
+                  unitPrice: "6,000",
+                  discount: "",
+                  taxRateId: "",
+                  revenueAccountId: sales,
+                },
+              ],
+            }),
+          )
+        ).message,
+      ).toMatch(/still outstanding/);
+
+      // Approved for the remaining 4,000 — then a receipt takes that 4,000 first, so
+      // the database refuses the posting even though the service had allowed the draft.
+      const { id } = await createCreditNote(as(accountant), {
+        invoiceId: invoice.id,
+        creditNoteDate: "2026-09-15",
+        reason: "Remaining",
+        lines: [
+          {
+            description: "Goods",
+            quantity: "1",
+            unitPrice: "4,000",
+            discount: "",
+            taxRateId: "",
+            revenueAccountId: sales,
+          },
+        ],
+      });
+      await submitCreditNote(as(accountant), id);
+      await approveCreditNote(as(admin), id);
+      const receipt = await postedReceipt("4,000");
+      await allocateReceipt(as(accountant), receipt.id, {
+        allocations: [{ invoiceId: invoice.id, amount: "4,000" }],
+      });
+      expect((await failure(postCreditNote(as(accountant), id))).message).toMatch(
+        /more than the outstanding amount of the invoice/,
+      );
+      const stored = await getInvoice(as(viewer), invoice.id);
+      expect([stored.paidMinor, stored.creditedMinor, stored.outstandingMinor]).toEqual([
+        400_000, 600_000, 0,
+      ]);
+    });
+
+    it("voids a posted credit note, and refuses to void an invoice that was credited", async () => {
+      const invoice = await postedInvoice(simpleInvoice("10,000"));
+      const credit = await postedCreditNote(invoice.id, "4,000");
+      expect((await getInvoice(as(viewer), invoice.id)).outstandingMinor).toBe(600_000);
+
+      expect(
+        (
+          await failure(
+            cancelInvoice(as(admin), invoice.id, {
+              reason: "Billed in error",
+              voidDate: "2026-09-25",
+            }),
+          )
+        ).message,
+      ).toMatch(/uncredited/);
+
+      const voided = await cancelCreditNote(as(admin), credit.id, {
+        reason: "Raised in error",
+        voidDate: "2026-09-25",
+      });
+      expect(voided.voidJournalNumber).not.toBeNull();
+      const detail = await getCreditNote(as(admin), credit.id);
+      expect([detail.status, detail.voidJournal === null]).toEqual(["CANCELLED", false]);
+      const restored = await getInvoice(as(viewer), invoice.id);
+      expect([restored.creditedMinor, restored.outstandingMinor]).toEqual([0, 1_000_000]);
+      expect(
+        (await failure(cancelCreditNote(as(admin), credit.id, { reason: "Again" })))
+          .message,
+      ).toMatch(/already cancelled/);
+      expect(await outbox("erp.ARCreditNoteCancelled")).toHaveLength(1);
+    });
+
+    it("erp.ar_credit_note.*: allowed for holders, refused otherwise, and never self-approved", async () => {
+      const invoice = await postedInvoice(simpleInvoice("10,000"));
+      const draft = {
+        invoiceId: invoice.id,
+        creditNoteDate: "2026-09-15",
+        reason: "Goods returned",
+        lines: [
+          {
+            description: "Goods",
+            quantity: "1",
+            unitPrice: "1,000",
+            discount: "",
+            taxRateId: "",
+            revenueAccountId: sales,
+          },
+        ],
+      };
+      for (const user of [viewer, outsider]) {
+        expect(await failure(listCreditNotes(as(user)))).toBeInstanceOf(ForbiddenError);
+        expect(await failure(createCreditNote(as(user), draft))).toBeInstanceOf(
+          ForbiddenError,
+        );
+      }
+
+      const { id } = await createCreditNote(as(accountant), draft);
+      expect(await failure(getCreditNote(as(viewer), id))).toBeInstanceOf(ForbiddenError);
+      await submitCreditNote(as(accountant), id);
+      // An accountant raises and posts credit notes, but never approves or voids one.
+      expect(await failure(approveCreditNote(as(accountant), id))).toBeInstanceOf(
+        ForbiddenError,
+      );
+      await approveCreditNote(as(admin), id);
+      expect(
+        await failure(cancelCreditNote(as(accountant), id, { reason: "No" })),
+      ).toBeInstanceOf(ForbiddenError);
+      await postCreditNote(as(accountant), id);
+
+      // Nobody approves a credit note they raised themselves (§13.3).
+      const own = await createCreditNote(as(admin), { ...draft, reason: "My own" });
+      await submitCreditNote(as(admin), own.id);
+      expect((await failure(approveCreditNote(as(admin), own.id))).message).toMatch(
+        /created or submitted/,
+      );
+      await approveCreditNote(as(admin2), own.id);
+      expect((await getCreditNote(as(admin), own.id)).status).toBe("APPROVED");
+    });
+  });
 
   describe("balances, aging and the ledger", () => {
     it("reports balance, statement and aging from posted documents", async () => {

@@ -13,6 +13,7 @@ export const DEFAULT_NUMBER_SERIES: readonly {
   resetsYearly: boolean;
 }[] = [
   { documentType: "AR_INVOICE", prefix: "INV", padding: 6, resetsYearly: true },
+  { documentType: "AR_CREDIT_NOTE", prefix: "CRN", padding: 6, resetsYearly: true },
   { documentType: "AR_RECEIPT", prefix: "RCT", padding: 6, resetsYearly: true },
 ];
 

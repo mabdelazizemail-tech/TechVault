@@ -19,6 +19,17 @@ export const arInvoiceListSelect = {
   creator: { select: personSelect },
 } as const satisfies Prisma.ErpArInvoiceSelect;
 
+export const arCreditNoteListSelect = {
+  id: true,
+  creditNoteNumber: true,
+  crmAccountId: true,
+  creditNoteDate: true,
+  status: true,
+  totalMinor: true,
+  invoice: { select: { id: true, invoiceNumber: true } },
+  creator: { select: personSelect },
+} as const satisfies Prisma.ErpArCreditNoteSelect;
+
 export const arReceiptListSelect = {
   id: true,
   receiptNumber: true,
@@ -53,6 +64,9 @@ export const paymentMethodSelect = {
 
 export type ArInvoiceListRow = Prisma.ErpArInvoiceGetPayload<{
   select: typeof arInvoiceListSelect;
+}>;
+export type ArCreditNoteListRow = Prisma.ErpArCreditNoteGetPayload<{
+  select: typeof arCreditNoteListSelect;
 }>;
 export type ArReceiptListRow = Prisma.ErpArReceiptGetPayload<{
   select: typeof arReceiptListSelect;

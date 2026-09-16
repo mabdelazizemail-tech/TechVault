@@ -312,6 +312,22 @@ export const arInvoiceDraftSchema = z
   );
 export type ArInvoiceDraftInput = z.input<typeof arInvoiceDraftSchema>;
 
+/**
+ * A credit note as typed: the invoice it corrects, its reason and its lines. Like an
+ * invoice it carries no totals and no status — the server prices and decides (ADR-029).
+ */
+export const arCreditNoteDraftSchema = z.object({
+  invoiceId: z.uuid({ error: "Choose the invoice to credit." }),
+  creditNoteDate: isoDate,
+  reason: requiredText("Reason", 500),
+  notes: optionalText(1000),
+  lines: z
+    .array(arInvoiceLineSchema, { error: "Add the credit note lines." })
+    .min(1, "A credit note needs at least one line.")
+    .max(MAX_INVOICE_LINES, `A credit note can have at most ${MAX_INVOICE_LINES} lines.`),
+});
+export type ArCreditNoteDraftInput = z.input<typeof arCreditNoteDraftSchema>;
+
 export const arReasonSchema = z.object({ reason: requiredText("Reason", 500) });
 
 export const arCancelSchema = z.object({

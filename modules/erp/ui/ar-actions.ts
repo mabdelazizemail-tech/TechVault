@@ -133,6 +133,76 @@ export async function cancelInvoiceAction(
   );
 }
 
+/* Credit notes --------------------------------------------------------------------- */
+
+export async function createCreditNoteAction(
+  input: unknown,
+): Promise<ActionResult<{ id: string }>> {
+  return run("erp.ar_credit_note.create", (actor) => erp.createCreditNote(actor, input));
+}
+
+export async function updateCreditNoteAction(
+  creditNoteId: string,
+  input: unknown,
+): Promise<ActionResult<{ id: string }>> {
+  return run("erp.ar_credit_note.update", (actor) =>
+    erp.updateCreditNote(actor, creditNoteId, input),
+  );
+}
+
+export async function deleteCreditNoteAction(
+  creditNoteId: string,
+): Promise<ActionResult> {
+  return run("erp.ar_credit_note.delete", async (actor) => {
+    await erp.deleteCreditNote(actor, creditNoteId);
+    return null;
+  });
+}
+
+export async function submitCreditNoteAction(
+  creditNoteId: string,
+): Promise<ActionResult<{ status: "PENDING_APPROVAL" | "APPROVED" }>> {
+  return run("erp.ar_credit_note.submit", (actor) =>
+    erp.submitCreditNote(actor, creditNoteId),
+  );
+}
+
+export async function approveCreditNoteAction(
+  creditNoteId: string,
+): Promise<ActionResult> {
+  return run("erp.ar_credit_note.approve", async (actor) => {
+    await erp.approveCreditNote(actor, creditNoteId);
+    return null;
+  });
+}
+
+export async function rejectCreditNoteAction(
+  creditNoteId: string,
+  input: unknown,
+): Promise<ActionResult> {
+  return run("erp.ar_credit_note.reject", async (actor) => {
+    await erp.rejectCreditNote(actor, creditNoteId, input);
+    return null;
+  });
+}
+
+export async function postCreditNoteAction(
+  creditNoteId: string,
+): Promise<ActionResult<{ creditNoteNumber: string; journalNumber: string }>> {
+  return run("erp.ar_credit_note.post", (actor) =>
+    erp.postCreditNote(actor, creditNoteId),
+  );
+}
+
+export async function cancelCreditNoteAction(
+  creditNoteId: string,
+  input: unknown,
+): Promise<ActionResult<{ voidJournalNumber: string | null }>> {
+  return run("erp.ar_credit_note.cancel", (actor) =>
+    erp.cancelCreditNote(actor, creditNoteId, input),
+  );
+}
+
 /* Receipts ------------------------------------------------------------------------- */
 
 export async function createReceiptAction(

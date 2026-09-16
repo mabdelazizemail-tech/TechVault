@@ -22,6 +22,9 @@ export const ERP_EVENTS = {
   AR_INVOICE_APPROVED: "erp.ARInvoiceApproved",
   AR_INVOICE_POSTED: "erp.ARInvoicePosted",
   AR_INVOICE_CANCELLED: "erp.ARInvoiceCancelled",
+  AR_CREDIT_NOTE_APPROVED: "erp.ARCreditNoteApproved",
+  AR_CREDIT_NOTE_POSTED: "erp.ARCreditNotePosted",
+  AR_CREDIT_NOTE_CANCELLED: "erp.ARCreditNoteCancelled",
   AR_RECEIPT_POSTED: "erp.ARReceiptPosted",
   AR_RECEIPT_ALLOCATED: "erp.ARReceiptAllocated",
   AR_RECEIPT_UNALLOCATED: "erp.ARReceiptUnallocated",
@@ -91,6 +94,32 @@ export type ArInvoiceCancelledPayload = {
   invoiceNumber: string | null;
   crmAccountId: string;
   /** The reversal entry, when a posted invoice was voided. */
+  voidJournalEntryId: string | null;
+};
+
+export type ArCreditNoteApprovedPayload = {
+  creditNoteId: string;
+  invoiceId: string;
+  crmAccountId: string;
+  /** True when the credit note fell below the approval rule and was approved automatically. */
+  approvalSkipped: boolean;
+};
+
+export type ArCreditNotePostedPayload = {
+  creditNoteId: string;
+  creditNoteNumber: string;
+  invoiceId: string;
+  crmAccountId: string;
+  creditNoteDate: string;
+  journalEntryId: string;
+};
+
+export type ArCreditNoteCancelledPayload = {
+  creditNoteId: string;
+  creditNoteNumber: string | null;
+  invoiceId: string;
+  crmAccountId: string;
+  /** The reversal entry, when a posted credit note was voided. */
   voidJournalEntryId: string | null;
 };
 

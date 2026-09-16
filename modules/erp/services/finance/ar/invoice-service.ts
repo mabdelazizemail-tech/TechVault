@@ -92,9 +92,13 @@ type Draft = z.output<typeof arInvoiceDraftSchema>;
 /**
  * Prices every line on the server from quantity, unit price, discount and the tax
  * rate as it is now, and checks each account, rate and cost centre. Returns the rows
- * to store and the totals.
+ * to store and the totals. Shared with credit notes, which are priced the same way.
  */
-async function priceDraft(draft: Draft) {
+export async function priceDocumentLines(
+  lines: Draft["lines"],
+  document: "invoice" | "credit note" = "invoice",
+) {
+  const draft = { lines };
   const revenueIds = [...new Set(draft.lines.map((line) => line.revenueAccountId))];
   const taxIds = [
     ...new Set(
@@ -197,7 +201,7 @@ async function priceDraft(draft: Draft) {
 
   const totals = invoiceTotals(rows.map((row) => row.amounts));
   if (totals.totalMinor > MAX_DOCUMENT_AMOUNT_MINOR) {
-    errors.lines = ["The invoice total is too large."];
+    errors.lines = [`The ${document} total is too large.`];
   }
   if (Object.keys(errors).length > 0) {
     throw new ValidationError("Please correct the highlighted lines.", errors);
@@ -292,6 +296,7 @@ export async function getInvoice(
     select: {
       ...arInvoiceListSelect,
       currency: true,
+      creditedMinor: true,
       subtotalMinor: true,
       discountMinor: true,
       taxMinor: true,
@@ -349,6 +354,7 @@ export async function getInvoice(
   return {
     ...toInvoiceListItem(row, customers),
     currency: row.currency,
+    creditedMinor: toAmount(row.creditedMinor),
     subtotalMinor: toAmount(row.subtotalMinor),
     discountMinor: toAmount(row.discountMinor),
     taxMinor: toAmount(row.taxMinor),
@@ -442,7 +448,7 @@ async function prepareDraft(input: unknown) {
   await requireLiveCustomer(draft.crmAccountId);
   const settings = await loadArSettings();
   const customer = await resolveReceivableAccount(draft.crmAccountId, settings);
-  const priced = await priceDraft(draft);
+  const priced = await priceDocumentLines(draft.lines);
   const dueDate = draft.dueDate ?? addDays(draft.invoiceDate, customer.paymentTermsDays);
   return { draft, priced, dueDate, receivableAccountId: customer.receivableAccountId };
 }

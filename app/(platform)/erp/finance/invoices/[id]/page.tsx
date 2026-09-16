@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { BreadcrumbTitle } from "@/components/shell/breadcrumbs";
+import { ButtonLink } from "@/components/ui/button";
 import { EmptyState, PageHeader, Panel, PanelHeader } from "@/components/ui/primitives";
 import { ERP_PERMISSIONS } from "@/modules/erp/contracts/permissions";
 import { getInvoice } from "@/modules/erp/contracts/service";
@@ -35,6 +36,7 @@ export default async function InvoicePage({
       ERP_PERMISSIONS.AR_INVOICE_APPROVE,
       ERP_PERMISSIONS.AR_INVOICE_POST,
       ERP_PERMISSIONS.AR_INVOICE_CANCEL,
+      ERP_PERMISSIONS.AR_CREDIT_NOTE_CREATE,
       ERP_PERMISSIONS.AR_RECEIPT_ALLOCATE,
       ERP_PERMISSIONS.AR_CUSTOMER_READ,
       ERP_PERMISSIONS.JOURNAL_READ,
@@ -43,6 +45,13 @@ export default async function InvoicePage({
   const title = invoice.invoiceNumber ?? "Draft invoice";
   const today = todayInCairo();
   const overdue = invoice.outstandingMinor > 0 && invoice.dueDate < today;
+  // A credit note corrects a posted invoice, for at most what it still owes (ADR-029).
+  const canCredit =
+    rights[ERP_PERMISSIONS.AR_CREDIT_NOTE_CREATE] === true &&
+    invoice.outstandingMinor > 0 &&
+    (invoice.status === "POSTED" ||
+      invoice.status === "PARTIALLY_PAID" ||
+      invoice.status === "PAID");
 
   return (
     <div>
@@ -51,23 +60,30 @@ export default async function InvoicePage({
         title={title}
         description={`${invoice.customer.name} · ${formatDate(invoice.invoiceDate)}`}
         actions={
-          <InvoiceActions
-            invoice={{
-              id: invoice.id,
-              status: invoice.status,
-              invoiceNumber: invoice.invoiceNumber,
-              invoiceDate: invoice.invoiceDate,
-              totalMinor: invoice.totalMinor,
-              paidMinor: invoice.paidMinor,
-            }}
-            can={{
-              update: rights[ERP_PERMISSIONS.AR_INVOICE_UPDATE] === true,
-              approve: rights[ERP_PERMISSIONS.AR_INVOICE_APPROVE] === true,
-              post: rights[ERP_PERMISSIONS.AR_INVOICE_POST] === true,
-              cancel: rights[ERP_PERMISSIONS.AR_INVOICE_CANCEL] === true,
-            }}
-            today={today}
-          />
+          <>
+            {canCredit && (
+              <ButtonLink href={`/erp/finance/credit-notes/new?invoice=${invoice.id}`}>
+                Credit note
+              </ButtonLink>
+            )}
+            <InvoiceActions
+              invoice={{
+                id: invoice.id,
+                status: invoice.status,
+                invoiceNumber: invoice.invoiceNumber,
+                invoiceDate: invoice.invoiceDate,
+                totalMinor: invoice.totalMinor,
+                paidMinor: invoice.paidMinor,
+              }}
+              can={{
+                update: rights[ERP_PERMISSIONS.AR_INVOICE_UPDATE] === true,
+                approve: rights[ERP_PERMISSIONS.AR_INVOICE_APPROVE] === true,
+                post: rights[ERP_PERMISSIONS.AR_INVOICE_POST] === true,
+                cancel: rights[ERP_PERMISSIONS.AR_INVOICE_CANCEL] === true,
+              }}
+              today={today}
+            />
+          </>
         }
       />
 
@@ -248,6 +264,10 @@ export default async function InvoicePage({
               <dt className="font-bold">Total</dt>
               <dd dir="ltr" className="text-end font-bold">
                 {formatAmount(invoice.totalMinor)}
+              </dd>
+              <dt className="text-foreground-muted">Credited</dt>
+              <dd dir="ltr" className="text-end">
+                {formatAmount(invoice.creditedMinor)}
               </dd>
               <dt className="text-foreground-muted">Paid</dt>
               <dd dir="ltr" className="text-end">

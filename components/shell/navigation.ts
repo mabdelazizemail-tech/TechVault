@@ -125,6 +125,11 @@ export const NAV_SECTIONS: readonly NavSection[] = [
         permission: ERP_PERMISSIONS.AR_INVOICE_READ,
       },
       {
+        label: "Credit notes",
+        href: "/erp/finance/credit-notes",
+        permission: ERP_PERMISSIONS.AR_CREDIT_NOTE_READ,
+      },
+      {
         label: "Receipts",
         href: "/erp/finance/receipts",
         permission: ERP_PERMISSIONS.AR_RECEIPT_READ,

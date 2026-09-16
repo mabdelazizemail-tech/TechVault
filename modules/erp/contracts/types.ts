@@ -356,11 +356,29 @@ export const AR_RECEIPT_STATUS_LABELS: Record<ArReceiptStatus, string> = {
   CANCELLED: "Cancelled",
 };
 
-export const AR_DOCUMENT_TYPES = ["AR_INVOICE", "AR_RECEIPT"] as const;
+export const AR_CREDIT_NOTE_STATUSES = [
+  "DRAFT",
+  "PENDING_APPROVAL",
+  "APPROVED",
+  "POSTED",
+  "CANCELLED",
+] as const;
+export type ArCreditNoteStatus = (typeof AR_CREDIT_NOTE_STATUSES)[number];
+
+export const AR_CREDIT_NOTE_STATUS_LABELS: Record<ArCreditNoteStatus, string> = {
+  DRAFT: "Draft",
+  PENDING_APPROVAL: "Pending approval",
+  APPROVED: "Approved",
+  POSTED: "Posted",
+  CANCELLED: "Cancelled",
+};
+
+export const AR_DOCUMENT_TYPES = ["AR_INVOICE", "AR_CREDIT_NOTE", "AR_RECEIPT"] as const;
 export type ArDocumentType = (typeof AR_DOCUMENT_TYPES)[number];
 
 export const AR_DOCUMENT_TYPE_LABELS: Record<ArDocumentType, string> = {
   AR_INVOICE: "Invoices",
+  AR_CREDIT_NOTE: "Credit notes",
   AR_RECEIPT: "Receipts",
 };
 
@@ -449,8 +467,61 @@ export type ArAllocationDto = {
   allocatedAt: Date;
 };
 
+export type ArCreditNoteListItem = {
+  id: string;
+  creditNoteNumber: string | null;
+  customer: CustomerRef;
+  /** The invoice this credit note corrects. */
+  invoice: { id: string; invoiceNumber: string | null };
+  creditNoteDate: string;
+  status: ArCreditNoteStatus;
+  totalMinor: number;
+  createdBy: PersonRef;
+};
+
+export type ArCreditNoteDetail = ArCreditNoteListItem & {
+  currency: string;
+  subtotalMinor: number;
+  discountMinor: number;
+  taxMinor: number;
+  reason: string;
+  notes: string | null;
+  receivableAccount: AccountRef;
+  period: PeriodRef | null;
+  journal: JournalRef | null;
+  voidJournal: JournalRef | null;
+  lines: ArInvoiceLineDto[];
+  /** What the invoice still owes now — the most a credit note against it may be. */
+  invoiceOutstandingMinor: number;
+  submittedAt: Date | null;
+  approvalSkipped: boolean;
+  approvedAt: Date | null;
+  approvedBy: PersonRef | null;
+  rejectedAt: Date | null;
+  rejectionReason: string | null;
+  postedAt: Date | null;
+  postedBy: PersonRef | null;
+  cancelledAt: Date | null;
+  cancelReason: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+/** A posted invoice a credit note can be raised against, with its lines to copy. */
+export type CreditableInvoice = {
+  id: string;
+  invoiceNumber: string;
+  invoiceDate: string;
+  customer: CustomerRef;
+  totalMinor: number;
+  outstandingMinor: number;
+  lines: ArInvoiceLineDto[];
+};
+
 export type ArInvoiceDetail = ArInvoiceListItem & {
   currency: string;
+  /** Credited by posted credit notes (ADR-029). */
+  creditedMinor: number;
   subtotalMinor: number;
   discountMinor: number;
   taxMinor: number;

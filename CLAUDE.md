@@ -2063,6 +2063,29 @@ preview first. _Consequences:_ a deactivated revenue or expense account that sti
 closing entry until reactivated; the seed must run after deploy for the permissions; closing is not reversible without
 the reopen permission. _Revisit when:_ a non-calendar fiscal year, or closing per legal entity, is needed.
 
+**ADR-029 — Credit notes: against one posted invoice, never more than it still owes.** _Context:_ §29 #30 — a posted
+invoice could only be corrected by voiding it whole, so returns and partial credits had nowhere to go. The owner chose
+credit notes raised against one posted invoice, up to its outstanding amount, reusing its lines' accounts, and approved
+under the same rule as invoices. _Decision:_ (1) Migration `20260916100000_erp_credit_notes` adds `erp.ar_credit_notes`
+and `erp.ar_credit_note_lines` — priced and CHECK-constrained exactly like invoices and their lines — plus
+`ar_invoices.credited_minor`. (2) A credit note names its invoice and copies its customer, currency and receivable
+account; the form starts as a copy of the invoice's lines, and the server prices every line again through the shared
+`priceDocumentLines`. (3) Lifecycle DRAFT → PENDING_APPROVAL → APPROVED → POSTED, or CANCELLED, mirroring invoices:
+approval follows `ar_settings` (required, threshold, no self-approval), because a credit note reduces revenue.
+(4) Posting books the mirror image — Dr revenue per line and cost centre, Dr tax, Cr receivable — through the ledger
+engine, numbered from a new `AR_CREDIT_NOTE` series (`CRN-2026-000001`). (5) The database owns the effect on the
+invoice: an `ar_credit_notes_apply` trigger moves `credited_minor` when a credit note is posted or voided, refuses to
+exceed `total − paid − credited`, and the invoice's outstanding CHECK, its guard, the allocation trigger and
+`ar_check_invoice` were all replaced to account for credits — so a receipt and a credit note can never together exceed
+the invoice, whatever the services do. An invoice that has been credited can no longer be voided. (6) Voiding a credit
+note reverses its entry and restores the invoice; `journal_entries_source_check` refuses to reverse its entry any other
+way. (7) Six permissions `erp.ar_credit_note.{read,create,update,approve,post,cancel}`: an accountant raises and posts
+them, a finance administrator approves and voids. Customer balances count invoices net of credits. _Consequences:_ the
+invoice payment status still reflects payments only, so an invoice settled entirely by credit notes reads "Posted" with
+nothing outstanding; credit notes carry no link back to individual invoice lines, so a partial credit is entered as
+amounts rather than picked per line. _Revisit when:_ credit notes must stand alone (not against one invoice), or
+Egyptian e-invoicing requires credit-note reporting.
+
 ---
 
 ## 28. Current Implementation Status
@@ -2229,6 +2252,7 @@ generated before them.
 | Services    | ✅ Invoices (drafts priced by the server, submit, approve with the self-approval and threshold rules, reject, post into a balanced linked journal, cancel or void by reversal, delete draft), receipts (drafts, post, allocate to one or more open invoices, unallocate, void), customers (search through the CRM contract, balance list, account with statement, aging and recent documents, billing profile), aging report, AR settings, tax rates, payment methods, numbering. Every write: permission → Zod → one transaction with audit record and outbox event. Journal reversal refuses document-raised entries; period close refuses unposted AR documents. |
 | UI          | ✅ Invoices (list with status and overdue filters and sortable number, date, due, total and outstanding; line-entry form; detail with lines, totals, payments, approval trail and actions), Receipts (list, form, detail with allocation dialog and unallocate), Customers (balance list; account page with balance, overdue, unapplied, credit limit, billing profile, aging, statement by date range, recent invoices and receipts), AR aging (as-of date, customer search, totals), AR settings (rules and defaults, aging buckets, tax rates, payment methods, numbering). The finance dashboard shows receivables outstanding and overdue; a document's journal entry links back to it and hides Reverse. |
 | Tests       | ✅ 21 unit tests (quantities, rounding, line pricing, tax rates, approval rules, payment status, aging buckets, numbering, schemas, roles) and 20 integration tests (browser totals ignored, validation, self-approval and threshold, rejection, balanced linked journal, closed period and double posting leave nothing behind, posted immutability in services and straight at the tables, sourced-journal reversal refused, voids, partial, full and multi-invoice allocation, 100,000 − 40,000 = 60,000, over-allocation, duplicate and cross-customer refusals, simultaneous allocations, unallocate then void, aging and statement, subledger equals ledger, period close with unposted invoices, allowed/refused for approve, post, receipt post and allocate). `npm run verify` 224 passing; full integration suite 164 passing; build succeeds (64 routes). |
+| Credit notes | ✅ A credit note corrects one posted invoice for at most what it still owes (ADR-029): raised from the invoice with its lines copied, priced by the server, approved under the same AR settings rule as invoices, posted as Dr revenue, Dr tax, Cr receivable, and voidable — with the database maintaining the invoice's credited amount and refusing any credit or receipt that would take it past the total. 2 unit tests and 4 integration tests. Migrations `20260916100000_erp_credit_notes` and `20260916110000_erp_credit_note_number_series` are applied to the local test database only; Supabase awaits the owner's schema review. |
 | **Missing** | The signed-in browser journey `tests/e2e/erp-ar.spec.ts` has not been run (§29 #32). No tax rate exists until a finance administrator adds one, and no period exists (§29 #25). With the default settings one person cannot take their own invoice through approval (§29 #36). Credit notes, foreign currency, invoice PDF and e-mail, and e-invoicing are deferred (§29 #30, #33). |
 
 ### 📋 Not started
@@ -2305,7 +2329,7 @@ Open debt and risk:
 | 27  | **Signed-in ERP browser journey not run**                   | `tests/e2e/erp-finance.spec.ts` needs `E2E_EMAIL`/`E2E_PASSWORD` for a finance administrator on a non-production database with the starter chart and an open period containing today; without them it skips | Owner provides a test account and database, then runs `npm run test:e2e` | 🟡 Medium |
 | 28  | **Finance pickers load capped lists**                       | The journal form loads at most 1,000 postable accounts and 500 cost centres | Replace with a type-ahead picker before the chart grows past that | 🟢 Low    |
 | 29  | **Single-currency ledger**                                  | ERP records EGP only. (The trial balance, profit and loss and balance sheet shipped on 2026-09-15, ADR-026; opening balances and year-end close are #40) | Add currency and rate when foreign-currency receivables or payables are required | 🟢 Low    |
-| 30  | **No credit notes**                                         | A paid or part-paid invoice can only be corrected by removing its allocations and voiding it; partial credits and returns cannot be recorded (ADR-023) | A credit note document posting Dr revenue and tax, Cr receivable, allocatable like a receipt | 🟡 Medium |
+| 30  | **Credit notes are tied to one invoice**                    | Credit notes shipped on 2026-09-16 (ADR-029), but each one corrects a single posted invoice and cannot exceed what it still owes; there is no free-standing customer credit, and a credit is entered as amounts rather than picked per invoice line | Add a free-standing credit note, allocatable like a receipt, if the business needs one | 🟢 Low    |
 | 31  | **Credit limit shown, not enforced**                        | The customer page flags a balance over the limit, but creating and posting invoices do not refuse it | A configurable block or approval rule when the owner wants one | 🟢 Low    |
 | 32  | **Signed-in AR browser journey not run**                    | `tests/e2e/erp-ar.spec.ts` needs `E2E_EMAIL`/`E2E_PASSWORD` for a finance administrator on a non-production database with a CRM company, the starter chart, an open period containing today and settings that let one person through approval; without them it skips | Owner provides a test account and database, then runs `npm run test:e2e` | 🟡 Medium |
 | 33  | **Invoices are not e-invoices**                             | No billing name, address or tax-registration snapshot (the name shown is CRM's current one), no PDF or e-mail, no Egyptian Tax Authority submission | Snapshot billing details at posting; e-invoicing through `platform/integrations` (§15) when required | 🟡 Medium |

@@ -47,6 +47,13 @@ export const ERP_PERMISSIONS = {
   AR_INVOICE_POST: "erp.ar_invoice.post",
   AR_INVOICE_CANCEL: "erp.ar_invoice.cancel",
 
+  AR_CREDIT_NOTE_READ: "erp.ar_credit_note.read",
+  AR_CREDIT_NOTE_CREATE: "erp.ar_credit_note.create",
+  AR_CREDIT_NOTE_UPDATE: "erp.ar_credit_note.update",
+  AR_CREDIT_NOTE_APPROVE: "erp.ar_credit_note.approve",
+  AR_CREDIT_NOTE_POST: "erp.ar_credit_note.post",
+  AR_CREDIT_NOTE_CANCEL: "erp.ar_credit_note.cancel",
+
   AR_RECEIPT_READ: "erp.ar_receipt.read",
   AR_RECEIPT_CREATE: "erp.ar_receipt.create",
   AR_RECEIPT_UPDATE: "erp.ar_receipt.update",
@@ -169,6 +176,32 @@ export const ERP_PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
     "Cancel unposted invoices, and void unpaid posted invoices by reversal.",
   ),
 
+  define(ERP_PERMISSIONS.AR_CREDIT_NOTE_READ, "READ", "View credit notes."),
+  define(
+    ERP_PERMISSIONS.AR_CREDIT_NOTE_CREATE,
+    "CREATE",
+    "Raise draft credit notes against posted invoices.",
+  ),
+  define(
+    ERP_PERMISSIONS.AR_CREDIT_NOTE_UPDATE,
+    "UPDATE",
+    "Edit, submit and delete draft credit notes.",
+  ),
+  define(
+    ERP_PERMISSIONS.AR_CREDIT_NOTE_APPROVE,
+    "APPROVE",
+    "Approve or reject submitted credit notes.",
+  ),
+  define(
+    ERP_PERMISSIONS.AR_CREDIT_NOTE_POST,
+    "POST",
+    "Post approved credit notes, which credits the invoice and gives them their number.",
+  ),
+  define(
+    ERP_PERMISSIONS.AR_CREDIT_NOTE_CANCEL,
+    "CANCEL",
+    "Cancel unposted credit notes, and void posted ones by reversal.",
+  ),
   define(
     ERP_PERMISSIONS.AR_RECEIPT_READ,
     "READ",
@@ -254,6 +287,10 @@ export const ERP_ACCOUNTANT_PERMISSIONS: readonly string[] = [
   ERP_PERMISSIONS.AR_INVOICE_CREATE,
   ERP_PERMISSIONS.AR_INVOICE_UPDATE,
   ERP_PERMISSIONS.AR_INVOICE_POST,
+  ERP_PERMISSIONS.AR_CREDIT_NOTE_READ,
+  ERP_PERMISSIONS.AR_CREDIT_NOTE_CREATE,
+  ERP_PERMISSIONS.AR_CREDIT_NOTE_UPDATE,
+  ERP_PERMISSIONS.AR_CREDIT_NOTE_POST,
   ERP_PERMISSIONS.AR_RECEIPT_READ,
   ERP_PERMISSIONS.AR_RECEIPT_CREATE,
   ERP_PERMISSIONS.AR_RECEIPT_UPDATE,
