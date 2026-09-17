@@ -77,7 +77,10 @@ export function FilterBar({
             name="q"
             defaultValue={query}
             placeholder={searchLabel}
-            className={cn(controlClasses, "border-border-strong min-h-9 ps-8")}
+            className={cn(
+              controlClasses,
+              "border-border-strong min-h-9 ps-8 pointer-coarse:min-h-11",
+            )}
           />
         </label>
       )}
@@ -91,7 +94,7 @@ export function FilterBar({
           onChange={(event) => event.currentTarget.form?.requestSubmit()}
           className={cn(
             controlClasses,
-            "border-border-strong min-h-9 w-auto cursor-pointer",
+            "border-border-strong min-h-9 w-auto max-w-full cursor-pointer pointer-coarse:min-h-11",
           )}
         >
           <option value="">{select.allLabel}</option>
@@ -105,7 +108,7 @@ export function FilterBar({
 
       <button
         type="submit"
-        className="border-border bg-surface text-foreground hover:bg-surface-hover min-h-9 cursor-pointer border-2 px-3 text-sm font-bold"
+        className="border-border bg-surface text-foreground hover:bg-surface-hover min-h-9 cursor-pointer border-2 px-3 text-sm font-bold pointer-coarse:min-h-11 pointer-coarse:px-4"
       >
         Apply
       </button>

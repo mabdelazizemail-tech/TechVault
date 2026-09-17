@@ -2113,6 +2113,24 @@ _Consequences:_ text that others vote and comment on can change only before revi
 unlinked, as with knowledge items (§29 #23). _Revisit when:_ submitters need to edit after review, or administrators
 need to replace attachments.
 
+**ADR-032 — Responsive by CSS in the shared primitives; touch sizing by pointer, not device.** _Context:_ the owner asked
+for a full responsive audit so the platform works on phones, tablets and desktops from one codebase. The audit found the
+shell (a drawer below `lg`), page headers, grids and line-entry forms already responsive, and four gaps shared by every
+screen: `DataTable` stayed a sideways-scrolling table on phones although §16.7 asks for cards; every field used 14px text,
+which makes iOS Safari zoom on focus; buttons, pagination, checkboxes and row menus were too small for a thumb; and
+dialogs floated in the middle of phone screens. _Decision:_ (1) Layout switches with CSS breakpoints only, never user-agent
+or JavaScript detection, so there is nothing to hydrate and resizing a window just works. Breakpoints are Tailwind's:
+phone below `sm`/`md`, tablet `md`–`lg`, desktop from `lg`. (2) `DataTable` renders a card list below `md` (first column
+as the linked title, other columns as labelled lines, sorting as links) and the table from `md`; both are
+server-rendered. A table with row selection keeps the scrolling table, because duplicated checkboxes would submit each
+row twice. (3) One unlayered rule in `app/globals.css` sets text fields to 16px on small touch screens. (4) Touch
+targets grow with Tailwind's `pointer-coarse:` variant (40–44px), so a mouse keeps today's density. (5) `Dialog`'s modal is
+a bottom sheet below `sm` and the centred modal from `sm`. Measured on the local app signed in: every page at 320px has no
+horizontal overflow; tablets, desktop (1280–1920) and landscape phones checked on the heaviest screens. _Consequences:_
+list cells render twice (hidden by CSS), which is cheap at 20–50 rows per page; a new list gets cards for free by using
+`DataTable`; the Leads list scrolls on phones. _Revisit when:_ bulk selection is needed in phone cards, or a screen
+genuinely needs different behaviour, not only layout, on phones.
+
 ---
 
 ## 28. Current Implementation Status

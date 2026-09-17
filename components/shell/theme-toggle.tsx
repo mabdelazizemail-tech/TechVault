@@ -32,7 +32,7 @@ export function ThemeToggle() {
         document.documentElement.dataset.theme = next;
         document.cookie = `${THEME_COOKIE}=${next}; path=/; max-age=${ONE_YEAR_SECONDS}; samesite=lax`;
       }}
-      className="text-foreground hover:bg-surface-hover shrink-0 cursor-pointer p-2"
+      className="text-foreground hover:bg-surface-hover shrink-0 cursor-pointer p-2 pointer-coarse:p-2.5"
     >
       {theme === "dark" ? (
         <Sun aria-hidden="true" className="size-5" />

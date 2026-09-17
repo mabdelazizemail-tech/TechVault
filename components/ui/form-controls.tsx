@@ -86,7 +86,7 @@ export function Input({
       aria-invalid={invalid === true || undefined}
       className={cn(
         controlClasses,
-        "min-h-9",
+        "min-h-9 pointer-coarse:min-h-11",
         invalid === true ? "border-danger" : "border-border-strong",
         className,
       )}
@@ -131,7 +131,7 @@ export function Select({
       aria-invalid={invalid === true || undefined}
       className={cn(
         controlClasses,
-        "min-h-9 cursor-pointer",
+        "min-h-9 cursor-pointer pointer-coarse:min-h-11",
         invalid === true ? "border-danger" : "border-border-strong",
         className,
       )}
@@ -222,11 +222,14 @@ export function Checkbox({
 }: InputHTMLAttributes<HTMLInputElement> & { label: ReactNode }) {
   return (
     <label
-      className={cn("inline-flex cursor-pointer items-center gap-2 text-sm", className)}
+      className={cn(
+        "inline-flex cursor-pointer items-center gap-2 text-sm pointer-coarse:min-h-10",
+        className,
+      )}
     >
       <input
         type="checkbox"
-        className="accent-primary size-4 cursor-pointer"
+        className="accent-primary size-4 cursor-pointer pointer-coarse:size-5"
         {...props}
       />
       {label}

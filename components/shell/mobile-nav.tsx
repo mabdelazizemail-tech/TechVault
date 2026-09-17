@@ -19,7 +19,7 @@ export function MobileNav({ sections }: { sections: readonly NavSection[] }) {
     <RadixDialog.Root open={open} onOpenChange={setOpen}>
       <RadixDialog.Trigger
         aria-label="Open navigation"
-        className="text-foreground hover:bg-surface-hover shrink-0 cursor-pointer p-2 lg:hidden"
+        className="text-foreground hover:bg-surface-hover -ms-2 shrink-0 cursor-pointer p-2 lg:hidden pointer-coarse:p-2.5"
       >
         <Menu aria-hidden="true" className="size-5" />
       </RadixDialog.Trigger>
@@ -34,7 +34,7 @@ export function MobileNav({ sections }: { sections: readonly NavSection[] }) {
             <Brand />
             <RadixDialog.Close
               aria-label="Close navigation"
-              className="text-foreground hover:bg-surface-hover cursor-pointer p-2"
+              className="text-foreground hover:bg-surface-hover cursor-pointer p-2 pointer-coarse:p-2.5"
             >
               <X aria-hidden="true" className="size-5" />
             </RadixDialog.Close>

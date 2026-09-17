@@ -257,3 +257,17 @@
     animation: tv-fade 0.2s ease;
   }
 }
+
+/*
+ * Phones zoom the page when a text field under 16px gets focus (iOS Safari), and
+ * the page stays zoomed afterwards. On small touch screens every field is 16px.
+ * Unlayered on purpose, so it wins over size utilities such as `text-sm` whatever
+ * the component; desktop and mouse users keep the compact 14px fields.
+ */
+@media (max-width: 639.98px) and (pointer: coarse) {
+  input:not([type="checkbox"], [type="radio"], [type="range"], [type="file"]),
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}

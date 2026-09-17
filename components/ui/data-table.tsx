@@ -13,6 +13,12 @@ import { EmptyState } from "./primitives";
  *    shareable and the back button works (§16.4). They are applied by the
  *    database query, never by slicing an array in the browser (§21).
  *  - It is a Server Component: a list of rows needs no client JavaScript.
+ *  - Below `md` it becomes a card list (§16.7): the first column is the card's
+ *    title and every other column a labelled line, with sorting offered as links.
+ *    Both layouts are server-rendered and switched by CSS, so there is no
+ *    device detection and nothing to hydrate. Tables with row selection keep the
+ *    scrolling table on phones, because a second set of checkboxes would submit
+ *    each selected row twice.
  *  - Wide content scrolls inside its own container; the page never scrolls
  *    sideways.
  *  - Numeric columns use tabular figures so digits line up down the column.
@@ -26,7 +32,7 @@ export type Column<TRow> = {
   cell: (row: TRow) => ReactNode;
   sortable?: boolean;
   align?: "start" | "end";
-  /** Hides the column below the `md` breakpoint (§16.7). */
+  /** Hides the column below the `md` breakpoint, in the table and the cards (§16.7). */
   hideOnMobile?: boolean;
   width?: string;
 };
@@ -91,10 +97,23 @@ export function DataTable<TRow>({
     );
   }
 
+  const cards = selection === undefined;
+
   return (
     <div className="flex flex-col">
+      {cards && (
+        <CardList
+          columns={columns}
+          rows={rows}
+          rowKey={rowKey}
+          rowHref={rowHref}
+          sort={sort}
+          basePath={basePath}
+          searchParams={searchParams}
+        />
+      )}
       {/* Wide tables scroll here, not on the body (§17.3). */}
-      <div className="overflow-x-auto">
+      <div className={cn("overflow-x-auto", cards && "hidden md:block")}>
         <table className="w-full border-collapse text-sm">
           <thead className="bg-surface sticky top-0 z-10">
             <tr>
@@ -186,6 +205,94 @@ export function DataTable<TRow>({
   );
 }
 
+/**
+ * The phone layout: one card per row. The first column is the title (linked when
+ * rows are), and each remaining column a label and value; columns hidden on mobile
+ * stay hidden here too.
+ */
+function CardList<TRow>({
+  columns,
+  rows,
+  rowKey,
+  rowHref,
+  sort,
+  basePath,
+  searchParams,
+}: {
+  columns: readonly Column<TRow>[];
+  rows: readonly TRow[];
+  rowKey: (row: TRow) => string;
+  rowHref?: (row: TRow) => string;
+  sort?: SortState;
+  basePath: string;
+  searchParams: Record<string, string | undefined>;
+}) {
+  const [first, ...rest] = columns;
+  if (first === undefined) return null;
+  const details = rest.filter((column) => column.hideOnMobile !== true);
+  const sortable = columns.filter((column) => column.sortable === true);
+
+  return (
+    <div className="md:hidden">
+      {sortable.length > 0 && (
+        <nav
+          aria-label="Sort"
+          className="rule-b text-foreground-muted flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2 text-xs"
+        >
+          <span className="label-caps">Sort</span>
+          {sortable.map((column) => (
+            <SortLink
+              key={column.key}
+              column={column}
+              sort={sort}
+              basePath={basePath}
+              searchParams={searchParams}
+            />
+          ))}
+        </nav>
+      )}
+      <ul>
+        {rows.map((row) => (
+          <li
+            key={rowKey(row)}
+            className="border-border border-b px-4 py-3 last:border-0"
+          >
+            <div className="text-foreground min-w-0 text-[15px] font-semibold break-words">
+              {rowHref !== undefined ? (
+                <Link
+                  href={rowHref(row)}
+                  className="-my-1 block py-1 underline-offset-3 hover:underline"
+                >
+                  {first.cell(row)}
+                </Link>
+              ) : (
+                first.cell(row)
+              )}
+            </div>
+            {details.length > 0 && (
+              <dl className="mt-2 grid grid-cols-[auto_minmax(0,1fr)] items-baseline gap-x-4 gap-y-1.5 text-sm">
+                {details.map((column) => (
+                  <div key={column.key} className="contents">
+                    <dt className="text-foreground-muted text-xs">{column.header}</dt>
+                    <dd
+                      className={cn(
+                        "text-foreground min-w-0 text-end break-words",
+                        column.align === "end" && "tabular-nums",
+                      )}
+                    >
+                      {column.cell(row)}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            )}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 function ariaSortFor<TRow>(
   column: Column<TRow>,
   sort: SortState | undefined,
@@ -257,7 +364,7 @@ export function Pagination({
   return (
     <nav
       aria-label="Pagination"
-      className="rule-t text-foreground-muted flex items-center justify-between gap-4 px-4 py-2.5 text-xs"
+      className="rule-t text-foreground-muted flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-2.5 text-xs"
     >
       <span>
         {firstRow}–{lastRow} of {page.total}
@@ -302,7 +409,7 @@ function PageLink({
     return (
       <span
         aria-disabled="true"
-        className="border-border border-2 px-2.5 py-1 font-bold opacity-45"
+        className="border-border inline-flex items-center border-2 px-2.5 py-1 font-bold opacity-45 pointer-coarse:min-h-11 pointer-coarse:px-4"
       >
         {label}
       </span>
@@ -312,7 +419,7 @@ function PageLink({
   return (
     <Link
       href={`${basePath}${buildQuery(searchParams, { page: String(targetPage) })}`}
-      className="border-border text-foreground hover:bg-surface-hover border-2 px-2.5 py-1 font-bold"
+      className="border-border text-foreground hover:bg-surface-hover inline-flex items-center border-2 px-2.5 py-1 font-bold pointer-coarse:min-h-11 pointer-coarse:px-4"
     >
       {label}
     </Link>

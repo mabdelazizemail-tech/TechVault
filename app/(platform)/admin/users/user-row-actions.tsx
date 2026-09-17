@@ -50,8 +50,8 @@ export function UserRowActions({
         className={cn(
           "cursor-pointer",
           placement === "list"
-            ? "text-foreground-muted hover:bg-surface-hover hover:text-foreground inline-grid size-8 place-items-center"
-            : "border-border-strong text-foreground hover:bg-surface-hover inline-flex min-h-9 items-center gap-1.5 border px-3.5 text-sm font-extrabold",
+            ? "text-foreground-muted hover:bg-surface-hover hover:text-foreground inline-grid size-8 place-items-center pointer-coarse:size-11"
+            : "border-border-strong text-foreground hover:bg-surface-hover inline-flex min-h-9 items-center gap-1.5 border px-3.5 text-sm font-extrabold pointer-coarse:min-h-11",
         )}
       >
         {placement === "list" ? (

@@ -360,7 +360,7 @@ function MoveMenu({
     <DropdownMenu.Root>
       <DropdownMenu.Trigger
         aria-label={`Move ${card.name} to another stage`}
-        className="text-foreground-muted hover:bg-surface-hover hover:text-foreground grid size-7 cursor-pointer place-items-center opacity-70 group-hover:opacity-100 focus-visible:opacity-100"
+        className="text-foreground-muted hover:bg-surface-hover hover:text-foreground grid size-7 cursor-pointer place-items-center opacity-70 group-hover:opacity-100 focus-visible:opacity-100 pointer-coarse:size-10 pointer-coarse:opacity-100"
       >
         <MoreHorizontal aria-hidden="true" size={16} />
       </DropdownMenu.Trigger>

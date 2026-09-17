@@ -118,7 +118,7 @@ export function Sidebar({
                     onClick={onNavigate}
                     aria-current={active ? "page" : undefined}
                     className={cn(
-                      "flex items-center gap-3 px-2 py-2 text-sm font-medium transition-colors duration-150",
+                      "flex items-center gap-3 px-2 py-2 text-sm font-medium transition-colors duration-150 pointer-coarse:py-3",
                       active
                         ? "bg-primary text-primary-foreground"
                         : "text-foreground hover:bg-surface-hover",

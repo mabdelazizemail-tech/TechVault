@@ -21,8 +21,10 @@ const VARIANT_CLASSES: Record<ButtonVariant, string> = {
 };
 
 const SIZE_CLASSES: Record<ButtonSize, string> = {
-  sm: "min-h-8 px-2.5 py-1 text-[13px] gap-1.5",
-  md: "min-h-10 px-4 py-2 text-sm gap-2",
+  // Touch screens get targets of at least 40–44px (§17.5); a mouse keeps the
+  // denser desktop sizes.
+  sm: "min-h-8 px-2.5 py-1 text-[13px] gap-1.5 pointer-coarse:min-h-10",
+  md: "min-h-10 px-4 py-2 text-sm gap-2 pointer-coarse:min-h-11",
 };
 
 const BASE_CLASSES =

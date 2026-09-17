@@ -11,6 +11,10 @@ import { cn } from "@/lib/cn";
  * Built on Radix so focus is trapped, Escape closes, and focus returns to the
  * trigger — none of which is hand-rolled. `variant="sheet"` slides in from the
  * inline end for longer forms that should keep the page visible behind them.
+ *
+ * On phones (below `sm`) the modal is a bottom sheet: full width, anchored where
+ * a thumb reaches, scrolling inside when the form is long, with its actions
+ * stretched into easy targets.
  */
 export function Dialog({
   open,
@@ -35,8 +39,8 @@ export function Dialog({
           className={cn(
             "bg-surface-raised text-foreground fixed z-50 flex flex-col shadow-[0_12px_32px_color-mix(in_srgb,#2d2b2b_22%,transparent)] focus:outline-none",
             variant === "modal"
-              ? "animate-tv-fade top-1/2 left-1/2 max-h-[calc(100dvh-2rem)] w-[min(520px,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2"
-              : "border-border-strong animate-tv-fade inset-y-0 end-0 w-full max-w-lg border-s-2",
+              ? "animate-tv-fade border-border-strong inset-x-0 bottom-0 max-h-[92dvh] w-full border-t-2 pb-[env(safe-area-inset-bottom)] sm:inset-x-auto sm:top-1/2 sm:bottom-auto sm:left-1/2 sm:max-h-[calc(100dvh-2rem)] sm:w-[min(520px,calc(100vw-2rem))] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:border-t-0 sm:pb-0"
+              : "border-border-strong animate-tv-fade inset-y-0 end-0 w-full max-w-lg border-s-2 pb-[env(safe-area-inset-bottom)] sm:pb-0",
           )}
         >
           <div className="border-border-strong flex items-start justify-between gap-4 border-b-2 px-5 pt-4 pb-3">
@@ -56,7 +60,7 @@ export function Dialog({
             </div>
             <RadixDialog.Close
               aria-label="Close"
-              className="text-foreground hover:bg-surface-hover -me-2 grid size-8 shrink-0 cursor-pointer place-items-center"
+              className="text-foreground hover:bg-surface-hover -me-2 grid size-8 shrink-0 cursor-pointer place-items-center pointer-coarse:size-11"
             >
               <X aria-hidden="true" size={17} />
             </RadixDialog.Close>
@@ -71,7 +75,7 @@ export function Dialog({
 /** A right-aligned row of dialog actions. */
 export function DialogActions({ children }: { children: ReactNode }) {
   return (
-    <div className="border-border mt-5 flex flex-wrap items-center justify-end gap-2 border-t pt-4">
+    <div className="border-border mt-5 flex flex-wrap items-center justify-end gap-2 border-t pt-4 max-sm:*:flex-1">
       {children}
     </div>
   );
