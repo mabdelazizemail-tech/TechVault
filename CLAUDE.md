@@ -2122,13 +2122,15 @@ dialogs floated in the middle of phone screens. _Decision:_ (1) Layout switches 
 or JavaScript detection, so there is nothing to hydrate and resizing a window just works. Breakpoints are Tailwind's:
 phone below `sm`/`md`, tablet `md`–`lg`, desktop from `lg`. (2) `DataTable` renders a card list below `md` (first column
 as the linked title, other columns as labelled lines, sorting as links) and the table from `md`; both are
-server-rendered. A table with row selection keeps the scrolling table, because duplicated checkboxes would submit each
-row twice. (3) One unlayered rule in `app/globals.css` sets text fields to 16px on small touch screens. (4) Touch
+server-rendered. With row selection each row has a checkbox in both layouts carrying the same value; the bulk-action
+component keeps twins in step and counts and sends distinct ids (pure rules in `modules/crm/ui/bulk-selection.ts`), and
+the service de-duplicates as well. (3) One unlayered rule in `app/globals.css` sets text fields to 16px on small touch screens. (4) Touch
 targets grow with Tailwind's `pointer-coarse:` variant (40–44px), so a mouse keeps today's density. (5) `Dialog`'s modal is
 a bottom sheet below `sm` and the centred modal from `sm`. Measured on the local app signed in: every page at 320px has no
 horizontal overflow; tablets, desktop (1280–1920) and landscape phones checked on the heaviest screens. _Consequences:_
 list cells render twice (hidden by CSS), which is cheap at 20–50 rows per page; a new list gets cards for free by using
-`DataTable`; the Leads list scrolls on phones. _Revisit when:_ bulk selection is needed in phone cards, or a screen
+`DataTable`, and a new bulk action must de-duplicate its ids the same way. One-off controls (idea votes, category chips,
+Ask Think Tank examples) use the shared `Button`/`ButtonLink`, so they inherit touch sizing. _Revisit when:_ a screen
 genuinely needs different behaviour, not only layout, on phones.
 
 ---

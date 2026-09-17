@@ -91,6 +91,7 @@ export function ButtonLink({
   icon,
   className,
   children,
+  "aria-current": ariaCurrent,
 }: {
   href: string;
   variant?: ButtonVariant;
@@ -98,10 +99,13 @@ export function ButtonLink({
   icon?: ReactNode;
   className?: string;
   children: ReactNode;
+  /** Marks the link for the current page or the active filter. */
+  "aria-current"?: "page" | "true";
 }) {
   return (
     <Link
       href={href}
+      aria-current={ariaCurrent}
       className={cn(
         BASE_CLASSES,
         VARIANT_CLASSES[variant],

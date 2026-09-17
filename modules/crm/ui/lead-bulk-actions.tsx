@@ -6,13 +6,16 @@ import { controlClasses } from "@/components/ui/form-controls";
 import { cn } from "@/lib/cn";
 import { LEAD_STATUSES, LEAD_STATUS_LABELS } from "../contracts/types";
 import { bulkUpdateLeadsAction } from "./actions";
+import { applySelection, distinctIds } from "./bulk-selection";
 
 /**
  * Bulk status and owner changes for the leads table.
  *
  * The row checkboxes are rendered by the server-side DataTable and join this form
  * through their `form` attribute, so the selection is simply this form's FormData.
- * The only client work is counting the selection and the "select all" box.
+ * Each lead has two checkboxes — one in the table, one in the phone card — with
+ * the same value, so ticking one ticks its twin, and the count and the ids sent
+ * are distinct leads. The server de-duplicates too.
  */
 export function LeadBulkActions({
   formId,
@@ -33,6 +36,9 @@ export function LeadBulkActions({
     const rowSelector = `input[type="checkbox"][form="${formId}"]`;
     const headerSelector = `input[data-select-all="${formId}"]`;
     const rows = () => [...document.querySelectorAll<HTMLInputElement>(rowSelector)];
+    const headers = () => [
+      ...document.querySelectorAll<HTMLInputElement>(headerSelector),
+    ];
 
     // This component remounts on every navigation (it is keyed by the URL), so any
     // box still ticked from the previous view is cleared to match a count of zero.
@@ -41,18 +47,23 @@ export function LeadBulkActions({
     function onChange(event: Event) {
       const target = event.target;
       if (!(target instanceof HTMLInputElement)) return;
+      let state;
       if (target.dataset.selectAll === formId) {
-        for (const box of rows()) box.checked = target.checked;
-      } else if (target.getAttribute("form") !== formId) {
+        state = applySelection(rows(), { kind: "all", checked: target.checked });
+      } else if (target.getAttribute("form") === formId) {
+        state = applySelection(rows(), {
+          kind: "row",
+          value: target.value,
+          checked: target.checked,
+        });
+      } else {
         return;
       }
-      const all = rows();
-      const checked = all.filter((box) => box.checked).length;
-      setCount(checked);
-      const header = document.querySelector<HTMLInputElement>(headerSelector);
-      if (header !== null) {
-        header.checked = all.length > 0 && checked === all.length;
-        header.indeterminate = checked > 0 && checked < all.length;
+      setCount(state.selected);
+      // The table header box and the phone "select all" box stay in step too.
+      for (const header of headers()) {
+        header.checked = state.total > 0 && state.selected === state.total;
+        header.indeterminate = state.selected > 0 && state.selected < state.total;
       }
     }
 
@@ -73,7 +84,10 @@ export function LeadBulkActions({
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const leadIds = new FormData(event.currentTarget).getAll("leadIds").map(String);
+    // Each lead's value is present twice (table and card); send it once.
+    const leadIds = distinctIds(
+      new FormData(event.currentTarget).getAll("leadIds").map(String),
+    );
     setMessage(null);
     startTransition(async () => {
       const result = await bulkUpdateLeadsAction({
@@ -102,7 +116,7 @@ export function LeadBulkActions({
 
   const select = cn(
     controlClasses,
-    "border-border-strong min-h-8 w-auto cursor-pointer py-1 text-[13px]",
+    "border-border-strong min-h-8 w-auto max-w-full cursor-pointer py-1 text-[13px] pointer-coarse:min-h-10",
   );
 
   return (

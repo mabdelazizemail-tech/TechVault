@@ -16,9 +16,9 @@ import { EmptyState } from "./primitives";
  *  - Below `md` it becomes a card list (§16.7): the first column is the card's
  *    title and every other column a labelled line, with sorting offered as links.
  *    Both layouts are server-rendered and switched by CSS, so there is no
- *    device detection and nothing to hydrate. Tables with row selection keep the
- *    scrolling table on phones, because a second set of checkboxes would submit
- *    each selected row twice.
+ *    device detection and nothing to hydrate. With row selection, each row has a
+ *    checkbox in both layouts, carrying the same value: the caller's bulk-action
+ *    component keeps the two in step and counts and submits distinct values.
  *  - Wide content scrolls inside its own container; the page never scrolls
  *    sideways.
  *  - Numeric columns use tabular figures so digits line up down the column.
@@ -69,6 +69,8 @@ export type DataTableProps<TRow> = {
    * Row selection for bulk actions. Each checkbox joins the caller's
    * `<form id={formId}>` through the `form` attribute, so the table stays a Server
    * Component and the bulk-action form reads the selection from its own FormData.
+   * A row's value appears twice (table and phone card): the caller must keep boxes
+   * with the same value in step and de-duplicate what it counts and sends.
    */
   selection?: { formId: string; name: string; rowLabel: (row: TRow) => string };
 };
@@ -97,23 +99,20 @@ export function DataTable<TRow>({
     );
   }
 
-  const cards = selection === undefined;
-
   return (
     <div className="flex flex-col">
-      {cards && (
-        <CardList
-          columns={columns}
-          rows={rows}
-          rowKey={rowKey}
-          rowHref={rowHref}
-          sort={sort}
-          basePath={basePath}
-          searchParams={searchParams}
-        />
-      )}
+      <CardList
+        columns={columns}
+        rows={rows}
+        rowKey={rowKey}
+        rowHref={rowHref}
+        sort={sort}
+        basePath={basePath}
+        searchParams={searchParams}
+        selection={selection}
+      />
       {/* Wide tables scroll here, not on the body (§17.3). */}
-      <div className={cn("overflow-x-auto", cards && "hidden md:block")}>
+      <div className="hidden overflow-x-auto md:block">
         <table className="w-full border-collapse text-sm">
           <thead className="bg-surface sticky top-0 z-10">
             <tr>
@@ -208,7 +207,8 @@ export function DataTable<TRow>({
 /**
  * The phone layout: one card per row. The first column is the title (linked when
  * rows are), and each remaining column a label and value; columns hidden on mobile
- * stay hidden here too.
+ * stay hidden here too. With selection, a "select all" line sits above the cards
+ * and each card starts with its checkbox, in a thumb-sized hit area.
  */
 function CardList<TRow>({
   columns,
@@ -218,6 +218,7 @@ function CardList<TRow>({
   sort,
   basePath,
   searchParams,
+  selection,
 }: {
   columns: readonly Column<TRow>[];
   rows: readonly TRow[];
@@ -226,6 +227,7 @@ function CardList<TRow>({
   sort?: SortState;
   basePath: string;
   searchParams: Record<string, string | undefined>;
+  selection?: DataTableProps<TRow>["selection"];
 }) {
   const [first, ...rest] = columns;
   if (first === undefined) return null;
@@ -251,41 +253,68 @@ function CardList<TRow>({
           ))}
         </nav>
       )}
+      {selection !== undefined && (
+        <label className="rule-b text-foreground flex min-h-11 cursor-pointer items-center gap-3 px-4 text-sm font-semibold">
+          <input
+            type="checkbox"
+            data-select-all={selection.formId}
+            className="accent-primary size-5 cursor-pointer"
+          />
+          Select all on this page
+        </label>
+      )}
       <ul>
         {rows.map((row) => (
           <li
             key={rowKey(row)}
-            className="border-border border-b px-4 py-3 last:border-0"
+            className="border-border flex items-start gap-1 border-b py-3 ps-1 pe-4 last:border-0"
           >
-            <div className="text-foreground min-w-0 text-[15px] font-semibold break-words">
-              {rowHref !== undefined ? (
-                <Link
-                  href={rowHref(row)}
-                  className="-my-1 block py-1 underline-offset-3 hover:underline"
-                >
-                  {first.cell(row)}
-                </Link>
-              ) : (
-                first.cell(row)
+            {selection !== undefined ? (
+              // The label is the hit area: 44px square around a 20px box.
+              <label className="-my-1.5 grid size-11 shrink-0 cursor-pointer place-items-center">
+                <input
+                  type="checkbox"
+                  form={selection.formId}
+                  name={selection.name}
+                  value={rowKey(row)}
+                  aria-label={`Select ${selection.rowLabel(row)}`}
+                  className="accent-primary size-5 cursor-pointer"
+                />
+              </label>
+            ) : (
+              <span aria-hidden="true" className="w-3 shrink-0" />
+            )}
+            <div className="min-w-0 flex-1">
+              <div className="text-foreground min-w-0 text-[15px] font-semibold break-words">
+                {rowHref !== undefined ? (
+                  <Link
+                    href={rowHref(row)}
+                    className="-my-1 block py-1 underline-offset-3 hover:underline"
+                  >
+                    {first.cell(row)}
+                  </Link>
+                ) : (
+                  first.cell(row)
+                )}
+              </div>
+              {details.length > 0 && (
+                <dl className="mt-2 grid grid-cols-[auto_minmax(0,1fr)] items-baseline gap-x-4 gap-y-1.5 text-sm">
+                  {details.map((column) => (
+                    <div key={column.key} className="contents">
+                      <dt className="text-foreground-muted text-xs">{column.header}</dt>
+                      <dd
+                        className={cn(
+                          "text-foreground min-w-0 text-end break-words",
+                          column.align === "end" && "tabular-nums",
+                        )}
+                      >
+                        {column.cell(row)}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
               )}
             </div>
-            {details.length > 0 && (
-              <dl className="mt-2 grid grid-cols-[auto_minmax(0,1fr)] items-baseline gap-x-4 gap-y-1.5 text-sm">
-                {details.map((column) => (
-                  <div key={column.key} className="contents">
-                    <dt className="text-foreground-muted text-xs">{column.header}</dt>
-                    <dd
-                      className={cn(
-                        "text-foreground min-w-0 text-end break-words",
-                        column.align === "end" && "tabular-nums",
-                      )}
-                    >
-                      {column.cell(row)}
-                    </dd>
-                  </div>
-                ))}
-              </dl>
-            )}
           </li>
         ))}
       </ul>

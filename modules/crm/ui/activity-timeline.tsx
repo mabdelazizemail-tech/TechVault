@@ -192,7 +192,7 @@ export function TimelineItem({
               <li key={`${ref.kind}-${ref.id}`}>
                 <Link
                   href={recordHref(ref)}
-                  className="border-border text-foreground-muted hover:text-foreground hover:border-border-strong inline-flex items-center border px-1.5 py-0.5 text-[11px]"
+                  className="border-border text-foreground-muted hover:text-foreground hover:border-border-strong inline-flex items-center border px-1.5 py-0.5 text-[11px] pointer-coarse:min-h-9 pointer-coarse:px-2.5 pointer-coarse:text-xs"
                   dir="auto"
                 >
                   {ref.label}

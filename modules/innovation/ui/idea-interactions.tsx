@@ -42,8 +42,9 @@ export function VoteButton({
   const disabled = !canVote || isMine;
 
   return (
-    <button
-      type="button"
+    <Button
+      variant={state.voted ? "primary" : "secondary"}
+      size={size === "lg" ? "md" : "sm"}
       disabled={disabled || isPending}
       aria-pressed={state.voted}
       aria-label={
@@ -69,22 +70,24 @@ export function VoteButton({
         });
       }}
       className={cn(
-        "inline-flex shrink-0 items-center gap-1.5 border font-extrabold tabular-nums transition-colors",
-        size === "lg" ? "min-h-10 px-4 text-base" : "min-h-8 px-2.5 text-[13px]",
-        state.voted
-          ? "border-primary bg-primary text-primary-foreground"
-          : "border-border-strong text-foreground",
-        disabled ? "cursor-default opacity-70" : "hover:border-primary cursor-pointer",
+        "shrink-0 font-extrabold tabular-nums",
+        size === "lg" && "text-base",
+        // Your own idea, or no right to vote: shown, not dimmed to nothing.
+        disabled && "disabled:cursor-default disabled:opacity-70",
+        // A vote being saved is already shown optimistically; don't flash it.
+        !disabled && "disabled:cursor-progress disabled:opacity-100",
       )}
+      icon={
+        <ThumbsUp
+          aria-hidden="true"
+          size={size === "lg" ? 18 : 15}
+          strokeWidth={2.25}
+          fill={state.voted ? "currentColor" : "none"}
+        />
+      }
     >
-      <ThumbsUp
-        aria-hidden="true"
-        size={size === "lg" ? 18 : 15}
-        strokeWidth={2.25}
-        fill={state.voted ? "currentColor" : "none"}
-      />
       {state.count}
-    </button>
+    </Button>
   );
 }
 

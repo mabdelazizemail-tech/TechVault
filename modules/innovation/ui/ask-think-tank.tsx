@@ -2,6 +2,7 @@
 
 import { ArrowUp, Bot, FileText, FolderKanban, Lightbulb, Sparkles } from "lucide-react";
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { cn } from "@/lib/cn";
 import type { AnswerSource, AssistantAnswer } from "../contracts/types";
@@ -154,13 +155,13 @@ export function AskThinkTank({ initial }: { initial: AssistantAnswer | null }) {
         <ul className="mt-4 flex flex-wrap justify-center gap-2">
           {EXAMPLES.map((example) => (
             <li key={example}>
-              <button
-                type="button"
+              <Button
+                size="sm"
                 onClick={() => ask(example)}
-                className="border-border text-foreground-muted hover:border-border-strong hover:text-foreground cursor-pointer border px-3 py-1.5 text-[12.5px]"
+                className="text-foreground-muted hover:text-foreground h-auto text-start font-medium whitespace-normal"
               >
                 {example}
-              </button>
+              </Button>
             </li>
           ))}
         </ul>

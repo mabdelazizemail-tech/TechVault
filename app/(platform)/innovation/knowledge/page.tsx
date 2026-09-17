@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { ButtonLink } from "@/components/ui/button";
 import { Pagination } from "@/components/ui/data-table";
 import { EmptyState, PageHeader, Panel } from "@/components/ui/primitives";
-import { cn } from "@/lib/cn";
 import { INNOVATION_PERMISSIONS } from "@/modules/innovation/contracts/permissions";
 import {
   isFileStorageAvailable,
@@ -87,19 +86,16 @@ export default async function KnowledgePage({
         {[{ id: undefined, name: "All" }, ...categories].map((category) => {
           const active = (params.category ?? undefined) === category.id;
           return (
-            <Link
+            <ButtonLink
               key={category.id ?? "all"}
               href={chipHref(category.id)}
               aria-current={active ? "page" : undefined}
-              className={cn(
-                "border px-3 py-1 text-[13px]",
-                active
-                  ? "border-foreground bg-foreground text-canvas font-extrabold"
-                  : "border-border-strong text-foreground hover:bg-surface-hover",
-              )}
+              variant={active ? "primary" : "secondary"}
+              size="sm"
+              className={active ? "font-extrabold" : "font-medium"}
             >
               {category.name}
-            </Link>
+            </ButtonLink>
           );
         })}
       </nav>

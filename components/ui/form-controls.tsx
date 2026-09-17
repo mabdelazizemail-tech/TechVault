@@ -187,7 +187,7 @@ export function PillGroup({
             <label
               key={option.value}
               className={cn(
-                "has-focus-visible:outline-primary relative cursor-pointer border px-3 py-1.5 text-[13px] select-none has-focus-visible:outline-2 has-focus-visible:outline-offset-2",
+                "has-focus-visible:outline-primary relative inline-flex cursor-pointer items-center border px-3 py-1.5 text-[13px] select-none has-focus-visible:outline-2 has-focus-visible:outline-offset-2 pointer-coarse:min-h-10",
                 checked
                   ? "border-primary bg-primary text-primary-foreground font-extrabold"
                   : "border-border-strong text-foreground hover:bg-surface-hover",
