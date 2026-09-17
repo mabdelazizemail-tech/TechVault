@@ -66,35 +66,55 @@ async function yearEndProblems(
 ): Promise<string[]> {
   const { start, end } = bounds(year);
   const inYear = { gte: dateFromIso(start), lte: dateFromIso(end) };
-  const [liveClose, account, drafts, unpostedInvoices, draftReceipts, openDecember] =
-    await Promise.all([
-      client.erpFiscalYearClose.findFirst({
-        where: { year, reopenedAt: null },
-        select: { id: true },
-      }),
-      settings.retainedEarningsAccountId === null
-        ? Promise.resolve(null)
-        : client.erpAccount.findUnique({
-            where: { id: settings.retainedEarningsAccountId },
-            select: { type: true, isActive: true, isPostable: true },
-          }),
-      client.erpJournalEntry.count({ where: { status: "DRAFT", entryDate: inYear } }),
-      client.erpArInvoice.count({
-        where: {
-          status: { in: ["DRAFT", "PENDING_APPROVAL", "APPROVED"] },
-          invoiceDate: inYear,
-        },
-      }),
-      client.erpArReceipt.count({ where: { status: "DRAFT", receiptDate: inYear } }),
-      client.erpFiscalPeriod.findFirst({
-        where: {
-          startDate: { lte: dateFromIso(end) },
-          endDate: { gte: dateFromIso(end) },
-          status: "OPEN",
-        },
-        select: { id: true },
-      }),
-    ]);
+  const [
+    liveClose,
+    account,
+    drafts,
+    unpostedInvoices,
+    draftReceipts,
+    openDecember,
+    unpostedBills,
+    unpostedPayments,
+  ] = await Promise.all([
+    client.erpFiscalYearClose.findFirst({
+      where: { year, reopenedAt: null },
+      select: { id: true },
+    }),
+    settings.retainedEarningsAccountId === null
+      ? Promise.resolve(null)
+      : client.erpAccount.findUnique({
+          where: { id: settings.retainedEarningsAccountId },
+          select: { type: true, isActive: true, isPostable: true },
+        }),
+    client.erpJournalEntry.count({ where: { status: "DRAFT", entryDate: inYear } }),
+    client.erpArInvoice.count({
+      where: {
+        status: { in: ["DRAFT", "PENDING_APPROVAL", "APPROVED"] },
+        invoiceDate: inYear,
+      },
+    }),
+    client.erpArReceipt.count({ where: { status: "DRAFT", receiptDate: inYear } }),
+    client.erpFiscalPeriod.findFirst({
+      where: {
+        startDate: { lte: dateFromIso(end) },
+        endDate: { gte: dateFromIso(end) },
+        status: "OPEN",
+      },
+      select: { id: true },
+    }),
+    client.erpApBill.count({
+      where: {
+        status: { in: ["DRAFT", "PENDING_APPROVAL", "APPROVED"] },
+        billDate: inYear,
+      },
+    }),
+    client.erpApPayment.count({
+      where: {
+        status: { in: ["DRAFT", "PENDING_APPROVAL", "APPROVED"] },
+        paymentDate: inYear,
+      },
+    }),
+  ]);
 
   const problems: string[] = [];
   if (liveClose !== null) problems.push(`${year} is already closed.`);
@@ -123,6 +143,11 @@ async function yearEndProblems(
   if (unpostedInvoices + draftReceipts > 0) {
     problems.push(
       `${unpostedInvoices} unposted invoice(s) and ${draftReceipts} draft receipt(s) are dated in ${year}. Post, cancel or delete them first.`,
+    );
+  }
+  if (unpostedBills + unpostedPayments > 0) {
+    problems.push(
+      `${unpostedBills} unposted bill(s) and ${unpostedPayments} unposted payment(s) are dated in ${year}. Post, cancel or delete them first.`,
     );
   }
   if (openDecember === null) {

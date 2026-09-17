@@ -382,6 +382,18 @@ export const AR_DOCUMENT_TYPE_LABELS: Record<ArDocumentType, string> = {
   AR_RECEIPT: "Receipts",
 };
 
+export const AP_DOCUMENT_TYPES = ["AP_BILL", "AP_PAYMENT"] as const;
+export type ApDocumentType = (typeof AP_DOCUMENT_TYPES)[number];
+
+/** Every numbered finance document: receivables and payables share one numbering engine. */
+export type FinanceDocumentType = ArDocumentType | ApDocumentType;
+
+export const FINANCE_DOCUMENT_TYPE_LABELS: Record<FinanceDocumentType, string> = {
+  ...AR_DOCUMENT_TYPE_LABELS,
+  AP_BILL: "Vendor bills",
+  AP_PAYMENT: "Supplier payments",
+};
+
 /** A customer as ERP sees it: the CRM company id and its name, nothing more. */
 export type CustomerRef = { id: string; name: string; existsInCrm: boolean };
 
@@ -392,6 +404,8 @@ export type TaxRateDto = {
   nameAr: string | null;
   rateBasisPoints: number;
   taxAccount: AccountRef;
+  /** Where input tax on vendor bills goes; a rate without one is not offered on bills. */
+  inputTaxAccount: AccountRef | null;
   isActive: boolean;
 };
 
@@ -407,7 +421,7 @@ export type PaymentMethodDto = {
 
 export type NumberSeriesDto = {
   id: string;
-  documentType: ArDocumentType;
+  documentType: FinanceDocumentType;
   prefix: string;
   padding: number;
   resetsYearly: boolean;
@@ -653,4 +667,251 @@ export type ArCustomerAccount = {
   statement: ArCustomerStatement;
   invoices: ArInvoiceListItem[];
   receipts: ArReceiptListItem[];
+};
+
+/* Accounts payable (ADR-033) ---------------------------------------------------- */
+
+export const AP_BILL_STATUSES = [
+  "DRAFT",
+  "PENDING_APPROVAL",
+  "APPROVED",
+  "POSTED",
+  "PARTIALLY_PAID",
+  "PAID",
+  "CANCELLED",
+] as const;
+export type ApBillStatus = (typeof AP_BILL_STATUSES)[number];
+
+export const AP_BILL_STATUS_LABELS: Record<ApBillStatus, string> = {
+  DRAFT: "Draft",
+  PENDING_APPROVAL: "Waiting for approval",
+  APPROVED: "Approved",
+  POSTED: "Posted",
+  PARTIALLY_PAID: "Partly paid",
+  PAID: "Paid",
+  CANCELLED: "Cancelled",
+};
+
+export const AP_PAYMENT_STATUSES = [
+  "DRAFT",
+  "PENDING_APPROVAL",
+  "APPROVED",
+  "POSTED",
+  "CANCELLED",
+] as const;
+export type ApPaymentStatus = (typeof AP_PAYMENT_STATUSES)[number];
+
+export const AP_PAYMENT_STATUS_LABELS: Record<ApPaymentStatus, string> = {
+  DRAFT: "Draft",
+  PENDING_APPROVAL: "Waiting for approval",
+  APPROVED: "Approved",
+  POSTED: "Posted",
+  CANCELLED: "Cancelled",
+};
+
+export type VendorRef = { id: string; name: string; isActive: boolean };
+
+export type WithholdingTaxRateDto = {
+  id: string;
+  code: string;
+  name: string;
+  nameAr: string | null;
+  rateBasisPoints: number;
+  payableAccount: AccountRef;
+  isActive: boolean;
+};
+
+export type ApSettingsDto = {
+  defaultPayableAccount: AccountRef | null;
+  billApprovalRequired: boolean;
+  billApprovalThresholdMinor: number | null;
+  paymentApprovalRequired: boolean;
+  paymentApprovalThresholdMinor: number | null;
+  allowSelfApproval: boolean;
+  defaultPaymentTermsDays: number;
+  agingBucketDays: number[];
+  numberSeries: NumberSeriesDto[];
+};
+
+export type VendorListItem = {
+  id: string;
+  name: string;
+  nameAr: string | null;
+  taxRegistrationNumber: string | null;
+  isActive: boolean;
+  /** What is owed on posted bills. */
+  outstandingMinor: number;
+  overdueMinor: number;
+  openBillCount: number;
+};
+
+export type VendorDetail = VendorListItem & {
+  crmAccount: CustomerRef | null;
+  email: string | null;
+  phone: string | null;
+  address: string | null;
+  paymentTermsDays: number | null;
+  payableAccount: AccountRef | null;
+  defaultExpenseAccount: AccountRef | null;
+  defaultWithholdingTaxRate: { id: string; code: string; name: string } | null;
+  notes: string | null;
+  defaultPaymentTermsDays: number;
+  billedMinor: number;
+  paidMinor: number;
+  aging: { asOf: string; bucketLabels: string[]; bucketsMinor: number[] };
+  bills: ApBillListItem[];
+  payments: ApPaymentListItem[];
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type ApBillListItem = {
+  id: string;
+  billNumber: string | null;
+  vendor: VendorRef;
+  vendorInvoiceNumber: string;
+  billDate: string;
+  dueDate: string;
+  status: ApBillStatus;
+  totalMinor: number;
+  paidMinor: number;
+  outstandingMinor: number;
+  createdBy: PersonRef;
+};
+
+export type ApBillLineDto = {
+  id: string;
+  lineNo: number;
+  description: string;
+  quantity: string;
+  unitPriceMinor: number;
+  grossMinor: number;
+  discountMinor: number;
+  netMinor: number;
+  taxRate: { id: string; code: string; name: string } | null;
+  taxRateBasisPoints: number | null;
+  taxMinor: number;
+  totalMinor: number;
+  expenseAccount: AccountRef;
+  costCentre: CostCentreRef | null;
+};
+
+/** One posted payment line against a bill, as the bill shows it. */
+export type ApBillSettlementDto = {
+  paymentId: string;
+  paymentNumber: string | null;
+  paymentDate: string;
+  amountMinor: number;
+  withheldMinor: number;
+  cashMinor: number;
+};
+
+export type ApBillDetail = ApBillListItem & {
+  currency: string;
+  subtotalMinor: number;
+  discountMinor: number;
+  taxMinor: number;
+  reference: string | null;
+  notes: string | null;
+  payableAccount: AccountRef;
+  period: PeriodRef | null;
+  journal: JournalRef | null;
+  voidJournal: JournalRef | null;
+  lines: ApBillLineDto[];
+  settlements: ApBillSettlementDto[];
+  submittedAt: Date | null;
+  approvalSkipped: boolean;
+  approvedAt: Date | null;
+  approvedBy: PersonRef | null;
+  rejectedAt: Date | null;
+  rejectionReason: string | null;
+  postedAt: Date | null;
+  postedBy: PersonRef | null;
+  cancelledAt: Date | null;
+  cancelReason: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type ApPaymentListItem = {
+  id: string;
+  paymentNumber: string | null;
+  vendor: VendorRef;
+  paymentDate: string;
+  status: ApPaymentStatus;
+  /** Bills settled. */
+  amountMinor: number;
+  withheldMinor: number;
+  /** Paid out of the bank. */
+  cashMinor: number;
+  paymentMethod: { id: string; name: string };
+  createdBy: PersonRef;
+};
+
+export type ApPaymentLineDto = {
+  id: string;
+  lineNo: number;
+  bill: {
+    id: string;
+    billNumber: string | null;
+    vendorInvoiceNumber: string;
+    dueDate: string;
+    totalMinor: number;
+    outstandingMinor: number;
+  };
+  amountMinor: number;
+  withholdingTaxRate: { id: string; code: string; name: string } | null;
+  withholdingBasisPoints: number | null;
+  withholdingBaseMinor: number;
+  withheldMinor: number;
+  cashMinor: number;
+};
+
+export type ApPaymentDetail = ApPaymentListItem & {
+  currency: string;
+  reference: string | null;
+  notes: string | null;
+  bankAccount: AccountRef;
+  payableAccount: AccountRef;
+  period: PeriodRef | null;
+  journal: JournalRef | null;
+  voidJournal: JournalRef | null;
+  lines: ApPaymentLineDto[];
+  submittedAt: Date | null;
+  approvalSkipped: boolean;
+  approvedAt: Date | null;
+  approvedBy: PersonRef | null;
+  rejectedAt: Date | null;
+  rejectionReason: string | null;
+  postedAt: Date | null;
+  postedBy: PersonRef | null;
+  cancelledAt: Date | null;
+  cancelReason: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+/** A posted bill a payment can still settle. */
+export type OpenBillOption = {
+  id: string;
+  billNumber: string;
+  vendorInvoiceNumber: string;
+  billDate: string;
+  dueDate: string;
+  totalMinor: number;
+  outstandingMinor: number;
+  /** The part of the total before VAT, so the form can preview withholding. */
+  netMinor: number;
+};
+
+export type ApAgingRow = {
+  vendor: VendorRef;
+  bucketsMinor: number[];
+  outstandingMinor: number;
+};
+
+export type ApAgingReport = Paginated<ApAgingRow> & {
+  asOf: string;
+  bucketLabels: string[];
+  totals: { bucketsMinor: number[]; outstandingMinor: number };
 };

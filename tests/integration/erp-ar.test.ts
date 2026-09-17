@@ -506,7 +506,7 @@ describe.skipIf(!hasTestDatabase)("ERP accounts receivable (integration)", () =>
             reverseJournal(as(admin), journalId, { reversalDate: "2026-09-25" }),
           )
         ).message,
-      ).toMatch(/posted from an invoice or receipt/);
+      ).toMatch(/Void that document instead/);
     });
 
     it("cancels an unposted invoice and voids an unpaid posted one by reversal", async () => {

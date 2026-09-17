@@ -13,7 +13,7 @@ import {
   listPaymentMethods,
   listTaxRates,
 } from "@/modules/erp/contracts/service";
-import { AR_DOCUMENT_TYPE_LABELS } from "@/modules/erp/contracts/types";
+import { FINANCE_DOCUMENT_TYPE_LABELS } from "@/modules/erp/contracts/types";
 import { formatBasisPoints } from "@/modules/erp/domain/ar";
 import {
   ArSettingsForm,
@@ -40,6 +40,9 @@ export default async function ArSettingsPage() {
   ]);
   const assetAccounts = accounts.filter((account) => account.type === "ASSET");
   const liabilityAccounts = accounts.filter((account) => account.type === "LIABILITY");
+  const inputTaxAccounts = accounts.filter(
+    (account) => account.type === "ASSET" || account.type === "EXPENSE",
+  );
 
   return (
     <div className="flex flex-col gap-4">
@@ -57,7 +60,12 @@ export default async function ArSettingsPage() {
         <PanelHeader
           title="Tax rates"
           description="Rates are data. Invoice lines keep the rate they were calculated with."
-          actions={<TaxRateFormButton liabilityAccounts={liabilityAccounts} />}
+          actions={
+            <TaxRateFormButton
+              liabilityAccounts={liabilityAccounts}
+              inputTaxAccounts={inputTaxAccounts}
+            />
+          }
         />
         {taxRates.length === 0 ? (
           <EmptyState
@@ -75,10 +83,16 @@ export default async function ArSettingsPage() {
                   <span className="text-foreground-muted text-xs">
                     <span dir="auto">{rate.name}</span> · credited to{" "}
                     {rate.taxAccount.code} {rate.taxAccount.name}
+                    {rate.inputTaxAccount !== null &&
+                      ` · on bills to ${rate.inputTaxAccount.code} ${rate.inputTaxAccount.name}`}
                   </span>
                 </span>
                 {!rate.isActive && <Badge tone="warning">Inactive</Badge>}
-                <TaxRateFormButton rate={rate} liabilityAccounts={liabilityAccounts} />
+                <TaxRateFormButton
+                  rate={rate}
+                  liabilityAccounts={liabilityAccounts}
+                  inputTaxAccounts={inputTaxAccounts}
+                />
               </li>
             ))}
           </ul>
@@ -120,7 +134,7 @@ export default async function ArSettingsPage() {
             <NumberSeriesForm
               key={series.id}
               series={series}
-              label={AR_DOCUMENT_TYPE_LABELS[series.documentType]}
+              label={FINANCE_DOCUMENT_TYPE_LABELS[series.documentType]}
             />
           ))}
         </div>

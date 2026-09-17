@@ -29,6 +29,12 @@ export const ERP_EVENTS = {
   AR_RECEIPT_ALLOCATED: "erp.ARReceiptAllocated",
   AR_RECEIPT_UNALLOCATED: "erp.ARReceiptUnallocated",
   AR_RECEIPT_CANCELLED: "erp.ARReceiptCancelled",
+  AP_BILL_APPROVED: "erp.APBillApproved",
+  AP_BILL_POSTED: "erp.APBillPosted",
+  AP_BILL_CANCELLED: "erp.APBillCancelled",
+  AP_PAYMENT_APPROVED: "erp.APPaymentApproved",
+  AP_PAYMENT_POSTED: "erp.APPaymentPosted",
+  AP_PAYMENT_CANCELLED: "erp.APPaymentCancelled",
 } as const;
 
 export type JournalEntryPostedPayload = {
@@ -141,5 +147,53 @@ export type ArReceiptCancelledPayload = {
   receiptId: string;
   receiptNumber: string | null;
   crmAccountId: string;
+  voidJournalEntryId: string | null;
+};
+
+/* Accounts payable (ADR-033) ---------------------------------------------------- */
+
+export type ApBillApprovedPayload = {
+  billId: string;
+  vendorId: string;
+  /** True when the bill fell below the approval rule and was approved automatically. */
+  approvalSkipped: boolean;
+};
+
+export type ApBillPostedPayload = {
+  billId: string;
+  billNumber: string;
+  vendorId: string;
+  billDate: string;
+  dueDate: string;
+  journalEntryId: string;
+};
+
+export type ApBillCancelledPayload = {
+  billId: string;
+  billNumber: string | null;
+  vendorId: string;
+  voidJournalEntryId: string | null;
+};
+
+export type ApPaymentApprovedPayload = {
+  paymentId: string;
+  vendorId: string;
+  approvalSkipped: boolean;
+};
+
+export type ApPaymentPostedPayload = {
+  paymentId: string;
+  paymentNumber: string;
+  vendorId: string;
+  paymentDate: string;
+  billIds: string[];
+  journalEntryId: string;
+};
+
+export type ApPaymentCancelledPayload = {
+  paymentId: string;
+  paymentNumber: string | null;
+  vendorId: string;
+  billIds: string[];
   voidJournalEntryId: string | null;
 };

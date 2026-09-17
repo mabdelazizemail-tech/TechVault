@@ -123,6 +123,16 @@ model ErpAccount {
   arCreditNotesReceivable ErpArCreditNote[]      @relation("ErpArCreditNoteReceivable")
   arCreditNoteLines       ErpArCreditNoteLine[]  @relation("ErpArCreditNoteLineRevenue")
 
+  taxRatesInput      ErpTaxRate[]            @relation("ErpTaxRateInputAccount")
+  withholdingRates   ErpWithholdingTaxRate[] @relation("ErpWithholdingTaxRateAccount")
+  apSettingsDefaults ErpApSettings[]         @relation("ErpApDefaultPayable")
+  vendorsPayable     ErpVendor[]             @relation("ErpVendorPayable")
+  vendorsExpense     ErpVendor[]             @relation("ErpVendorExpense")
+  apBillsPayable     ErpApBill[]             @relation("ErpApBillPayable")
+  apBillLines        ErpApBillLine[]         @relation("ErpApBillLineExpense")
+  apPaymentsBank     ErpApPayment[]          @relation("ErpApPaymentBank")
+  apPaymentsPayable  ErpApPayment[]          @relation("ErpApPaymentPayable")
+
   financeRetainedEarnings ErpFinanceSettings[] @relation("ErpFinanceRetainedEarnings")
   financeOpeningBalance   ErpFinanceSettings[] @relation("ErpFinanceOpeningBalance")
   fiscalYearCloses        ErpFiscalYearClose[] @relation("ErpFiscalYearCloseRetained")
@@ -152,6 +162,7 @@ model ErpCostCentre {
   lines             ErpJournalLine[]
   arInvoiceLines    ErpArInvoiceLine[]
   arCreditNoteLines ErpArCreditNoteLine[]
+  apBillLines       ErpApBillLine[]
 
   @@index([parentId])
   @@index([isActive])
@@ -183,6 +194,8 @@ model ErpFiscalPeriod {
   arInvoices    ErpArInvoice[]
   arReceipts    ErpArReceipt[]
   arCreditNotes ErpArCreditNote[]
+  apBills       ErpApBill[]
+  apPayments    ErpApPayment[]
 
   @@index([startDate])
   @@index([status])
@@ -235,6 +248,11 @@ model ErpJournalEntry {
 
   arCreditNote     ErpArCreditNote? @relation("ErpArCreditNoteJournal")
   arCreditNoteVoid ErpArCreditNote? @relation("ErpArCreditNoteVoidJournal")
+
+  apBill        ErpApBill?    @relation("ErpApBillJournal")
+  apBillVoid    ErpApBill?    @relation("ErpApBillVoidJournal")
+  apPayment     ErpApPayment? @relation("ErpApPaymentJournal")
+  apPaymentVoid ErpApPayment? @relation("ErpApPaymentVoidJournal")
 
   fiscalYearClose  ErpFiscalYearClose? @relation("ErpFiscalYearCloseEntry")
   fiscalYearReopen ErpFiscalYearClose? @relation("ErpFiscalYearReopenEntry")
@@ -348,13 +366,18 @@ model ErpNumberSeriesCounter {
 /// A tax rate is data (§25.3): the rate in basis points (1400 = 14%) and the
 /// liability account its tax is credited to. Lines copy the rate when calculated.
 model ErpTaxRate {
-  id              String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  code            String  @unique
-  name            String
-  nameAr          String? @map("name_ar")
-  rateBasisPoints Int     @map("rate_basis_points")
-  taxAccountId    String  @map("tax_account_id") @db.Uuid
-  isActive        Boolean @default(true) @map("is_active")
+  id                String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code              String  @unique
+  name              String
+  nameAr            String? @map("name_ar")
+  rateBasisPoints   Int     @map("rate_basis_points")
+  /// Output tax on sales is credited here (a liability).
+  taxAccountId      String  @map("tax_account_id") @db.Uuid
+  /// Input tax on purchases is debited here — recoverable VAT to an asset account, or
+  /// an expense account when it cannot be reclaimed. A rate without one is not
+  /// offered on vendor bills (ADR-033).
+  inputTaxAccountId String? @map("input_tax_account_id") @db.Uuid
+  isActive          Boolean @default(true) @map("is_active")
 
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -362,8 +385,10 @@ model ErpTaxRate {
   updatedBy String?  @map("updated_by") @db.Uuid
 
   taxAccount      ErpAccount            @relation("ErpTaxRateAccount", fields: [taxAccountId], references: [id], onDelete: Restrict)
+  inputTaxAccount ErpAccount?           @relation("ErpTaxRateInputAccount", fields: [inputTaxAccountId], references: [id], onDelete: Restrict)
   invoiceLines    ErpArInvoiceLine[]
   creditNoteLines ErpArCreditNoteLine[]
+  billLines       ErpApBillLine[]
 
   @@index([isActive])
   @@map("tax_rates")
@@ -387,6 +412,7 @@ model ErpPaymentMethod {
 
   defaultDepositAccount ErpAccount?    @relation("ErpPaymentMethodDeposit", fields: [defaultDepositAccountId], references: [id], onDelete: Restrict)
   receipts              ErpArReceipt[]
+  apPayments            ErpApPayment[]
 
   @@index([isActive, sortOrder])
   @@map("payment_methods")
@@ -751,5 +777,312 @@ model ErpArCreditNoteLine {
   @@index([taxRateId])
   @@index([costCentreId])
   @@map("ar_credit_note_lines")
+  @@schema("erp")
+}
+
+// ---------------------------------------------------------------------------
+// Accounts payable (ADR-033): vendors, bills, supplier payments with withholding.
+// ---------------------------------------------------------------------------
+
+enum ErpApBillStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  POSTED
+  PARTIALLY_PAID
+  PAID
+  CANCELLED
+
+  @@schema("erp")
+}
+
+enum ErpApPaymentStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  POSTED
+  CANCELLED
+
+  @@schema("erp")
+}
+
+/// Accounts payable configuration: one row, id = 1. Data an administrator changes.
+model ErpApSettings {
+  id                            Int     @id @default(1)
+  defaultPayableAccountId       String? @map("default_payable_account_id") @db.Uuid
+  billApprovalRequired          Boolean @default(true) @map("bill_approval_required")
+  /// When set, only bills at or above this total need approval.
+  billApprovalThresholdMinor    BigInt? @map("bill_approval_threshold_minor")
+  paymentApprovalRequired       Boolean @default(true) @map("payment_approval_required")
+  /// When set, only payments settling at least this much need approval.
+  paymentApprovalThresholdMinor BigInt? @map("payment_approval_threshold_minor")
+  /// Off by default: nobody approves a bill or payment they created or submitted (§13.3).
+  allowSelfApproval             Boolean @default(false) @map("allow_self_approval")
+  defaultPaymentTermsDays       Int     @default(30) @map("default_payment_terms_days")
+  agingBucketDays               Int[]   @default([30, 60, 90, 120]) @map("aging_bucket_days")
+
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  updatedBy String?  @map("updated_by") @db.Uuid
+
+  defaultPayableAccount ErpAccount? @relation("ErpApDefaultPayable", fields: [defaultPayableAccountId], references: [id], onDelete: Restrict)
+
+  @@map("ap_settings")
+  @@schema("erp")
+}
+
+/// A withholding tax rate deducted when a supplier is paid, credited to a liability
+/// account until it is remitted to the tax authority (ADR-033).
+model ErpWithholdingTaxRate {
+  id               String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code             String  @unique
+  name             String
+  nameAr           String? @map("name_ar")
+  rateBasisPoints  Int     @map("rate_basis_points")
+  payableAccountId String  @map("payable_account_id") @db.Uuid
+  isActive         Boolean @default(true) @map("is_active")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy String?  @map("created_by") @db.Uuid
+  updatedBy String?  @map("updated_by") @db.Uuid
+
+  payableAccount ErpAccount         @relation("ErpWithholdingTaxRateAccount", fields: [payableAccountId], references: [id], onDelete: Restrict)
+  vendors        ErpVendor[]
+  paymentLines   ErpApPaymentLine[]
+
+  @@index([isActive])
+  @@map("withholding_tax_rates")
+  @@schema("erp")
+}
+
+/// A supplier. ERP owns the vendor master (§26); a vendor may point at the CRM
+/// company that is the same business, by id only (§8.3).
+model ErpVendor {
+  id                          String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                        String
+  nameAr                      String? @map("name_ar")
+  taxRegistrationNumber       String? @map("tax_registration_number")
+  /// Optional link to the CRM company that is the same business. No foreign key.
+  crmAccountId                String? @map("crm_account_id") @db.Uuid
+  email                       String?
+  phone                       String?
+  address                     String?
+  paymentTermsDays            Int?    @map("payment_terms_days")
+  payableAccountId            String? @map("payable_account_id") @db.Uuid
+  defaultExpenseAccountId     String? @map("default_expense_account_id") @db.Uuid
+  defaultWithholdingTaxRateId String? @map("default_withholding_tax_rate_id") @db.Uuid
+  notes                       String?
+  isActive                    Boolean @default(true) @map("is_active")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy String?  @map("created_by") @db.Uuid
+  updatedBy String?  @map("updated_by") @db.Uuid
+
+  payableAccount            ErpAccount?            @relation("ErpVendorPayable", fields: [payableAccountId], references: [id], onDelete: Restrict)
+  defaultExpenseAccount     ErpAccount?            @relation("ErpVendorExpense", fields: [defaultExpenseAccountId], references: [id], onDelete: Restrict)
+  defaultWithholdingTaxRate ErpWithholdingTaxRate? @relation(fields: [defaultWithholdingTaxRateId], references: [id], onDelete: Restrict)
+  bills                     ErpApBill[]
+  payments                  ErpApPayment[]
+
+  @@index([isActive, name])
+  @@index([crmAccountId])
+  @@map("vendors")
+  @@schema("erp")
+}
+
+model ErpApBill {
+  id                  String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  /// Assigned at posting from the AP_BILL number series.
+  billNumber          String?         @unique @map("bill_number")
+  vendorId            String          @map("vendor_id") @db.Uuid
+  /// The supplier's own invoice number; unique per vendor among live bills.
+  vendorInvoiceNumber String          @map("vendor_invoice_number")
+  billDate            DateTime        @map("bill_date") @db.Date
+  dueDate             DateTime        @map("due_date") @db.Date
+  currency            String          @default("EGP") @db.Char(3)
+  status              ErpApBillStatus @default(DRAFT)
+  subtotalMinor       BigInt          @default(0) @map("subtotal_minor")
+  discountMinor       BigInt          @default(0) @map("discount_minor")
+  taxMinor            BigInt          @default(0) @map("tax_minor")
+  totalMinor          BigInt          @default(0) @map("total_minor")
+  /// Settled by posted payments (cash plus tax withheld), maintained by their trigger.
+  paidMinor           BigInt          @default(0) @map("paid_minor")
+  outstandingMinor    BigInt          @default(0) @map("outstanding_minor")
+  reference           String?
+  notes               String?
+  payableAccountId    String          @map("payable_account_id") @db.Uuid
+  fiscalPeriodId      String?         @map("fiscal_period_id") @db.Uuid
+  journalEntryId      String?         @unique @map("journal_entry_id") @db.Uuid
+  voidJournalEntryId  String?         @unique @map("void_journal_entry_id") @db.Uuid
+
+  submittedAt     DateTime? @map("submitted_at") @db.Timestamptz(6)
+  submittedBy     String?   @map("submitted_by") @db.Uuid
+  approvalSkipped Boolean   @default(false) @map("approval_skipped")
+  approvedAt      DateTime? @map("approved_at") @db.Timestamptz(6)
+  approvedBy      String?   @map("approved_by") @db.Uuid
+  rejectedAt      DateTime? @map("rejected_at") @db.Timestamptz(6)
+  rejectedBy      String?   @map("rejected_by") @db.Uuid
+  rejectionReason String?   @map("rejection_reason")
+  postedAt        DateTime? @map("posted_at") @db.Timestamptz(6)
+  postedBy        String?   @map("posted_by") @db.Uuid
+  cancelledAt     DateTime? @map("cancelled_at") @db.Timestamptz(6)
+  cancelledBy     String?   @map("cancelled_by") @db.Uuid
+  cancelReason    String?   @map("cancel_reason")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy String   @map("created_by") @db.Uuid
+  updatedBy String?  @map("updated_by") @db.Uuid
+
+  vendor           ErpVendor          @relation(fields: [vendorId], references: [id], onDelete: Restrict)
+  payableAccount   ErpAccount         @relation("ErpApBillPayable", fields: [payableAccountId], references: [id], onDelete: Restrict)
+  period           ErpFiscalPeriod?   @relation(fields: [fiscalPeriodId], references: [id], onDelete: Restrict)
+  journalEntry     ErpJournalEntry?   @relation("ErpApBillJournal", fields: [journalEntryId], references: [id], onDelete: Restrict)
+  voidJournalEntry ErpJournalEntry?   @relation("ErpApBillVoidJournal", fields: [voidJournalEntryId], references: [id], onDelete: Restrict)
+  creator          User               @relation("ErpApBillCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+  approver         User?              @relation("ErpApBillApprover", fields: [approvedBy], references: [id], onDelete: Restrict)
+  poster           User?              @relation("ErpApBillPoster", fields: [postedBy], references: [id], onDelete: Restrict)
+  lines            ErpApBillLine[]
+  paymentLines     ErpApPaymentLine[]
+
+  @@index([vendorId, status])
+  @@index([status, billDate(sort: Desc)])
+  @@index([billDate(sort: Desc)])
+  @@index([dueDate])
+  @@index([outstandingMinor, dueDate])
+  @@index([fiscalPeriodId])
+  @@index([createdBy])
+  @@map("ap_bills")
+  @@schema("erp")
+}
+
+model ErpApBillLine {
+  id                 String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  billId             String  @map("bill_id") @db.Uuid
+  lineNo             Int     @map("line_no")
+  description        String
+  quantity           Decimal @db.Decimal(18, 4)
+  unitPriceMinor     BigInt  @map("unit_price_minor")
+  grossMinor         BigInt  @map("gross_minor")
+  discountMinor      BigInt  @default(0) @map("discount_minor")
+  netMinor           BigInt  @map("net_minor")
+  taxRateId          String? @map("tax_rate_id") @db.Uuid
+  taxRateBasisPoints Int?    @map("tax_rate_basis_points")
+  taxMinor           BigInt  @default(0) @map("tax_minor")
+  totalMinor         BigInt  @map("total_minor")
+  /// An expense account, or an asset account for something bought to keep.
+  expenseAccountId   String  @map("expense_account_id") @db.Uuid
+  costCentreId       String? @map("cost_centre_id") @db.Uuid
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  bill           ErpApBill      @relation(fields: [billId], references: [id], onDelete: Cascade)
+  taxRate        ErpTaxRate?    @relation(fields: [taxRateId], references: [id], onDelete: Restrict)
+  expenseAccount ErpAccount     @relation("ErpApBillLineExpense", fields: [expenseAccountId], references: [id], onDelete: Restrict)
+  costCentre     ErpCostCentre? @relation(fields: [costCentreId], references: [id], onDelete: Restrict)
+
+  @@unique([billId, lineNo])
+  @@index([expenseAccountId])
+  @@index([taxRateId])
+  @@index([costCentreId])
+  @@map("ap_bill_lines")
+  @@schema("erp")
+}
+
+/// A payment to one vendor, settling one or more of its posted bills. Each line may
+/// withhold tax; the vendor receives the cash, the tax authority the rest.
+model ErpApPayment {
+  id                 String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  /// Assigned at posting from the AP_PAYMENT number series.
+  paymentNumber      String?            @unique @map("payment_number")
+  vendorId           String             @map("vendor_id") @db.Uuid
+  paymentDate        DateTime           @map("payment_date") @db.Date
+  currency           String             @default("EGP") @db.Char(3)
+  status             ErpApPaymentStatus @default(DRAFT)
+  /// Bills settled: the sum of the lines' amounts.
+  amountMinor        BigInt             @default(0) @map("amount_minor")
+  /// Tax withheld across the lines.
+  withheldMinor      BigInt             @default(0) @map("withheld_minor")
+  /// Paid out of the bank: amount − withheld.
+  cashMinor          BigInt             @default(0) @map("cash_minor")
+  paymentMethodId    String             @map("payment_method_id") @db.Uuid
+  bankAccountId      String             @map("bank_account_id") @db.Uuid
+  payableAccountId   String             @map("payable_account_id") @db.Uuid
+  reference          String?
+  notes              String?
+  fiscalPeriodId     String?            @map("fiscal_period_id") @db.Uuid
+  journalEntryId     String?            @unique @map("journal_entry_id") @db.Uuid
+  voidJournalEntryId String?            @unique @map("void_journal_entry_id") @db.Uuid
+
+  submittedAt     DateTime? @map("submitted_at") @db.Timestamptz(6)
+  submittedBy     String?   @map("submitted_by") @db.Uuid
+  approvalSkipped Boolean   @default(false) @map("approval_skipped")
+  approvedAt      DateTime? @map("approved_at") @db.Timestamptz(6)
+  approvedBy      String?   @map("approved_by") @db.Uuid
+  rejectedAt      DateTime? @map("rejected_at") @db.Timestamptz(6)
+  rejectedBy      String?   @map("rejected_by") @db.Uuid
+  rejectionReason String?   @map("rejection_reason")
+  postedAt        DateTime? @map("posted_at") @db.Timestamptz(6)
+  postedBy        String?   @map("posted_by") @db.Uuid
+  cancelledAt     DateTime? @map("cancelled_at") @db.Timestamptz(6)
+  cancelledBy     String?   @map("cancelled_by") @db.Uuid
+  cancelReason    String?   @map("cancel_reason")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy String   @map("created_by") @db.Uuid
+  updatedBy String?  @map("updated_by") @db.Uuid
+
+  vendor           ErpVendor          @relation(fields: [vendorId], references: [id], onDelete: Restrict)
+  paymentMethod    ErpPaymentMethod   @relation(fields: [paymentMethodId], references: [id], onDelete: Restrict)
+  bankAccount      ErpAccount         @relation("ErpApPaymentBank", fields: [bankAccountId], references: [id], onDelete: Restrict)
+  payableAccount   ErpAccount         @relation("ErpApPaymentPayable", fields: [payableAccountId], references: [id], onDelete: Restrict)
+  period           ErpFiscalPeriod?   @relation(fields: [fiscalPeriodId], references: [id], onDelete: Restrict)
+  journalEntry     ErpJournalEntry?   @relation("ErpApPaymentJournal", fields: [journalEntryId], references: [id], onDelete: Restrict)
+  voidJournalEntry ErpJournalEntry?   @relation("ErpApPaymentVoidJournal", fields: [voidJournalEntryId], references: [id], onDelete: Restrict)
+  creator          User               @relation("ErpApPaymentCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+  approver         User?              @relation("ErpApPaymentApprover", fields: [approvedBy], references: [id], onDelete: Restrict)
+  poster           User?              @relation("ErpApPaymentPoster", fields: [postedBy], references: [id], onDelete: Restrict)
+  lines            ErpApPaymentLine[]
+
+  @@index([vendorId, status])
+  @@index([status, paymentDate(sort: Desc)])
+  @@index([paymentDate(sort: Desc)])
+  @@index([paymentMethodId])
+  @@index([fiscalPeriodId])
+  @@index([createdBy])
+  @@map("ap_payments")
+  @@schema("erp")
+}
+
+model ErpApPaymentLine {
+  id                     String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  paymentId              String  @map("payment_id") @db.Uuid
+  lineNo                 Int     @map("line_no")
+  billId                 String  @map("bill_id") @db.Uuid
+  /// How much of the bill this line settles.
+  amountMinor            BigInt  @map("amount_minor")
+  withholdingTaxRateId   String? @map("withholding_tax_rate_id") @db.Uuid
+  /// The rate as it was when the line was calculated.
+  withholdingBasisPoints Int?    @map("withholding_basis_points")
+  /// The VAT-exclusive part of the amount, on which tax is withheld.
+  withholdingBaseMinor   BigInt  @default(0) @map("withholding_base_minor")
+  withheldMinor          BigInt  @default(0) @map("withheld_minor")
+  cashMinor              BigInt  @map("cash_minor")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  payment            ErpApPayment           @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  bill               ErpApBill              @relation(fields: [billId], references: [id], onDelete: Restrict)
+  withholdingTaxRate ErpWithholdingTaxRate? @relation(fields: [withholdingTaxRateId], references: [id], onDelete: Restrict)
+
+  @@unique([paymentId, lineNo])
+  @@unique([paymentId, billId])
+  @@index([billId])
+  @@index([withholdingTaxRateId])
+  @@map("ap_payment_lines")
   @@schema("erp")
 }

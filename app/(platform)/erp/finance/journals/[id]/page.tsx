@@ -26,6 +26,15 @@ import { canAllGlobally } from "@/platform/authz/authz";
 
 export const metadata: Metadata = { title: "Journal entry" };
 
+/** The documents that post journal entries, and where each one lives. */
+const SOURCE_LINKS: Partial<Record<string, { path: string; label: string }>> = {
+  ar_invoice: { path: "invoices", label: "Customer invoice" },
+  ar_receipt: { path: "receipts", label: "Customer receipt" },
+  ar_credit_note: { path: "credit-notes", label: "Credit note" },
+  ap_bill: { path: "bills", label: "Vendor bill" },
+  ap_payment: { path: "payments", label: "Supplier payment" },
+};
+
 export default async function JournalPage({
   params,
 }: {
@@ -118,20 +127,16 @@ export default async function JournalPage({
             <Fact label="Reference">
               {entry.reference === null ? "—" : <span dir="auto">{entry.reference}</span>}
             </Fact>
-            {entry.source !== null &&
-              (entry.source.type === "ar_invoice" ||
-                entry.source.type === "ar_receipt") && (
-                <Fact label="Posted from">
-                  <Link
-                    href={`/erp/finance/${entry.source.type === "ar_invoice" ? "invoices" : "receipts"}/${entry.source.id}`}
-                    className="font-bold hover:underline"
-                  >
-                    {entry.source.type === "ar_invoice"
-                      ? "Customer invoice"
-                      : "Customer receipt"}
-                  </Link>
-                </Fact>
-              )}
+            {entry.source !== null && SOURCE_LINKS[entry.source.type] !== undefined && (
+              <Fact label="Posted from">
+                <Link
+                  href={`/erp/finance/${SOURCE_LINKS[entry.source.type]?.path ?? ""}/${entry.source.id}`}
+                  className="font-bold hover:underline"
+                >
+                  {SOURCE_LINKS[entry.source.type]?.label}
+                </Link>
+              </Fact>
+            )}
             {entry.reverses !== null && (
               <Fact label="Reverses">
                 <Link

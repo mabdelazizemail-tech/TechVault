@@ -149,6 +149,31 @@ export const NAV_SECTIONS: readonly NavSection[] = [
         href: "/erp/finance/ar-settings",
         permission: ERP_PERMISSIONS.AR_SETTINGS_ADMINISTER,
       },
+      {
+        label: "Bills",
+        href: "/erp/finance/bills",
+        permission: ERP_PERMISSIONS.AP_BILL_READ,
+      },
+      {
+        label: "Payments",
+        href: "/erp/finance/payments",
+        permission: ERP_PERMISSIONS.AP_PAYMENT_READ,
+      },
+      {
+        label: "Vendors",
+        href: "/erp/finance/vendors",
+        permission: ERP_PERMISSIONS.AP_VENDOR_READ,
+      },
+      {
+        label: "AP aging",
+        href: "/erp/finance/ap-aging",
+        permission: ERP_PERMISSIONS.AP_AGING_READ,
+      },
+      {
+        label: "AP settings",
+        href: "/erp/finance/ap-settings",
+        permission: ERP_PERMISSIONS.AP_SETTINGS_ADMINISTER,
+      },
     ],
   },
   {

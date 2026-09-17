@@ -13,8 +13,10 @@ import type { AccountType } from "../contracts/types";
  *       1110 Cash
  *       1120 Bank
  *     1200 Receivables
+ *     1300 Input VAT Recoverable      (tax on purchases, ADR-033)
  *   2000 Liabilities                  (heading)
  *     2100 Accounts Payable
+ *     2200 Withholding Tax Payable    (withheld from supplier payments, ADR-033)
  *   3000 Equity                       (heading)
  *     3100 Share Capital
  *     3200 Retained Earnings          (year-end close, ADR-027)
@@ -79,6 +81,14 @@ export const DEFAULT_CHART: readonly ChartSeedAccount[] = [
     isPostable: true,
   },
   {
+    code: "1300",
+    name: "Input VAT Recoverable",
+    nameAr: "ضريبة القيمة المضافة على المشتريات",
+    type: "ASSET",
+    parentCode: "1000",
+    isPostable: true,
+  },
+  {
     code: "2000",
     name: "Liabilities",
     nameAr: "الخصوم",
@@ -90,6 +100,14 @@ export const DEFAULT_CHART: readonly ChartSeedAccount[] = [
     code: "2100",
     name: "Accounts Payable",
     nameAr: "الذمم الدائنة",
+    type: "LIABILITY",
+    parentCode: "2000",
+    isPostable: true,
+  },
+  {
+    code: "2200",
+    name: "Withholding Tax Payable",
+    nameAr: "ضريبة الخصم والإضافة المستحقة",
     type: "LIABILITY",
     parentCode: "2000",
     isPostable: true,

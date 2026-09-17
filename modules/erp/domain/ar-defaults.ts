@@ -1,4 +1,4 @@
-import type { ArDocumentType } from "../contracts/types";
+import type { FinanceDocumentType } from "../contracts/types";
 
 /**
  * Starter accounts-receivable configuration, created by `prisma/seed.ts` only where
@@ -7,7 +7,7 @@ import type { ArDocumentType } from "../contracts/types";
  */
 
 export const DEFAULT_NUMBER_SERIES: readonly {
-  documentType: ArDocumentType;
+  documentType: FinanceDocumentType;
   prefix: string;
   padding: number;
   resetsYearly: boolean;
@@ -15,7 +15,12 @@ export const DEFAULT_NUMBER_SERIES: readonly {
   { documentType: "AR_INVOICE", prefix: "INV", padding: 6, resetsYearly: true },
   { documentType: "AR_CREDIT_NOTE", prefix: "CRN", padding: 6, resetsYearly: true },
   { documentType: "AR_RECEIPT", prefix: "RCT", padding: 6, resetsYearly: true },
+  { documentType: "AP_BILL", prefix: "BILL", padding: 6, resetsYearly: true },
+  { documentType: "AP_PAYMENT", prefix: "PAY", padding: 6, resetsYearly: true },
 ];
+
+/** The starter chart's payables account, used as the AP default until changed. */
+export const DEFAULT_PAYABLE_ACCOUNT_CODE = "2100";
 
 export const DEFAULT_PAYMENT_METHODS: readonly {
   code: string;

@@ -181,6 +181,12 @@ model User {
   erpArInvoicesPosted    ErpArInvoice[]       @relation("ErpArInvoicePoster")
   erpArReceiptsCreated   ErpArReceipt[]       @relation("ErpArReceiptCreator")
   erpArReceiptsPosted    ErpArReceipt[]       @relation("ErpArReceiptPoster")
+  erpApBillsCreated      ErpApBill[]          @relation("ErpApBillCreator")
+  erpApBillsApproved     ErpApBill[]          @relation("ErpApBillApprover")
+  erpApBillsPosted       ErpApBill[]          @relation("ErpApBillPoster")
+  erpApPaymentsCreated   ErpApPayment[]       @relation("ErpApPaymentCreator")
+  erpApPaymentsApproved  ErpApPayment[]       @relation("ErpApPaymentApprover")
+  erpApPaymentsPosted    ErpApPayment[]       @relation("ErpApPaymentPoster")
 
   @@index([orgUnitId])
   @@index([hrisEmployeeId])

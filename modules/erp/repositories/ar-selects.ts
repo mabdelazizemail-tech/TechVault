@@ -50,6 +50,7 @@ export const taxRateSelect = {
   rateBasisPoints: true,
   isActive: true,
   taxAccount: { select: accountRefSelect },
+  inputTaxAccount: { select: accountRefSelect },
 } as const satisfies Prisma.ErpTaxRateSelect;
 
 export const paymentMethodSelect = {

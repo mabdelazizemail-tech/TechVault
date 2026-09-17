@@ -167,16 +167,35 @@ export async function closePeriod(actor: Actor, periodId: string): Promise<void>
         gte: dateFromIso(period.startDate),
         lte: dateFromIso(period.endDate),
       };
-      const [drafts, unpostedInvoices, draftReceipts] = await Promise.all([
-        tx.erpJournalEntry.count({ where: { status: "DRAFT", entryDate: inPeriod } }),
-        tx.erpArInvoice.count({
-          where: {
-            status: { in: ["DRAFT", "PENDING_APPROVAL", "APPROVED"] },
-            invoiceDate: inPeriod,
-          },
-        }),
-        tx.erpArReceipt.count({ where: { status: "DRAFT", receiptDate: inPeriod } }),
-      ]);
+      const [drafts, unpostedInvoices, draftReceipts, unpostedBills, unpostedPayments] =
+        await Promise.all([
+          tx.erpJournalEntry.count({ where: { status: "DRAFT", entryDate: inPeriod } }),
+          tx.erpArInvoice.count({
+            where: {
+              status: { in: ["DRAFT", "PENDING_APPROVAL", "APPROVED"] },
+              invoiceDate: inPeriod,
+            },
+          }),
+          tx.erpArReceipt.count({ where: { status: "DRAFT", receiptDate: inPeriod } }),
+          tx.erpApBill.count({
+            where: {
+              status: { in: ["DRAFT", "PENDING_APPROVAL", "APPROVED"] },
+              billDate: inPeriod,
+            },
+          }),
+          tx.erpApPayment.count({
+            where: {
+              status: { in: ["DRAFT", "PENDING_APPROVAL", "APPROVED"] },
+              paymentDate: inPeriod,
+            },
+          }),
+        ]);
+      // Unposted AP documents dated inside a closed period could never be posted either.
+      if (unpostedBills + unpostedPayments > 0) {
+        throw new BusinessRuleError(
+          `${unpostedBills} unposted bill(s) and ${unpostedPayments} unposted payment(s) are dated in ${period.name}. Post, cancel or delete them before closing the period.`,
+        );
+      }
       // Unposted AR documents dated inside a closed period could never be posted either.
       if (unpostedInvoices + draftReceipts > 0) {
         throw new BusinessRuleError(

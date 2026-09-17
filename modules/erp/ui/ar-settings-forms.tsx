@@ -169,9 +169,12 @@ export function ArSettingsForm({
 export function TaxRateFormButton({
   rate,
   liabilityAccounts,
+  inputTaxAccounts,
 }: {
   rate?: TaxRateDto;
   liabilityAccounts: AccountOption[];
+  /** Asset or expense accounts that can hold recoverable tax on purchases (ADR-033). */
+  inputTaxAccounts: AccountOption[];
 }) {
   const router = useRouter();
   const notify = useToast();
@@ -183,6 +186,9 @@ export function TaxRateFormButton({
     rate === undefined ? "" : formatBasisPoints(rate.rateBasisPoints).replace("%", ""),
   );
   const [taxAccountId, setTaxAccountId] = useState(rate?.taxAccount.id ?? "");
+  const [inputTaxAccountId, setInputTaxAccountId] = useState(
+    rate?.inputTaxAccount?.id ?? "",
+  );
   const [isActive, setIsActive] = useState(rate?.isActive ?? true);
   const [message, setMessage] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string[]> | undefined>();
@@ -212,7 +218,7 @@ export function TaxRateFormButton({
         open={open}
         onOpenChange={setOpen}
         title={rate === undefined ? "New tax rate" : `Edit tax rate ${rate.code}`}
-        description="Existing invoice lines keep the rate they were calculated with."
+        description="Existing invoice and bill lines keep the rate they were calculated with."
       >
         {message !== null && <FormError message={message} />}
         <form
@@ -227,6 +233,7 @@ export function TaxRateFormButton({
                 nameAr,
                 rate: value,
                 taxAccountId,
+                inputTaxAccountId,
                 isActive,
               });
               if (result.ok) {
@@ -313,6 +320,23 @@ export function TaxRateFormButton({
                 label: accountLabel(account),
               }))}
               onChange={(event) => setTaxAccountId(event.target.value)}
+            />
+          </Field>
+          <Field
+            label="Input tax account (recoverable VAT on bills)"
+            htmlFor="tax-input-account"
+            hint="Blank: the rate cannot be used on vendor bills."
+            error={fieldError(errors, "inputTaxAccountId")}
+          >
+            <Select
+              id="tax-input-account"
+              value={inputTaxAccountId}
+              placeholder="Not used on bills"
+              options={inputTaxAccounts.map((account) => ({
+                value: account.id,
+                label: accountLabel(account),
+              }))}
+              onChange={(event) => setInputTaxAccountId(event.target.value)}
             />
           </Field>
           <Checkbox

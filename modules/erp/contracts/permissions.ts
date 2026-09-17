@@ -65,6 +65,28 @@ export const ERP_PERMISSIONS = {
   AR_CUSTOMER_UPDATE: "erp.ar_customer.update",
   AR_AGING_READ: "erp.ar_aging.read",
   AR_SETTINGS_ADMINISTER: "erp.ar_settings.administer",
+
+  // Accounts payable (ADR-033).
+  AP_VENDOR_READ: "erp.ap_vendor.read",
+  AP_VENDOR_CREATE: "erp.ap_vendor.create",
+  AP_VENDOR_UPDATE: "erp.ap_vendor.update",
+
+  AP_BILL_READ: "erp.ap_bill.read",
+  AP_BILL_CREATE: "erp.ap_bill.create",
+  AP_BILL_UPDATE: "erp.ap_bill.update",
+  AP_BILL_APPROVE: "erp.ap_bill.approve",
+  AP_BILL_POST: "erp.ap_bill.post",
+  AP_BILL_CANCEL: "erp.ap_bill.cancel",
+
+  AP_PAYMENT_READ: "erp.ap_payment.read",
+  AP_PAYMENT_CREATE: "erp.ap_payment.create",
+  AP_PAYMENT_UPDATE: "erp.ap_payment.update",
+  AP_PAYMENT_APPROVE: "erp.ap_payment.approve",
+  AP_PAYMENT_POST: "erp.ap_payment.post",
+  AP_PAYMENT_CANCEL: "erp.ap_payment.cancel",
+
+  AP_AGING_READ: "erp.ap_aging.read",
+  AP_SETTINGS_ADMINISTER: "erp.ap_settings.administer",
 } as const;
 
 type ErpPermissionKey = (typeof ERP_PERMISSIONS)[keyof typeof ERP_PERMISSIONS];
@@ -249,6 +271,79 @@ export const ERP_PERMISSION_DEFINITIONS: readonly PermissionDefinition[] = [
     "ADMINISTER",
     "Configure accounts receivable: tax rates, payment methods, numbering, approval rules and aging buckets.",
   ),
+
+  define(
+    ERP_PERMISSIONS.AP_VENDOR_READ,
+    "READ",
+    "View vendors, their balances and their bills and payments.",
+  ),
+  define(ERP_PERMISSIONS.AP_VENDOR_CREATE, "CREATE", "Add vendors."),
+  define(
+    ERP_PERMISSIONS.AP_VENDOR_UPDATE,
+    "UPDATE",
+    "Edit vendors: details, payment terms, accounts, and whether they are active.",
+  ),
+
+  define(ERP_PERMISSIONS.AP_BILL_READ, "READ", "View vendor bills."),
+  define(ERP_PERMISSIONS.AP_BILL_CREATE, "CREATE", "Enter draft vendor bills."),
+  define(
+    ERP_PERMISSIONS.AP_BILL_UPDATE,
+    "UPDATE",
+    "Edit, submit and delete draft vendor bills.",
+  ),
+  define(
+    ERP_PERMISSIONS.AP_BILL_APPROVE,
+    "APPROVE",
+    "Approve or reject submitted vendor bills.",
+  ),
+  define(
+    ERP_PERMISSIONS.AP_BILL_POST,
+    "POST",
+    "Post approved bills to the ledger, which gives them their bill number.",
+  ),
+  define(
+    ERP_PERMISSIONS.AP_BILL_CANCEL,
+    "CANCEL",
+    "Cancel unposted bills, and void unpaid posted bills by reversal.",
+  ),
+
+  define(ERP_PERMISSIONS.AP_PAYMENT_READ, "READ", "View supplier payments."),
+  define(
+    ERP_PERMISSIONS.AP_PAYMENT_CREATE,
+    "CREATE",
+    "Prepare draft supplier payments against posted bills.",
+  ),
+  define(
+    ERP_PERMISSIONS.AP_PAYMENT_UPDATE,
+    "UPDATE",
+    "Edit, submit and delete draft supplier payments.",
+  ),
+  define(
+    ERP_PERMISSIONS.AP_PAYMENT_APPROVE,
+    "APPROVE",
+    "Approve or reject submitted supplier payments.",
+  ),
+  define(
+    ERP_PERMISSIONS.AP_PAYMENT_POST,
+    "POST",
+    "Post approved supplier payments, which settles their bills and books the withholding tax.",
+  ),
+  define(
+    ERP_PERMISSIONS.AP_PAYMENT_CANCEL,
+    "CANCEL",
+    "Cancel unposted payments, and void posted payments by reversal.",
+  ),
+
+  define(
+    ERP_PERMISSIONS.AP_AGING_READ,
+    "READ",
+    "View the accounts payable aging report.",
+  ),
+  define(
+    ERP_PERMISSIONS.AP_SETTINGS_ADMINISTER,
+    "ADMINISTER",
+    "Configure accounts payable: payable account, approval rules for bills and payments, withholding tax rates and aging buckets.",
+  ),
 ];
 
 /** Role key for the seeded finance administrator: every ERP finance permission. */
@@ -298,6 +393,20 @@ export const ERP_ACCOUNTANT_PERMISSIONS: readonly string[] = [
   ERP_PERMISSIONS.AR_RECEIPT_ALLOCATE,
   ERP_PERMISSIONS.AR_CUSTOMER_READ,
   ERP_PERMISSIONS.AR_AGING_READ,
+  // Accounts payable: day-to-day vendors, bills and payments. Approving, cancelling
+  // and AP settings stay with a finance administrator.
+  ERP_PERMISSIONS.AP_VENDOR_READ,
+  ERP_PERMISSIONS.AP_VENDOR_CREATE,
+  ERP_PERMISSIONS.AP_VENDOR_UPDATE,
+  ERP_PERMISSIONS.AP_BILL_READ,
+  ERP_PERMISSIONS.AP_BILL_CREATE,
+  ERP_PERMISSIONS.AP_BILL_UPDATE,
+  ERP_PERMISSIONS.AP_BILL_POST,
+  ERP_PERMISSIONS.AP_PAYMENT_READ,
+  ERP_PERMISSIONS.AP_PAYMENT_CREATE,
+  ERP_PERMISSIONS.AP_PAYMENT_UPDATE,
+  ERP_PERMISSIONS.AP_PAYMENT_POST,
+  ERP_PERMISSIONS.AP_AGING_READ,
 ];
 
 /** Role key for the seeded ERP Finance section role. */
@@ -321,4 +430,8 @@ export const ERP_VIEWER_PERMISSIONS: readonly string[] = [
   ERP_PERMISSIONS.AR_RECEIPT_READ,
   ERP_PERMISSIONS.AR_CUSTOMER_READ,
   ERP_PERMISSIONS.AR_AGING_READ,
+  ERP_PERMISSIONS.AP_VENDOR_READ,
+  ERP_PERMISSIONS.AP_BILL_READ,
+  ERP_PERMISSIONS.AP_PAYMENT_READ,
+  ERP_PERMISSIONS.AP_AGING_READ,
 ];

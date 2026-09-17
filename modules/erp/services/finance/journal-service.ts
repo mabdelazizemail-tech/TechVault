@@ -427,11 +427,11 @@ export async function reverseJournal(
   try {
     return await prisma.$transaction(async (tx) => {
       const original = await lockJournalEntry(tx, entryId);
-      // An entry raised by an invoice or receipt is corrected by voiding that
-      // document, so the document and its balance stay in step with the ledger.
+      // An entry raised by a document (invoice, credit note, receipt, bill or payment)
+      // is corrected by voiding that document, so it stays in step with the ledger.
       if (original.sourceType !== null) {
         throw new BusinessRuleError(
-          "This entry was posted from an invoice or receipt. Void that document instead.",
+          "This entry was posted from a document such as an invoice, receipt, bill or payment. Void that document instead.",
         );
       }
       if (original.kind === "YEAR_END_CLOSE") {

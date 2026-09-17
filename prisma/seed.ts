@@ -14,6 +14,7 @@ import {
 } from "../modules/erp/domain/chart";
 import {
   DEFAULT_NUMBER_SERIES,
+  DEFAULT_PAYABLE_ACCOUNT_CODE,
   DEFAULT_PAYMENT_METHODS,
   DEFAULT_RECEIVABLE_ACCOUNT_CODE,
 } from "../modules/erp/domain/ar-defaults";
@@ -257,6 +258,26 @@ async function main(): Promise<void> {
   process.stdout.write(
     `  ${DEFAULT_NUMBER_SERIES.length} number series, ${DEFAULT_PAYMENT_METHODS.length} payment methods, settings\n`,
   );
+
+  process.stdout.write("Seeding accounts payable configuration...\n");
+  // Create only, like AR: AP settings are an administrator's to change. No withholding
+  // rates are seeded — rates are the organisation's to enter (§25.3).
+  const payable = await prisma.erpAccount.findUnique({
+    where: { code: DEFAULT_PAYABLE_ACCOUNT_CODE },
+    select: { id: true, type: true, isPostable: true },
+  });
+  await prisma.erpApSettings.upsert({
+    where: { id: 1 },
+    create: {
+      id: 1,
+      defaultPayableAccountId:
+        payable !== null && payable.type === "LIABILITY" && payable.isPostable
+          ? payable.id
+          : null,
+    },
+    update: {},
+  });
+  process.stdout.write("  AP settings\n");
 
   process.stdout.write("Seeding security policies…\n");
   const policies: { key: string; value: unknown; description: string }[] = [

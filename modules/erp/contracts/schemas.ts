@@ -417,6 +417,8 @@ export const taxRateSchema = z.object({
       return parsed.basisPoints;
     }),
   taxAccountId: z.uuid({ error: "Choose the tax account." }),
+  /** For purchases (ADR-033): input VAT asset account, or an expense if not reclaimable. */
+  inputTaxAccountId: optionalUuid,
   isActive: z.boolean().default(true),
 });
 
@@ -465,4 +467,134 @@ export const arListParamsSchema = z.object({
     .optional()
     .catch(undefined),
   dir: z.enum(["asc", "desc"]).catch("desc"),
+  vendor: z.uuid().optional().catch(undefined),
 });
+
+/* Accounts payable (ADR-033) ---------------------------------------------------- */
+
+const optionalEmail = z
+  .string()
+  .trim()
+  .max(200, "This is too long.")
+  .nullish()
+  .transform((value) =>
+    value === undefined || value === null || value === "" ? null : value,
+  )
+  .refine((value) => value === null || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value), {
+    message: "Enter a valid email address.",
+  });
+
+export const vendorSchema = z.object({
+  name: requiredText("Name", 200),
+  nameAr: optionalText(200),
+  taxRegistrationNumber: optionalText(50),
+  crmAccountId: optionalUuid,
+  email: optionalEmail,
+  phone: optionalText(50),
+  address: optionalText(500),
+  paymentTermsDays: optionalDays,
+  payableAccountId: optionalUuid,
+  defaultExpenseAccountId: optionalUuid,
+  defaultWithholdingTaxRateId: optionalUuid,
+  notes: optionalText(1000),
+  isActive: z.boolean().default(true),
+});
+export type VendorInput = z.input<typeof vendorSchema>;
+
+export const withholdingTaxRateSchema = z.object({
+  code,
+  name: requiredText("Name", 100),
+  nameAr: optionalText(100),
+  rate: z
+    .union([z.string(), z.number()], { error: "Enter the rate." })
+    .transform((value, context) => {
+      const parsed = parseRateText(String(value));
+      if (!parsed.ok) {
+        context.addIssue({ code: "custom", message: parsed.message });
+        return z.NEVER;
+      }
+      if (parsed.basisPoints <= 0) {
+        context.addIssue({
+          code: "custom",
+          message: "A withholding rate is above zero.",
+        });
+        return z.NEVER;
+      }
+      return parsed.basisPoints;
+    }),
+  payableAccountId: z.uuid({ error: "Choose the withholding tax payable account." }),
+  isActive: z.boolean().default(true),
+});
+
+export const apSettingsSchema = z.object({
+  defaultPayableAccountId: optionalUuid,
+  billApprovalRequired: z.boolean(),
+  billApprovalThreshold: optionalAmount,
+  paymentApprovalRequired: z.boolean(),
+  paymentApprovalThreshold: optionalAmount,
+  allowSelfApproval: z.boolean(),
+  defaultPaymentTermsDays: requiredDays,
+  agingBucketDays: arSettingsSchema.shape.agingBucketDays,
+});
+
+export const apBillLineSchema = z.object({
+  description: requiredText("Description", 300),
+  quantity,
+  unitPrice: amount,
+  discount: amount,
+  taxRateId: optionalUuid,
+  expenseAccountId: z.uuid({ error: "Choose an expense account." }),
+  costCentreId: optionalUuid,
+});
+
+/** A draft bill as typed: no totals and no status — the server prices and decides. */
+export const apBillDraftSchema = z
+  .object({
+    vendorId: z.uuid({ error: "Choose a vendor." }),
+    vendorInvoiceNumber: requiredText("The supplier's invoice number", 100),
+    billDate: isoDate,
+    /** Defaults from the vendor's payment terms when left blank. */
+    dueDate: z.preprocess(blankToUndefined, isoDate.optional()),
+    reference: optionalText(100),
+    notes: optionalText(1000),
+    lines: z
+      .array(apBillLineSchema, { error: "Add the bill lines." })
+      .min(1, "A bill needs at least one line.")
+      .max(MAX_INVOICE_LINES, `A bill can have at most ${MAX_INVOICE_LINES} lines.`),
+  })
+  .refine((bill) => bill.dueDate === undefined || bill.dueDate >= bill.billDate, {
+    path: ["dueDate"],
+    message: "The due date cannot be before the bill date.",
+  });
+export type ApBillDraftInput = z.input<typeof apBillDraftSchema>;
+
+/**
+ * A draft payment as typed: which bills it settles, how much of each, and the
+ * withholding rate for each. Withholding and cash are the server's to calculate.
+ */
+export const apPaymentDraftSchema = z
+  .object({
+    vendorId: z.uuid({ error: "Choose a vendor." }),
+    paymentDate: isoDate,
+    paymentMethodId: z.uuid({ error: "Choose a payment method." }),
+    bankAccountId: z.uuid({ error: "Choose the bank or cash account paid from." }),
+    reference: optionalText(100),
+    notes: optionalText(1000),
+    lines: z
+      .array(
+        z.object({
+          billId: z.uuid({ error: "Choose a bill." }),
+          amount: positiveAmount,
+          withholdingTaxRateId: optionalUuid,
+        }),
+        { error: "Choose the bills to pay." },
+      )
+      .min(1, "Choose at least one bill to pay.")
+      .max(100, "A payment can settle at most 100 bills."),
+  })
+  .refine(
+    (payment) =>
+      new Set(payment.lines.map((line) => line.billId)).size === payment.lines.length,
+    { path: ["lines"], message: "Each bill can appear only once." },
+  );
+export type ApPaymentDraftInput = z.input<typeof apPaymentDraftSchema>;

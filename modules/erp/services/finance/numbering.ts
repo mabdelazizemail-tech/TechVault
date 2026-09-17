@@ -1,19 +1,23 @@
 import { BusinessRuleError } from "@/lib/errors";
 import type { PrismaTransaction } from "@/lib/prisma";
-import { AR_DOCUMENT_TYPE_LABELS, type ArDocumentType } from "../../contracts/types";
+import {
+  FINANCE_DOCUMENT_TYPE_LABELS,
+  type FinanceDocumentType,
+} from "../../contracts/types";
 import { formatDocumentNumber } from "../../domain/ar";
 import { yearOfIsoDate } from "../../domain/journal";
 
 /**
- * Document numbers from configured series (ADR-023). The format — prefix, padding,
- * yearly reset — is data in `erp.number_series`, changed in AR settings, never code.
+ * Document numbers from configured series (ADR-023, ADR-033). The format — prefix,
+ * padding, yearly reset — is data in `erp.number_series`, changed in AR or AP
+ * settings, never code.
  *
  * Taken inside the posting transaction under a row lock: numbers are unique and
  * sequential, and a posting that rolls back consumes nothing.
  */
 export async function nextDocumentNumber(
   tx: PrismaTransaction,
-  documentType: ArDocumentType,
+  documentType: FinanceDocumentType,
   documentDate: string,
 ): Promise<string> {
   const series = (
@@ -27,7 +31,7 @@ export async function nextDocumentNumber(
   )[0];
   if (series === undefined) {
     throw new BusinessRuleError(
-      `Numbering for ${AR_DOCUMENT_TYPE_LABELS[documentType].toLowerCase()} is not configured. Set it up in AR settings.`,
+      `Numbering for ${FINANCE_DOCUMENT_TYPE_LABELS[documentType].toLowerCase()} is not configured. Set it up in ${documentType.startsWith("AP_") ? "AP" : "AR"} settings.`,
     );
   }
 

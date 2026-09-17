@@ -1,7 +1,7 @@
 import { ConflictError, NotFoundError } from "@/lib/errors";
 import { prisma } from "@/lib/prisma";
 import { diffForAudit, recordAudit } from "@/platform/audit/audit";
-import { type Actor, requireGlobalPermission } from "@/platform/authz/authz";
+import { type Actor, canGlobally, requireGlobalPermission } from "@/platform/authz/authz";
 import { ERP_PERMISSIONS } from "../../../contracts/permissions";
 import {
   arSettingsSchema,
@@ -10,7 +10,7 @@ import {
   taxRateSchema,
 } from "../../../contracts/schemas";
 import type {
-  ArDocumentType,
+  FinanceDocumentType,
   ArSettingsDto,
   PaymentMethodDto,
   TaxRateDto,
@@ -42,6 +42,7 @@ export async function getArSettings(actor: Actor): Promise<ArSettingsDto> {
       select: { defaultReceivableAccount: { select: accountRefSelect } },
     }),
     prisma.erpNumberSeries.findMany({
+      where: { documentType: { startsWith: "AR_" } },
       orderBy: { documentType: "asc" },
       select: {
         id: true,
@@ -64,7 +65,7 @@ export async function getArSettings(actor: Actor): Promise<ArSettingsDto> {
     agingBucketDays: settings.agingBucketDays,
     numberSeries: series.map((row) => ({
       ...row,
-      documentType: row.documentType as ArDocumentType,
+      documentType: row.documentType as FinanceDocumentType,
     })),
   };
 }
@@ -136,12 +137,16 @@ export async function listTaxRates(
   actor: Actor,
   options: { activeOnly: boolean },
 ): Promise<TaxRateDto[]> {
-  await requireGlobalPermission(
-    actor,
-    options.activeOnly
-      ? ERP_PERMISSIONS.AR_INVOICE_READ
-      : ERP_PERMISSIONS.AR_SETTINGS_ADMINISTER,
-  );
+  // Active rates are offered on invoice lines and, with an input tax account, on bill
+  // lines, so a reader of either may list them (ADR-033).
+  if (!options.activeOnly || !(await canGlobally(actor, ERP_PERMISSIONS.AP_BILL_READ))) {
+    await requireGlobalPermission(
+      actor,
+      options.activeOnly
+        ? ERP_PERMISSIONS.AR_INVOICE_READ
+        : ERP_PERMISSIONS.AR_SETTINGS_ADMINISTER,
+    );
+  }
   return prisma.erpTaxRate.findMany({
     where: options.activeOnly ? { isActive: true } : {},
     orderBy: [{ isActive: "desc" }, { code: "asc" }],
@@ -157,6 +162,14 @@ export async function createTaxRate(
   await requireGlobalPermission(actor, ERP_PERMISSIONS.AR_SETTINGS_ADMINISTER);
   const data = parseInput(taxRateSchema, input);
   await requireAccount(data.taxAccountId, ["LIABILITY"], "taxAccountId");
+  if (data.inputTaxAccountId !== null) {
+    // Recoverable input VAT is an asset; VAT that cannot be reclaimed is a cost.
+    await requireAccount(
+      data.inputTaxAccountId,
+      ["ASSET", "EXPENSE"],
+      "inputTaxAccountId",
+    );
+  }
   try {
     return await prisma.$transaction(async (tx) => {
       const rate = await tx.erpTaxRate.create({
@@ -166,6 +179,7 @@ export async function createTaxRate(
           nameAr: data.nameAr,
           rateBasisPoints: data.rate,
           taxAccountId: data.taxAccountId,
+          inputTaxAccountId: data.inputTaxAccountId,
           isActive: data.isActive,
           createdBy: actor.id,
           updatedBy: actor.id,
@@ -184,6 +198,7 @@ export async function createTaxRate(
             code: data.code,
             rateBasisPoints: data.rate,
             taxAccountId: data.taxAccountId,
+            inputTaxAccountId: data.inputTaxAccountId,
           },
           severity: "NOTICE",
         },
@@ -214,11 +229,19 @@ export async function updateTaxRate(
       nameAr: true,
       rateBasisPoints: true,
       taxAccountId: true,
+      inputTaxAccountId: true,
       isActive: true,
     },
   });
   if (before === null) throw new NotFoundError("tax rate");
   await requireAccount(data.taxAccountId, ["LIABILITY"], "taxAccountId");
+  if (data.inputTaxAccountId !== null) {
+    await requireAccount(
+      data.inputTaxAccountId,
+      ["ASSET", "EXPENSE"],
+      "inputTaxAccountId",
+    );
+  }
 
   const next = {
     code: data.code,
@@ -226,6 +249,7 @@ export async function updateTaxRate(
     nameAr: data.nameAr,
     rateBasisPoints: data.rate,
     taxAccountId: data.taxAccountId,
+    inputTaxAccountId: data.inputTaxAccountId,
     isActive: data.isActive,
   };
   const changes = diffForAudit(before, next);
@@ -265,12 +289,18 @@ export async function listPaymentMethods(
   actor: Actor,
   options: { activeOnly: boolean },
 ): Promise<PaymentMethodDto[]> {
-  await requireGlobalPermission(
-    actor,
-    options.activeOnly
-      ? ERP_PERMISSIONS.AR_RECEIPT_READ
-      : ERP_PERMISSIONS.AR_SETTINGS_ADMINISTER,
-  );
+  // Active methods are used by customer receipts and supplier payments alike (ADR-033).
+  if (
+    !options.activeOnly ||
+    !(await canGlobally(actor, ERP_PERMISSIONS.AP_PAYMENT_READ))
+  ) {
+    await requireGlobalPermission(
+      actor,
+      options.activeOnly
+        ? ERP_PERMISSIONS.AR_RECEIPT_READ
+        : ERP_PERMISSIONS.AR_SETTINGS_ADMINISTER,
+    );
+  }
   return prisma.erpPaymentMethod.findMany({
     where: options.activeOnly ? { isActive: true } : {},
     orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
@@ -385,14 +415,20 @@ export async function updateNumberSeries(
   seriesId: string,
   input: unknown,
 ): Promise<{ id: string }> {
-  await requireGlobalPermission(actor, ERP_PERMISSIONS.AR_SETTINGS_ADMINISTER);
   assertId(seriesId, "number series");
-  const data = parseInput(numberSeriesSchema, input);
   const before = await prisma.erpNumberSeries.findUnique({
     where: { id: seriesId },
     select: { documentType: true, prefix: true, padding: true, resetsYearly: true },
   });
+  // Checked before anything about the series is revealed.
+  await requireGlobalPermission(
+    actor,
+    before?.documentType.startsWith("AP_") === true
+      ? ERP_PERMISSIONS.AP_SETTINGS_ADMINISTER
+      : ERP_PERMISSIONS.AR_SETTINGS_ADMINISTER,
+  );
   if (before === null) throw new NotFoundError("number series");
+  const data = parseInput(numberSeriesSchema, input);
   const { documentType, ...current } = before;
   const changes = diffForAudit(current, data);
   if (Object.keys(changes).length === 0) return { id: seriesId };
