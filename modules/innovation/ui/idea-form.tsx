@@ -101,17 +101,23 @@ function IdeaCreateForm({
         event.preventDefault();
         setFormError(null);
         startTransition(async () => {
+          // A thrown action (lost connection, server timeout) must not leave the
+          // dialog spinning with no explanation.
           const result = await createIdeaAction({
             title,
             description,
             categoryId,
             attachmentFileId: file?.fileId ?? "",
-          });
+          }).catch(() => ({
+            ok: false as const,
+            message:
+              "We could not reach the server, so nothing was saved. Check your connection and try again.",
+          }));
           if (result.ok) {
             onCancel();
             router.push(`/innovation/ideas/${result.data.id}`);
           } else {
-            setErrors(result.fieldErrors ?? {});
+            setErrors("fieldErrors" in result ? (result.fieldErrors ?? {}) : {});
             setFormError(result.message);
           }
         });

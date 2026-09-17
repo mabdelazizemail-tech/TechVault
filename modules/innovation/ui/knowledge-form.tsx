@@ -157,12 +157,19 @@ function KnowledgeForm({
             fileId: file?.fileId ?? "",
             projectId: initial.projectId ?? "",
           };
-          const result =
+          // A thrown action (lost connection, server timeout) must not leave the
+          // dialog spinning with no explanation.
+          const result = await (
             initial.id !== undefined
-              ? await updateKnowledgeAction(initial.id, input)
-              : await createKnowledgeAction(input);
+              ? updateKnowledgeAction(initial.id, input)
+              : createKnowledgeAction(input)
+          ).catch(() => ({
+            ok: false as const,
+            message:
+              "We could not reach the server, so nothing was saved. Check your connection and try again.",
+          }));
           if (!result.ok) {
-            setErrors(result.fieldErrors ?? {});
+            setErrors("fieldErrors" in result ? (result.fieldErrors ?? {}) : {});
             setFormError(result.message);
             return;
           }
