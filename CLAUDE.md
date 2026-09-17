@@ -2101,6 +2101,18 @@ _Consequences:_ new staff need Employee plus each section role; the seed reconci
 backfill removes The Think Tank from existing employees until the backfill runs. _Revisit when:_ ECM, HRIS or BI ship
 (add their section role), or sections need scoped rather than organisation-wide grants.
 
+**ADR-031 — A submitter edits their own idea until review starts.** _Context:_ editing an idea was reserved for
+`innovation.idea.administer` (ADR-021), so a member who noticed a typo in an idea they had just submitted could not fix
+it, nor correct its attachment. _Decision:_ the owner chose that the submitter may edit their own idea's title,
+description, category and attachment while its status is New. `updateOwnIdea` requires `innovation.idea.create`, the
+caller to be the submitter (otherwise 403, administrators included) and status New; it verifies a replacement upload
+before the transaction, writes through a conditional update so an administrator starting review a moment earlier wins,
+claims the new file, and audits the change as `innovation.idea.updated`. Administrators keep the existing review
+dialog (status, owner, text and category) and still cannot replace an attachment. No migration, no new permission.
+_Consequences:_ text that others vote and comment on can change only before review; a replaced file stays in storage,
+unlinked, as with knowledge items (§29 #23). _Revisit when:_ submitters need to edit after review, or administrators
+need to replace attachments.
+
 ---
 
 ## 28. Current Implementation Status

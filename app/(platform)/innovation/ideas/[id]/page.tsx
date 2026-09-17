@@ -4,11 +4,15 @@ import Link from "next/link";
 import { BreadcrumbTitle } from "@/components/shell/breadcrumbs";
 import { Panel, PanelHeader } from "@/components/ui/primitives";
 import { INNOVATION_PERMISSIONS } from "@/modules/innovation/contracts/permissions";
-import { getIdea, listCategories } from "@/modules/innovation/contracts/service";
+import {
+  getIdea,
+  isFileStorageAvailable,
+  listCategories,
+} from "@/modules/innovation/contracts/service";
 import { fileLabel, formatBytes } from "@/modules/innovation/domain/files";
 import { IdeaStatusBadge } from "@/modules/innovation/ui/badges";
 import { formatDate, formatRelative } from "@/modules/innovation/ui/format";
-import { EditIdeaButton } from "@/modules/innovation/ui/idea-form";
+import { EditIdeaButton, EditOwnIdeaButton } from "@/modules/innovation/ui/idea-form";
 import {
   CommentForm,
   ConvertIdeaButton,
@@ -33,15 +37,26 @@ export default async function IdeaPage({ params }: { params: Promise<{ id: strin
     canAll(actor, [
       INNOVATION_PERMISSIONS.IDEA_VOTE,
       INNOVATION_PERMISSIONS.IDEA_COMMENT,
+      INNOVATION_PERMISSIONS.IDEA_CREATE,
       INNOVATION_PERMISSIONS.IDEA_ADMINISTER,
       INNOVATION_PERMISSIONS.PROJECT_ADMINISTER,
       INNOVATION_PERMISSIONS.KNOWLEDGE_DOWNLOAD,
     ]),
   ]);
   const canManage = rights[INNOVATION_PERMISSIONS.IDEA_ADMINISTER] === true;
+  // Administrators edit through review; the submitter edits their own idea while it
+  // is New (ADR-031). The server enforces both rules again.
+  const canEditOwn =
+    !canManage &&
+    idea.isMine &&
+    idea.status === "NEW" &&
+    rights[INNOVATION_PERMISSIONS.IDEA_CREATE] === true;
   const categories = canManage
     ? await listCategories(actor, "IDEA", { includeArchived: true })
-    : [];
+    : canEditOwn
+      ? // Archived ones too, so an idea filed under an archived category keeps it.
+        await listCategories(actor, "IDEA", { includeArchived: true })
+      : [];
   const canConvert =
     canManage &&
     rights[INNOVATION_PERMISSIONS.PROJECT_ADMINISTER] === true &&
@@ -76,6 +91,26 @@ export default async function IdeaPage({ params }: { params: Promise<{ id: strin
             </time>
           </p>
         </div>
+        {canEditOwn && (
+          <EditOwnIdeaButton
+            idea={{
+              id: idea.id,
+              title: idea.title,
+              description: idea.description,
+              categoryId: idea.categoryId,
+              attachment:
+                idea.attachment === null
+                  ? null
+                  : {
+                      fileId: idea.attachment.id,
+                      fileName: idea.attachment.fileName,
+                      sizeBytes: idea.attachment.sizeBytes,
+                    },
+            }}
+            categories={categories}
+            filesEnabled={isFileStorageAvailable()}
+          />
+        )}
         {canManage && (
           <div className="flex flex-wrap items-center gap-2">
             {canConvert && <ConvertIdeaButton ideaId={idea.id} title={idea.title} />}

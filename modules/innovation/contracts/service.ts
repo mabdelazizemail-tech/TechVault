@@ -26,6 +26,7 @@ export {
   listTopVotedIdeas,
   toggleVote,
   updateIdea,
+  updateOwnIdea,
 } from "../services/idea-service";
 
 export {

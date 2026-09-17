@@ -16,6 +16,7 @@ import { INNOVATION_PERMISSIONS } from "../contracts/permissions";
 import {
   commentSchema,
   ideaCreateSchema,
+  ideaOwnUpdateSchema,
   ideaUpdateSchema,
   listParamsSchema,
 } from "../contracts/schemas";
@@ -101,6 +102,7 @@ async function findLiveIdea(ideaId: string) {
       status: true,
       ownerId: true,
       createdBy: true,
+      attachmentFileId: true,
     },
   });
   if (idea === null) throw new NotFoundError("idea");
@@ -351,6 +353,79 @@ export async function updateIdea(
     }
   });
 }
+
+/**
+ * The submitter's own edit (ADR-031): title, description, category and attachment,
+ * only while the idea is still New. Once an administrator starts reviewing it, the
+ * text others voted and commented on stays put, and only administrators change it.
+ */
+export async function updateOwnIdea(
+  actor: Actor,
+  ideaId: string,
+  rawInput: unknown,
+): Promise<void> {
+  await requirePermission(actor, INNOVATION_PERMISSIONS.IDEA_CREATE);
+  const existing = await findLiveIdea(ideaId);
+  if (existing.createdBy !== actor.id) throw new ForbiddenError();
+  if (existing.status !== "NEW") throw new BusinessRuleError(REVIEW_STARTED);
+
+  const input = parseInput(ideaOwnUpdateSchema, rawInput);
+  await assertCategory(input.categoryId, existing.categoryId);
+
+  const attachmentFileId =
+    input.attachment === "keep"
+      ? existing.attachmentFileId
+      : input.attachment === "remove"
+        ? null
+        : input.attachment;
+  const replacing =
+    attachmentFileId !== null && attachmentFileId !== existing.attachmentFileId;
+  // Reads storage over the network, so it runs before the transaction.
+  if (replacing) await verifyUploadedFile(actor, attachmentFileId);
+
+  const next = {
+    title: input.title,
+    description: input.description,
+    categoryId: input.categoryId,
+    attachmentFileId,
+  };
+  const changes = diffForAudit(
+    {
+      title: existing.title,
+      description: existing.description,
+      categoryId: existing.categoryId,
+      attachmentFileId: existing.attachmentFileId,
+    },
+    next,
+    ["description"],
+  );
+  if (Object.keys(changes).length === 0) return;
+
+  await prisma.$transaction(async (tx) => {
+    // Conditional, so an administrator starting review a moment earlier wins.
+    const updated = await tx.innovationIdea.updateMany({
+      where: { id: ideaId, createdBy: actor.id, status: "NEW", deletedAt: null },
+      data: { ...next, updatedBy: actor.id },
+    });
+    if (updated.count !== 1) throw new BusinessRuleError(REVIEW_STARTED);
+    if (replacing) await markFileReady(tx, actor, attachmentFileId);
+    await recordAudit(
+      {
+        ...auditFields(actor),
+        action: "innovation.idea.updated",
+        module: INNOVATION_MODULE,
+        entityType: "InnovationIdea",
+        entityId: ideaId,
+        summary: `Edited own idea: ${input.title}`,
+        changes,
+      },
+      tx,
+    );
+  });
+}
+
+const REVIEW_STARTED =
+  "This idea is already being reviewed, so it can no longer be edited here. Ask a Think Tank admin to change it.";
 
 export async function deleteIdea(actor: Actor, ideaId: string): Promise<void> {
   await requirePermission(actor, INNOVATION_PERMISSIONS.IDEA_ADMINISTER);

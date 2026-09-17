@@ -18,7 +18,7 @@ import {
   type CategoryDto,
   type IdeaStatus,
 } from "../contracts/types";
-import { createIdeaAction, updateIdeaAction } from "./actions";
+import { createIdeaAction, updateIdeaAction, updateOwnIdeaAction } from "./actions";
 import { FileUploadField, type UploadedFile } from "./file-upload";
 import { usePeople } from "./use-people";
 
@@ -191,6 +191,185 @@ function IdeaCreateForm({
           disabled={uploading}
         >
           {isPending ? "Submitting…" : "Submit idea"}
+        </Button>
+      </DialogActions>
+    </form>
+  );
+}
+
+/**
+ * The submitter's edit of their own idea while it is New (ADR-031): text, category
+ * and attachment. Status and owner stay with administrators.
+ */
+export function EditOwnIdeaButton({
+  idea,
+  categories,
+  filesEnabled,
+}: {
+  idea: {
+    id: string;
+    title: string;
+    description: string;
+    categoryId: string;
+    attachment: UploadedFile | null;
+  };
+  categories: CategoryDto[];
+  filesEnabled: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [formKey, setFormKey] = useState(0);
+
+  return (
+    <>
+      <Button
+        icon={<Pencil aria-hidden="true" size={14} />}
+        onClick={() => {
+          setFormKey((key) => key + 1);
+          setOpen(true);
+        }}
+      >
+        Edit
+      </Button>
+      <Dialog
+        open={open}
+        onOpenChange={setOpen}
+        title="Edit your idea"
+        description="You can edit it until a Think Tank admin starts reviewing it."
+      >
+        <OwnIdeaEditForm
+          key={formKey}
+          idea={idea}
+          categories={categories}
+          filesEnabled={filesEnabled}
+          onDone={() => setOpen(false)}
+        />
+      </Dialog>
+    </>
+  );
+}
+
+function OwnIdeaEditForm({
+  idea,
+  categories,
+  filesEnabled,
+  onDone,
+}: {
+  idea: Parameters<typeof EditOwnIdeaButton>[0]["idea"];
+  categories: CategoryDto[];
+  filesEnabled: boolean;
+  onDone: () => void;
+}) {
+  const router = useRouter();
+  const [title, setTitle] = useState(idea.title);
+  const [description, setDescription] = useState(idea.description);
+  const [categoryId, setCategoryId] = useState(idea.categoryId);
+  const [file, setFile] = useState<UploadedFile | null>(idea.attachment);
+  const [uploading, setUploading] = useState(false);
+  const [errors, setErrors] = useState<Errors>({});
+  const [formError, setFormError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+  const error = (key: string) => errors[key]?.[0];
+
+  return (
+    <form
+      noValidate
+      className="flex flex-col gap-3"
+      onSubmit={(event) => {
+        event.preventDefault();
+        setFormError(null);
+        const attachment =
+          file === null
+            ? "remove"
+            : file.fileId === idea.attachment?.fileId
+              ? "keep"
+              : file.fileId;
+        startTransition(async () => {
+          const result = await updateOwnIdeaAction(idea.id, {
+            title,
+            description,
+            categoryId,
+            attachment,
+          }).catch(() => ({
+            ok: false as const,
+            message:
+              "We could not reach the server, so nothing was saved. Check your connection and try again.",
+          }));
+          if (result.ok) {
+            onDone();
+            router.refresh();
+          } else {
+            setErrors("fieldErrors" in result ? (result.fieldErrors ?? {}) : {});
+            setFormError(result.message);
+          }
+        });
+      }}
+    >
+      <Field label="Title" htmlFor="own-idea-title" required error={error("title")}>
+        <Input
+          id="own-idea-title"
+          value={title}
+          onChange={(event) => setTitle(event.target.value)}
+          maxLength={160}
+          invalid={error("title") !== undefined}
+          aria-describedby={describedBy("own-idea-title", error("title"))}
+          dir="auto"
+          autoFocus
+        />
+      </Field>
+      <Field
+        label="Description"
+        htmlFor="own-idea-description"
+        required
+        error={error("description")}
+      >
+        <Textarea
+          id="own-idea-description"
+          value={description}
+          onChange={(event) => setDescription(event.target.value)}
+          rows={6}
+          maxLength={5000}
+          invalid={error("description") !== undefined}
+          dir="auto"
+        />
+      </Field>
+      <Field
+        label="Category"
+        htmlFor="own-idea-category"
+        required
+        error={error("categoryId")}
+      >
+        <Select
+          id="own-idea-category"
+          value={categoryId}
+          onChange={(event) => setCategoryId(event.target.value)}
+          options={categories.map((category) => ({
+            value: category.id,
+            label: category.name,
+          }))}
+        />
+      </Field>
+      <FileUploadField
+        label="Attachment (optional)"
+        value={file}
+        onChange={setFile}
+        onBusyChange={setUploading}
+        enabled={filesEnabled}
+        error={error("file")}
+      />
+
+      {formError !== null && <FormError message={formError} />}
+
+      <DialogActions>
+        <Button variant="secondary" onClick={onDone} disabled={isPending}>
+          Cancel
+        </Button>
+        <Button
+          type="submit"
+          variant="primary"
+          isPending={isPending}
+          disabled={uploading}
+        >
+          {isPending ? "Saving…" : "Save changes"}
         </Button>
       </DialogActions>
     </form>

@@ -32,6 +32,7 @@ import {
   prepareUpload,
   toggleVote,
   updateIdea,
+  updateOwnIdea,
   updateProject,
 } from "@/modules/innovation/contracts/service";
 import {
@@ -328,6 +329,74 @@ describe.skipIf(!hasTestDatabase)("THE THINK TANK (integration)", () => {
           where: { name: "innovation.IdeaStageChanged" },
         }),
       ).toBe(1);
+    });
+
+    it("lets the submitter edit their own new idea, including replacing or removing its attachment", async () => {
+      const first = await uploadPdf(alice);
+      const { id } = await createIdea(as(alice), idea({ attachmentFileId: first }));
+      const edited = {
+        title: "Automate invoice OCR at scale",
+        description: "Scan every supplier invoice and extract totals and tax.",
+        categoryId: technology,
+      };
+
+      const second = await uploadPdf(alice);
+      await updateOwnIdea(as(alice), id, { ...edited, attachment: second });
+      let seen = await getIdea(as(bob), id);
+      expect(seen.title).toBe(edited.title);
+      expect(seen.description).toBe(edited.description);
+      expect(seen.attachment?.id).toBe(second);
+      expect(
+        (await testPrisma().innovationFile.findUniqueOrThrow({ where: { id: second } }))
+          .status,
+      ).toBe("READY");
+
+      // Keeping the file needs no new upload.
+      await updateOwnIdea(as(alice), id, { ...edited, title: "OCR", attachment: "keep" });
+      seen = await getIdea(as(bob), id);
+      expect(seen.title).toBe("OCR");
+      expect(seen.attachment?.id).toBe(second);
+
+      await updateOwnIdea(as(alice), id, { ...edited, attachment: "remove" });
+      expect((await getIdea(as(bob), id)).attachment).toBeNull();
+
+      const audits = await testPrisma().auditLog.findMany({
+        where: { action: "innovation.idea.updated", entityId: id },
+        orderBy: { occurredAt: "asc" },
+      });
+      expect(audits).toHaveLength(3);
+      expect(audits[0]?.changes).toMatchObject({
+        attachmentFileId: { from: first, to: second },
+      });
+      // Nothing changed means nothing is written.
+      await updateOwnIdea(as(alice), id, { ...edited, attachment: "keep" });
+      expect(
+        await testPrisma().auditLog.count({
+          where: { action: "innovation.idea.updated", entityId: id },
+        }),
+      ).toBe(3);
+    });
+
+    it("refuses edits by anyone but the submitter, and once review has started", async () => {
+      const { id } = await createIdea(as(alice), idea());
+      const edit = { ...idea(), title: "Changed", attachment: "keep" };
+
+      await expect(updateOwnIdea(as(bob), id, edit)).rejects.toThrow(ForbiddenError);
+      await expect(updateOwnIdea(as(admin), id, edit)).rejects.toThrow(ForbiddenError);
+      await expect(updateOwnIdea(as(outsider), id, edit)).rejects.toThrow(ForbiddenError);
+      // Someone else's upload cannot be attached.
+      // Prepared without a faked storage read: the ownership check refuses it first.
+      const { fileId: bobsFile } = await prepareUpload(as(bob), {
+        fileName: "Bob.pdf",
+        sizeBytes: 2048,
+      });
+      await expect(
+        updateOwnIdea(as(alice), id, { ...edit, attachment: bobsFile }),
+      ).rejects.toThrow(ValidationError);
+
+      await updateIdea(as(admin), id, { ...idea(), status: "REVIEWING", ownerId: null });
+      await expect(updateOwnIdea(as(alice), id, edit)).rejects.toThrow(BusinessRuleError);
+      expect((await getIdea(as(bob), id)).title).toBe(idea().title);
     });
 
     it("turns only an approved idea into exactly one project", async () => {

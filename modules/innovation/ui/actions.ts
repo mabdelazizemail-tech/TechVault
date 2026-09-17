@@ -100,6 +100,16 @@ export async function updateIdeaAction(
   });
 }
 
+export async function updateOwnIdeaAction(
+  ideaId: string,
+  input: unknown,
+): Promise<ActionResult> {
+  return run("innovation.idea.update_own", async (actor) => {
+    await thinkTank.updateOwnIdea(actor, ideaId, input);
+    return null;
+  });
+}
+
 export async function deleteIdeaAction(ideaId: string): Promise<ActionResult> {
   return run("innovation.idea.delete", async (actor) => {
     await thinkTank.deleteIdea(actor, ideaId);

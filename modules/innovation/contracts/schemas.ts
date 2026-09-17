@@ -67,6 +67,18 @@ export const ideaUpdateSchema = z.object({
   ownerId: optionalUuid,
 });
 
+/**
+ * What a submitter may change on their own idea while it is still New: the text,
+ * the category and the attachment. `attachment` is "keep", "remove", or the id of a
+ * new upload that replaces the current file.
+ */
+export const ideaOwnUpdateSchema = z.object({
+  title: requiredText("Title", 160),
+  description: requiredText("Description", 5000),
+  categoryId: uuid,
+  attachment: z.union([z.literal("keep"), z.literal("remove"), uuid]),
+});
+
 export const commentSchema = z.object({
   body: requiredText("Comment", 2000),
 });
