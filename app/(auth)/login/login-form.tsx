@@ -32,10 +32,14 @@ export function LoginForm({ next, notice }: { next?: string; notice?: string }) 
       )}
 
       <TextInput
-        label="Email address"
-        name="email"
-        type="email"
+        label="Username"
+        name="identifier"
+        type="text"
         autoComplete="username"
+        autoCapitalize="none"
+        autoCorrect="off"
+        spellCheck={false}
+        hint="Or the email address on your account, if it has one."
         autoFocus
         required
       />

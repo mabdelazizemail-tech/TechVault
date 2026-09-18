@@ -140,6 +140,88 @@ export async function deleteAccount(id: string): Promise<void> {
 }
 
 /**
+ * Gives an account a temporary password chosen by an administrator. The caller
+ * has already marked the account as needing a new password, so the holder cannot
+ * use the app with it beyond choosing their own (ADR-034).
+ */
+export async function setAccountPassword(id: string, password: string): Promise<void> {
+  const { error } = await adminApi().updateUserById(id, { password });
+  if (error === null) return;
+  if (error.code === "weak_password") {
+    throw new ValidationError("That password is too weak.", {
+      password: ["Choose a longer password that is harder to guess."],
+    });
+  }
+  throw safeError("auth.admin.setPassword", error);
+}
+
+/**
+ * Changes an account holder's own password, proving they know the current one.
+ *
+ * Needs only the publishable key. A throwaway client signs in with the current
+ * password — the proof — and sets the new one on that fresh session, which also
+ * satisfies Supabase's "recent sign-in" rule for password changes. Every session of
+ * the account is then ended, the browser's included, so a stolen session cannot
+ * outlive the change; the holder signs in again with the new password.
+ */
+export async function changePasswordWithCurrent(
+  email: string,
+  currentPassword: string,
+  newPassword: string,
+): Promise<void> {
+  const env = publicEnv();
+  const client = createClient(env.supabaseUrl, env.supabaseKey, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+  });
+
+  const signIn = await client.auth.signInWithPassword({
+    email,
+    password: currentPassword,
+  });
+  if (signIn.error !== null) {
+    if (signIn.error.code === "invalid_credentials") {
+      throw new ValidationError("Your current password is not correct.", {
+        currentPassword: ["This is not your current password."],
+      });
+    }
+    if (signIn.error.code === "over_request_rate_limit" || signIn.error.status === 429) {
+      throw new BusinessRuleError(
+        "Too many attempts. Wait a few minutes, then try again.",
+      );
+    }
+    throw safeError("auth.changePassword.verify", signIn.error);
+  }
+
+  const update = await client.auth.updateUser({ password: newPassword });
+  if (update.error !== null) {
+    // The proof session must not linger when the change fails.
+    await client.auth.signOut({ scope: "local" });
+    if (update.error.code === "weak_password") {
+      throw new ValidationError("That password is too weak.", {
+        newPassword: ["Choose a longer password that is harder to guess."],
+      });
+    }
+    if (update.error.code === "same_password") {
+      throw new ValidationError("Choose a different password.", {
+        newPassword: ["Choose a password you have not used for this account before."],
+      });
+    }
+    throw safeError("auth.changePassword.update", update.error);
+  }
+
+  const signOut = await client.auth.signOut({ scope: "global" });
+  if (signOut.error !== null) {
+    // The password has changed; failing to end the other sessions is logged, not
+    // fatal — the holder is signed out of this browser either way.
+    logger.warn("Could not end every session after a password change", {
+      module: "iam",
+      operation: "auth.changePassword.signOut",
+      errorCode: signOut.error.code ?? null,
+    });
+  }
+}
+
+/**
  * Sends Supabase's standard password-reset email. Needs only the publishable key.
  *
  * Implicit flow: the link is opened by the account holder, often on another

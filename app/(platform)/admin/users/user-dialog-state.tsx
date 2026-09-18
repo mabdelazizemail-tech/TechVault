@@ -11,7 +11,8 @@ import type { ManagedUser } from "./users-admin-context";
  * opening a dialog re-renders the dialog host, not every row's menu.
  */
 
-export type UserDialogKind = "edit" | "roles" | "unit" | "status" | "reset" | "delete";
+export type UserDialogKind =
+  "edit" | "roles" | "unit" | "status" | "reset" | "password" | "delete";
 
 export type UserDialogRequest = {
   kind: UserDialogKind;

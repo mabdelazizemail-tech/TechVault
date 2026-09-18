@@ -111,12 +111,21 @@ model OrganizationalUnit {
 /// is treated as unauthenticated.
 model User {
   id        String  @id @db.Uuid
+  /// The sign-in address held by Supabase Auth. For a person with no mailbox it is an
+  /// internal address derived from the username, never mailed (ADR-035).
   email     String  @unique
+  /// What the person types to sign in. Lower case; unique among all users, deleted
+  /// ones included, by a partial unique index in the migration (ADR-035).
+  username  String?
   fullName  String? @map("full_name")
   /// UI language preference — "en" or "ar" (ADR-009).
   locale    String  @default("en")
   isActive  Boolean @default(true) @map("is_active")
   orgUnitId String? @map("org_unit_id") @db.Uuid
+
+  /// Set when an administrator gives the account a temporary password: until the
+  /// holder chooses their own, every request is held on the change-password page.
+  mustChangePassword Boolean @default(false) @map("must_change_password")
 
   /// Reference to the HRIS employee record for this person. Plain ID column with
   /// NO foreign key: HRIS owns the person, IAM owns the login (CLAUDE.md §8.3).

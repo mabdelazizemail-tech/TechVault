@@ -15,9 +15,12 @@ import {
   getUserDetail,
   listUserAdminOptions,
   requestPasswordReset,
+  setUserPassword,
   setUserRoles,
   updateUser,
 } from "@/platform/iam/services/user-admin-service";
+import { changeOwnPassword } from "@/platform/iam/services/password-service";
+import { resolveSignInEmail } from "@/platform/iam/services/sign-in-service";
 import { listUsers, setUserActive } from "@/platform/iam/services/user-service";
 import {
   createOrgUnit,
@@ -49,6 +52,8 @@ const identity = vi.hoisted(() => ({
   setAccountBanned: vi.fn(),
   deleteAccount: vi.fn(),
   sendPasswordReset: vi.fn(),
+  setAccountPassword: vi.fn(),
+  changePasswordWithCurrent: vi.fn(),
 }));
 
 vi.mock("@/platform/auth/identity-admin", () => identity);
@@ -68,6 +73,7 @@ describe.skipIf(!hasTestDatabase)("user administration (integration)", () => {
 
   const as = (user: UserFixture) => ({ id: user.id });
   const newUser = (overrides: Record<string, unknown> = {}) => ({
+    username: "new.person",
     email: "New.Person@Example.com",
     fullName: "New Person",
     roleIds: [],
@@ -94,6 +100,8 @@ describe.skipIf(!hasTestDatabase)("user administration (integration)", () => {
     identity.setAccountBanned.mockResolvedValue(undefined);
     identity.deleteAccount.mockResolvedValue(undefined);
     identity.sendPasswordReset.mockResolvedValue(undefined);
+    identity.setAccountPassword.mockResolvedValue(undefined);
+    identity.changePasswordWithCurrent.mockResolvedValue(undefined);
 
     await resetDatabase();
     await seedPermissions();
@@ -184,6 +192,25 @@ describe.skipIf(!hasTestDatabase)("user administration (integration)", () => {
       );
       const records = await prisma.auditLog.findMany({ where: { entityId: created.id } });
       expect(JSON.stringify(records)).not.toContain(password);
+      // A password the administrator chose must be replaced before anything else (ADR-034).
+      const row = await prisma.user.findUniqueOrThrow({
+        where: { id: created.id },
+        select: { mustChangePassword: true },
+      });
+      expect(row.mustChangePassword).toBe(true);
+
+      const invited = await createUser(
+        as(admin),
+        newUser({ email: "invited@example.com", username: "invited" }),
+      );
+      expect(
+        (
+          await prisma.user.findUniqueOrThrow({
+            where: { id: invited.id },
+            select: { mustChangePassword: true },
+          })
+        ).mustChangePassword,
+      ).toBe(false);
     });
 
     it("refuses a duplicate email, an unknown role or an unknown unit before creating any account", async () => {
@@ -423,6 +450,312 @@ describe.skipIf(!hasTestDatabase)("user administration (integration)", () => {
       });
       expect(secondPage.total).toBe(3);
       expect(secondPage.rows.map((user) => user.email)).toEqual(["manager@example.com"]);
+    });
+  });
+
+  describe("passwords (ADR-034)", () => {
+    const mustChange = async (userId: string) =>
+      (
+        await prisma.user.findUniqueOrThrow({
+          where: { id: userId },
+          select: { mustChangePassword: true },
+        })
+      ).mustChangePassword;
+    const temporary = "temporary-pass-2026";
+
+    it("lets an administrator set a temporary password, holding the account until it is replaced", async () => {
+      await expect(
+        setUserPassword(as(admin), employee.id, {
+          password: temporary,
+          confirmPassword: temporary,
+        }),
+      ).resolves.toEqual({ email: "employee@example.com" });
+
+      expect(identity.setAccountPassword).toHaveBeenCalledWith(employee.id, temporary);
+      expect(await mustChange(employee.id)).toBe(true);
+      expect(await auditActions(employee.id)).toContain("iam.user.password_set");
+      const records = await prisma.auditLog.findMany({
+        where: { entityId: employee.id },
+      });
+      expect(JSON.stringify(records)).not.toContain(temporary);
+      const outbox = await prisma.eventOutbox.findMany({
+        where: { name: "iam.UserPasswordSet" },
+      });
+      expect(JSON.stringify(outbox)).not.toContain(temporary);
+      expect(outbox).toHaveLength(1);
+    });
+
+    it("lifts the hold again when the sign-in service refuses the password", async () => {
+      identity.setAccountPassword.mockRejectedValueOnce(
+        new ValidationError("That password is too weak.", { password: ["weak"] }),
+      );
+      await expect(
+        setUserPassword(as(admin), employee.id, {
+          password: temporary,
+          confirmPassword: temporary,
+        }),
+      ).rejects.toBeInstanceOf(ValidationError);
+      expect(await mustChange(employee.id)).toBe(false);
+      expect(await auditActions(employee.id)).not.toContain("iam.user.password_set");
+    });
+
+    it("refuses a weak or unconfirmed password, an inactive account and the administrator's own", async () => {
+      await expect(
+        setUserPassword(as(admin), employee.id, {
+          password: "short",
+          confirmPassword: "short",
+        }),
+      ).rejects.toBeInstanceOf(ValidationError);
+      await expect(
+        setUserPassword(as(admin), employee.id, {
+          password: temporary,
+          confirmPassword: "something-else-2026",
+        }),
+      ).rejects.toBeInstanceOf(ValidationError);
+      await expect(
+        setUserPassword(as(admin), admin.id, {
+          password: temporary,
+          confirmPassword: temporary,
+        }),
+      ).rejects.toBeInstanceOf(BusinessRuleError);
+
+      await setUserActive(as(admin), {
+        userId: employee.id,
+        isActive: false,
+        reason: "Paused",
+      });
+      await expect(
+        setUserPassword(as(admin), employee.id, {
+          password: temporary,
+          confirmPassword: temporary,
+        }),
+      ).rejects.toBeInstanceOf(BusinessRuleError);
+      expect(identity.setAccountPassword).not.toHaveBeenCalled();
+    });
+
+    it("refuses anyone without the administer permission, and changes nothing", async () => {
+      await expect(
+        setUserPassword(as(employee), manager.id, {
+          password: temporary,
+          confirmPassword: temporary,
+        }),
+      ).rejects.toBeInstanceOf(ForbiddenError);
+      expect(identity.setAccountPassword).not.toHaveBeenCalled();
+      expect(await mustChange(manager.id)).toBe(false);
+    });
+
+    it("hides a user outside the administrator's unit", async () => {
+      const scopedRole = await createRole("unit-admin", [
+        IAM_PERMISSIONS.ACCESS,
+        IAM_PERMISSIONS.USER_READ,
+        IAM_PERMISSIONS.USER_ADMINISTER,
+      ]);
+      const unitAdmin = await createUserFixture({
+        email: "unit.admin@example.com",
+        orgUnitId: sales.id,
+      });
+      await grantRole(unitAdmin.id, scopedRole.id, {
+        scopeType: "OWN_ORG_UNIT",
+      });
+      await expect(
+        setUserPassword(as(unitAdmin), employee.id, {
+          password: temporary,
+          confirmPassword: temporary,
+        }),
+      ).rejects.toBeInstanceOf(NotFoundError);
+      expect(identity.setAccountPassword).not.toHaveBeenCalled();
+    });
+
+    it("lets a user change their own password, lifting a temporary-password hold", async () => {
+      await setUserPassword(as(admin), employee.id, {
+        password: temporary,
+        confirmPassword: temporary,
+      });
+      const mine = "my-own-long-passphrase";
+      await changeOwnPassword(
+        { id: employee.id, email: "employee@example.com" },
+        { currentPassword: temporary, newPassword: mine, confirmPassword: mine },
+      );
+
+      expect(identity.changePasswordWithCurrent).toHaveBeenCalledWith(
+        "employee@example.com",
+        temporary,
+        mine,
+      );
+      expect(await mustChange(employee.id)).toBe(false);
+      expect(await auditActions(employee.id)).toContain("iam.user.password_changed");
+      const records = await prisma.auditLog.findMany({
+        where: { entityId: employee.id },
+      });
+      expect(JSON.stringify(records)).not.toContain(mine);
+      expect(JSON.stringify(records)).not.toContain(temporary);
+    });
+
+    it("keeps the hold when the current password is wrong, and checks the form first", async () => {
+      await setUserPassword(as(admin), employee.id, {
+        password: temporary,
+        confirmPassword: temporary,
+      });
+      identity.changePasswordWithCurrent.mockRejectedValueOnce(
+        new ValidationError("Your current password is not correct.", {
+          currentPassword: ["This is not your current password."],
+        }),
+      );
+      const mine = "my-own-long-passphrase";
+      await expect(
+        changeOwnPassword(
+          { id: employee.id, email: "employee@example.com" },
+          {
+            currentPassword: "guess-guess-guess",
+            newPassword: mine,
+            confirmPassword: mine,
+          },
+        ),
+      ).rejects.toBeInstanceOf(ValidationError);
+      expect(await mustChange(employee.id)).toBe(true);
+
+      identity.changePasswordWithCurrent.mockClear();
+      await expect(
+        changeOwnPassword(
+          { id: employee.id, email: "employee@example.com" },
+          {
+            currentPassword: temporary,
+            newPassword: mine,
+            confirmPassword: "not-the-same-one",
+          },
+        ),
+      ).rejects.toBeInstanceOf(ValidationError);
+      expect(identity.changePasswordWithCurrent).not.toHaveBeenCalled();
+    });
+
+    it("refuses a password change for a deactivated account", async () => {
+      await setUserActive(as(admin), {
+        userId: employee.id,
+        isActive: false,
+        reason: "Paused",
+      });
+      const mine = "my-own-long-passphrase";
+      await expect(
+        changeOwnPassword(
+          { id: employee.id, email: "employee@example.com" },
+          { currentPassword: "old-password-1", newPassword: mine, confirmPassword: mine },
+        ),
+      ).rejects.toBeInstanceOf(NotFoundError);
+      expect(identity.changePasswordWithCurrent).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("usernames (ADR-035)", () => {
+    const internal = (username: string) => `${username}@users.techvault.internal`;
+    const withoutEmail = (overrides: Record<string, unknown> = {}) =>
+      newUser({
+        username: "Amr.Hassan",
+        email: "",
+        setup: { method: "password", password: "temporary-pass-2026" },
+        ...overrides,
+      });
+
+    it("creates a user with a username and no email, signing in by an internal address", async () => {
+      const created = await createUser(as(admin), withoutEmail());
+      expect(created).toMatchObject({
+        username: "amr.hassan",
+        email: null,
+        method: "password",
+      });
+      expect(identity.createAccount).toHaveBeenCalledWith(
+        expect.objectContaining({ email: internal("amr.hassan"), method: "password" }),
+      );
+      const row = await prisma.user.findUniqueOrThrow({
+        where: { id: created.id },
+        select: { username: true, email: true, mustChangePassword: true },
+      });
+      expect(row).toEqual({
+        username: "amr.hassan",
+        email: internal("amr.hassan"),
+        mustChangePassword: true,
+      });
+    });
+
+    it("cannot invite someone without an email, or give them an internal address as their email", async () => {
+      await expect(
+        createUser(as(admin), withoutEmail({ setup: { method: "invite" } })),
+      ).rejects.toBeInstanceOf(ValidationError);
+      await expect(
+        createUser(as(admin), withoutEmail({ email: internal("someone") })),
+      ).rejects.toBeInstanceOf(ValidationError);
+      await expect(
+        createUser(as(admin), withoutEmail({ username: "x" })),
+      ).rejects.toBeInstanceOf(ValidationError);
+      expect(identity.createAccount).not.toHaveBeenCalled();
+    });
+
+    it("refuses a username already taken, whatever its letter case", async () => {
+      await createUser(as(admin), withoutEmail());
+      identity.createAccount.mockClear();
+      await expect(
+        createUser(
+          as(admin),
+          withoutEmail({ username: "AMR.HASSAN", email: "amr@example.com" }),
+        ),
+      ).rejects.toBeInstanceOf(ValidationError);
+      expect(identity.createAccount).not.toHaveBeenCalled();
+    });
+
+    it("renames the internal sign-in address with the username, and only an administrator may", async () => {
+      const created = await createUser(as(admin), withoutEmail());
+
+      await expect(
+        updateUser(as(employee), created.id, { username: "amr" }),
+      ).rejects.toBeInstanceOf(ForbiddenError);
+
+      await updateUser(as(admin), created.id, { username: "Amr" });
+      expect(identity.updateAccountEmail).toHaveBeenCalledWith(
+        created.id,
+        internal("amr"),
+      );
+      const row = await prisma.user.findUniqueOrThrow({
+        where: { id: created.id },
+        select: { username: true, email: true },
+      });
+      expect(row).toEqual({ username: "amr", email: internal("amr") });
+      expect(await auditActions(created.id)).toContain("iam.user.updated");
+    });
+
+    it("keeps a real email address when only the username changes", async () => {
+      await updateUser(as(admin), employee.id, { username: "employee" });
+      expect(identity.updateAccountEmail).not.toHaveBeenCalled();
+      const row = await prisma.user.findUniqueOrThrow({
+        where: { id: employee.id },
+        select: { username: true, email: true },
+      });
+      expect(row).toEqual({ username: "employee", email: "employee@example.com" });
+    });
+
+    it("does not send a reset email to someone without a mailbox", async () => {
+      const created = await createUser(as(admin), withoutEmail());
+      await expect(requestPasswordReset(as(admin), created.id)).rejects.toBeInstanceOf(
+        BusinessRuleError,
+      );
+      expect(identity.sendPasswordReset).not.toHaveBeenCalled();
+    });
+
+    it("resolves what is typed at sign-in without revealing which usernames exist", async () => {
+      const created = await createUser(as(admin), withoutEmail());
+      await updateUser(as(admin), employee.id, { username: "employee" });
+
+      // An email address is used as typed, in lower case.
+      expect(await resolveSignInEmail("  Someone@Example.com ")).toBe(
+        "someone@example.com",
+      );
+      // A username maps to the account's sign-in address, real or internal.
+      expect(await resolveSignInEmail("EMPLOYEE")).toBe("employee@example.com");
+      expect(await resolveSignInEmail("amr.hassan")).toBe(internal("amr.hassan"));
+      // An unknown username still yields an address, so sign-in fails the same way.
+      expect(await resolveSignInEmail("nobody")).toBe(internal("nobody"));
+
+      // A deleted account's username no longer leads to its address.
+      await deleteUser(as(admin), created.id, { confirmEmail: "amr.hassan" });
+      expect(await resolveSignInEmail("amr.hassan")).toBe(internal("amr.hassan"));
     });
   });
 

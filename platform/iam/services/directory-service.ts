@@ -1,4 +1,5 @@
 import { UnauthenticatedError } from "@/lib/errors";
+import { visibleEmail } from "@/platform/iam/usernames";
 import { prisma } from "@/lib/prisma";
 import type { Actor } from "@/platform/authz/authz";
 import { getPermissionSet } from "@/platform/iam/permission-loader";
@@ -51,18 +52,20 @@ export async function searchDirectory(
         OR: [
           { fullName: { contains: term, mode: "insensitive" as const } },
           { email: { contains: term, mode: "insensitive" as const } },
+          { username: { contains: term, mode: "insensitive" as const } },
         ],
       })),
     },
     orderBy: [{ fullName: "asc" }, { email: "asc" }],
     take: Math.min(options.limit ?? SEARCH_LIMIT, SEARCH_LIMIT),
-    select: { id: true, fullName: true, email: true },
+    select: { id: true, fullName: true, email: true, username: true },
   });
 
   return users.map((user) => ({
     id: user.id,
-    name: user.fullName ?? user.email,
-    email: user.email,
+    name: user.fullName ?? user.username ?? user.email,
+    // What colleagues recognise: a real address, else the username (ADR-035).
+    email: visibleEmail(user.email) ?? user.username ?? user.email,
   }));
 }
 
@@ -81,13 +84,21 @@ export async function findDirectoryPeople(
 
   const users = await prisma.user.findMany({
     where: { id: { in: [...new Set(userIds)] } },
-    select: { id: true, fullName: true, email: true, isActive: true, deletedAt: true },
+    select: {
+      id: true,
+      fullName: true,
+      email: true,
+      username: true,
+      isActive: true,
+      deletedAt: true,
+    },
   });
 
   return users.map((user) => ({
     id: user.id,
-    name: user.fullName ?? user.email,
-    email: user.email,
+    name: user.fullName ?? user.username ?? user.email,
+    // What colleagues recognise: a real address, else the username (ADR-035).
+    email: visibleEmail(user.email) ?? user.username ?? user.email,
     isActive: user.isActive && user.deletedAt === null,
   }));
 }
@@ -99,12 +110,13 @@ export async function listDirectory(actor: Actor): Promise<DirectoryEntry[]> {
     where: { isActive: true, deletedAt: null },
     orderBy: [{ fullName: "asc" }, { email: "asc" }],
     take: DIRECTORY_LIMIT,
-    select: { id: true, fullName: true, email: true },
+    select: { id: true, fullName: true, email: true, username: true },
   });
 
   return users.map((user) => ({
     id: user.id,
-    name: user.fullName ?? user.email,
-    email: user.email,
+    name: user.fullName ?? user.username ?? user.email,
+    // What colleagues recognise: a real address, else the username (ADR-035).
+    email: visibleEmail(user.email) ?? user.username ?? user.email,
   }));
 }

@@ -15,7 +15,9 @@ import type { UserAdminOptions } from "@/platform/iam/services/user-admin-servic
 
 export type ManagedUser = {
   id: string;
+  /** The sign-in address; an internal one for someone with no mailbox (ADR-035). */
   email: string;
+  username: string | null;
   fullName: string | null;
   locale: string;
   isActive: boolean;

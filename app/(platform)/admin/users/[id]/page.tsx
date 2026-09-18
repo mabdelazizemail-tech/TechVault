@@ -15,6 +15,7 @@ import {
 } from "@/platform/iam/services/user-admin-service";
 import { UserDialogsHost, UserRowActions } from "../user-row-actions";
 import { UsersAdminProvider } from "../users-admin-context";
+import { visibleEmail } from "@/platform/iam/usernames";
 
 export const metadata: Metadata = { title: "User details" };
 
@@ -60,10 +61,13 @@ export default async function UserDetailPage({
       }}
     >
       <div className="max-w-6xl">
-        <BreadcrumbTitle segment={id} label={user.fullName ?? user.email} />
+        <BreadcrumbTitle
+          segment={id}
+          label={user.fullName ?? user.username ?? user.email}
+        />
         <PageHeader
-          title={user.fullName ?? user.email}
-          description={user.email}
+          title={user.fullName ?? user.username ?? user.email}
+          description={user.username ?? visibleEmail(user.email) ?? undefined}
           actions={
             <>
               {user.isActive ? (
@@ -76,6 +80,7 @@ export default async function UserDetailPage({
                 user={{
                   id: user.id,
                   email: user.email,
+                  username: user.username,
                   fullName: user.fullName,
                   locale: user.locale,
                   isActive: user.isActive,
@@ -94,7 +99,10 @@ export default async function UserDetailPage({
             <Section title="Profile">
               <dl className="divide-border divide-y">
                 <Row label="Name">{user.fullName ?? <Muted>Not set</Muted>}</Row>
-                <Row label="Email">{user.email}</Row>
+                <Row label="Username">
+                  {user.username ?? <Muted>Not set — signs in with email</Muted>}
+                </Row>
+                <Row label="Email">{visibleEmail(user.email) ?? <Muted>None</Muted>}</Row>
                 <Row label="Status">{user.isActive ? "Active" : "Inactive"}</Row>
                 <Row label="Organisation unit">
                   {user.orgUnit?.name ?? <Muted>Unassigned</Muted>}

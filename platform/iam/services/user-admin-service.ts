@@ -15,6 +15,7 @@ import {
   isAccountAdminConfigured,
   sendPasswordReset,
   setAccountBanned,
+  setAccountPassword,
   updateAccountEmail,
 } from "@/platform/auth/identity-admin";
 import { type Actor, can, canAll, requirePermission } from "@/platform/authz/authz";
@@ -30,6 +31,12 @@ import {
   assertAdministrationRemains,
   lockAdministration,
 } from "@/platform/iam/services/admin-guard";
+import { newPasswordField } from "@/platform/iam/services/password-service";
+import {
+  hasMailbox,
+  internalSignInAddress,
+  usernameField,
+} from "@/platform/iam/usernames";
 import { logger } from "@/platform/observability/logger";
 
 /**
@@ -41,7 +48,8 @@ import { logger } from "@/platform/observability/logger";
  * orders the two sides to fail safe and compensates when the second side fails.
  *
  * Permissions: read → view; create → add; update → profile, unit and status;
- * administer → roles, email address and password reset; delete → delete.
+ * administer → roles, email address, password reset and temporary password;
+ * delete → delete.
  * Granting or removing a role additionally requires holding every permission the
  * role confers, so nobody can hand out more authority than they have.
  */
@@ -54,6 +62,16 @@ const emailField = z
   .max(254)
   .email("Enter a valid email address.");
 const nameField = z.string().trim().min(1, "Enter the person's full name.").max(200);
+const realEmailField = emailField.refine(hasMailbox, {
+  message: "This address is reserved for sign-in. Leave the email blank instead.",
+});
+/** Blank means the person has no email address and signs in by username only (ADR-035). */
+const optionalEmailField = z
+  .preprocess(
+    (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
+    realEmailField.optional(),
+  )
+  .transform((value) => value ?? null);
 
 function parse<TSchema extends z.ZodType>(
   schema: TSchema,
@@ -91,6 +109,7 @@ function messageOf(error: unknown): string {
 const targetUserSelect = {
   id: true,
   email: true,
+  username: true,
   fullName: true,
   locale: true,
   isActive: true,
@@ -279,25 +298,34 @@ export async function listUserAdminOptions(actor: Actor): Promise<UserAdminOptio
 
 /* Create ------------------------------------------------------------------ */
 
-export const createUserInput = z.object({
-  email: emailField,
-  fullName: nameField,
-  roleIds: z.array(uuid).max(20).default([]),
-  orgUnitId: uuid.nullable().default(null),
-  isActive: z.boolean().default(true),
-  setup: z.discriminatedUnion("method", [
-    z.object({ method: z.literal("invite") }),
-    z.object({
-      method: z.literal("password"),
-      password: z
-        .string()
-        .min(12, "Use at least 12 characters.")
-        .max(72, "Use at most 72 characters."),
-    }),
-  ]),
-});
+export const createUserInput = z
+  .object({
+    username: usernameField,
+    email: optionalEmailField,
+    fullName: nameField,
+    roleIds: z.array(uuid).max(20).default([]),
+    orgUnitId: uuid.nullable().default(null),
+    isActive: z.boolean().default(true),
+    setup: z.discriminatedUnion("method", [
+      z.object({ method: z.literal("invite") }),
+      z.object({
+        method: z.literal("password"),
+        password: newPasswordField,
+      }),
+    ]),
+  })
+  // An invitation is an email; without an address the only way in is a password.
+  .refine((input) => input.email !== null || input.setup.method === "password", {
+    path: ["setup", "method"],
+    message: "Without an email address, set a temporary password.",
+  });
 
-export type CreatedUser = { id: string; email: string; method: "invite" | "password" };
+export type CreatedUser = {
+  id: string;
+  username: string;
+  email: string | null;
+  method: "invite" | "password";
+};
 
 export async function createUser(actor: Actor, rawInput: unknown): Promise<CreatedUser> {
   await requirePermission(actor, IAM_PERMISSIONS.USER_CREATE);
@@ -306,11 +334,18 @@ export async function createUser(actor: Actor, rawInput: unknown): Promise<Creat
     await requirePermission(actor, IAM_PERMISSIONS.USER_ADMINISTER);
   }
 
-  const [unit, roles, existing] = await Promise.all([
+  // Someone with no mailbox signs in with an internal address made from the username.
+  const signInEmail = input.email ?? internalSignInAddress(input.username);
+
+  const [unit, roles, existing, usernameTaken] = await Promise.all([
     findUnit(input.orgUnitId),
     findRoles(input.roleIds),
     prisma.user.findUnique({
-      where: { email: input.email },
+      where: { email: signInEmail },
+      select: { deletedAt: true },
+    }),
+    prisma.user.findFirst({
+      where: { username: input.username },
       select: { deletedAt: true },
     }),
   ]);
@@ -319,6 +354,15 @@ export async function createUser(actor: Actor, rawInput: unknown): Promise<Creat
     await requirePermission(actor, IAM_PERMISSIONS.USER_CREATE, {
       orgUnitId: unit.id,
       orgUnitPath: unit.path,
+    });
+  }
+  if (usernameTaken !== null) {
+    throw new ValidationError("This username is taken.", {
+      username: [
+        usernameTaken.deletedAt === null
+          ? "Another user already has this username."
+          : "A deleted user had this username. Deleted accounts keep their history, so it cannot be reused.",
+      ],
     });
   }
   if (existing !== null) {
@@ -335,7 +379,7 @@ export async function createUser(actor: Actor, rawInput: unknown): Promise<Creat
   // auth.users.id). If recording the user then fails, the account is removed
   // again, so no identity exists that TechVault does not know about.
   const account = await createAccount({
-    email: input.email,
+    email: signInEmail,
     fullName: input.fullName,
     method: input.setup.method,
     password: input.setup.method === "password" ? input.setup.password : undefined,
@@ -346,10 +390,14 @@ export async function createUser(actor: Actor, rawInput: unknown): Promise<Creat
       await tx.user.create({
         data: {
           id: account.id,
-          email: input.email,
+          email: signInEmail,
+          username: input.username,
           fullName: input.fullName,
           orgUnitId: unit?.id ?? null,
           isActive: input.isActive,
+          // A password the administrator chose is temporary: the holder replaces it
+          // before doing anything else (ADR-034).
+          mustChangePassword: input.setup.method === "password",
           createdBy: actor.id,
           updatedBy: actor.id,
         },
@@ -374,10 +422,11 @@ export async function createUser(actor: Actor, rawInput: unknown): Promise<Creat
           entityType: "User",
           entityId: account.id,
           summary:
-            `Created ${input.email}` +
+            `Created ${input.username}` +
             (roles.length > 0 ? ` with ${roles.map((role) => role.key).join(", ")}` : ""),
           // Never the password: only how the account was set up.
           changes: {
+            username: input.username,
             email: input.email,
             fullName: input.fullName,
             orgUnit: unit?.name ?? null,
@@ -415,20 +464,28 @@ export async function createUser(actor: Actor, rawInput: unknown): Promise<Creat
       });
     });
     if (isUniqueViolation(error)) {
-      throw new ConflictError("A user with this email address already exists.");
+      throw new ConflictError(
+        "A user with this username or email address already exists.",
+      );
     }
     throw error;
   }
 
   if (!input.isActive) await syncSignInBan(actor, account.id, true);
-  return { id: account.id, email: input.email, method: input.setup.method };
+  return {
+    id: account.id,
+    username: input.username,
+    email: input.email,
+    method: input.setup.method,
+  };
 }
 
 /* Update ------------------------------------------------------------------ */
 
 export const updateUserInput = z.object({
   fullName: nameField.optional(),
-  email: emailField.optional(),
+  username: usernameField.optional(),
+  email: realEmailField.optional(),
   locale: z.enum(["en", "ar"]).optional(),
   orgUnitId: uuid.nullable().optional(),
 });
@@ -444,7 +501,14 @@ export async function updateUser(
   const user = await findLiveUser(userId);
   await authorizeOn(actor, IAM_PERMISSIONS.USER_UPDATE, user);
 
-  const newEmail = input.email;
+  const newUsername = input.username;
+  const usernameChanged = newUsername !== undefined && newUsername !== user.username;
+  // Without a mailbox the sign-in address follows the username (ADR-035).
+  const newEmail =
+    input.email ??
+    (usernameChanged && !hasMailbox(user.email)
+      ? internalSignInAddress(newUsername)
+      : undefined);
   const emailChanged = newEmail !== undefined && newEmail !== user.email;
   const newUnitId = input.orgUnitId;
   const unitChanged = newUnitId !== undefined && newUnitId !== user.orgUnitId;
@@ -455,7 +519,20 @@ export async function updateUser(
   const profileChanged =
     profile.fullName !== user.fullName || profile.locale !== user.locale;
 
-  if (!emailChanged && !unitChanged && !profileChanged) return;
+  if (!emailChanged && !usernameChanged && !unitChanged && !profileChanged) return;
+
+  if (usernameChanged) {
+    await requirePermission(actor, IAM_PERMISSIONS.USER_ADMINISTER, targetOf(user));
+    const taken = await prisma.user.findFirst({
+      where: { username: newUsername, id: { not: user.id } },
+      select: { id: true },
+    });
+    if (taken !== null) {
+      throw new ValidationError("This username is taken.", {
+        username: ["Another user, or a deleted one, already has this username."],
+      });
+    }
+  }
 
   const newUnit = unitChanged ? await findUnit(newUnitId) : null;
   if (newUnit !== null) {
@@ -485,12 +562,13 @@ export async function updateUser(
         data: {
           ...(profileChanged ? profile : {}),
           ...(emailChanged ? { email: newEmail } : {}),
+          ...(usernameChanged ? { username: newUsername } : {}),
           ...(unitChanged ? { orgUnitId: newUnit?.id ?? null } : {}),
           updatedBy: actor.id,
         },
       });
 
-      if (profileChanged || emailChanged) {
+      if (profileChanged || emailChanged || usernameChanged) {
         await recordAudit(
           {
             ...auditContext(actor),
@@ -498,16 +576,23 @@ export async function updateUser(
             module: "iam",
             entityType: "User",
             entityId: user.id,
-            summary: `Updated ${emailChanged ? newEmail : user.email}`,
+            summary: `Updated ${newUsername ?? user.username ?? (emailChanged ? newEmail : user.email)}`,
             changes: diffForAudit(
-              { fullName: user.fullName, locale: user.locale, email: user.email },
+              {
+                fullName: user.fullName,
+                locale: user.locale,
+                email: user.email,
+                username: user.username,
+              },
               {
                 fullName: profile.fullName,
                 locale: profile.locale,
                 email: emailChanged ? newEmail : user.email,
+                username: usernameChanged ? newUsername : user.username,
               },
             ),
-            severity: emailChanged ? "CRITICAL" : "INFO",
+            // The sign-in identity changed: as serious as a new email address.
+            severity: emailChanged || usernameChanged ? "CRITICAL" : "INFO",
           },
           tx,
         );
@@ -699,6 +784,11 @@ export async function requestPasswordReset(
       "This account is inactive. Activate it before sending a password reset.",
     );
   }
+  if (!hasMailbox(user.email)) {
+    throw new BusinessRuleError(
+      "This user has no email address to send a reset link to. Set a temporary password instead.",
+    );
+  }
 
   await sendPasswordReset(user.email);
 
@@ -710,6 +800,89 @@ export async function requestPasswordReset(
     entityId: user.id,
     summary: `Sent a password reset email to ${user.email}`,
     severity: "NOTICE",
+  });
+
+  return { email: user.email };
+}
+
+/* Temporary password ------------------------------------------------------ */
+
+export const setUserPasswordInput = z
+  .object({ password: newPasswordField, confirmPassword: z.string() })
+  .refine((input) => input.password === input.confirmPassword, {
+    path: ["confirmPassword"],
+    message: "The two passwords do not match.",
+  });
+
+/**
+ * Gives another user a temporary password (ADR-034). Until they replace it, every
+ * session of theirs is held on the change-password page, so the administrator who
+ * knows it cannot act as them — and never learns the password they end up with.
+ */
+export async function setUserPassword(
+  actor: Actor,
+  userId: string,
+  rawInput: unknown,
+): Promise<{ email: string }> {
+  await requirePermission(actor, IAM_PERMISSIONS.USER_ADMINISTER);
+  const input = parse(setUserPasswordInput, rawInput);
+  const user = await findLiveUser(userId);
+  await authorizeOn(actor, IAM_PERMISSIONS.USER_ADMINISTER, user);
+
+  if (user.id === actor.id) {
+    throw new BusinessRuleError(
+      "Change your own password from My account, where you confirm your current one.",
+    );
+  }
+  if (!user.isActive) {
+    throw new BusinessRuleError(
+      "This account is inactive. Activate it before setting a password.",
+    );
+  }
+
+  const before = await prisma.user.findUniqueOrThrow({
+    where: { id: user.id },
+    select: { mustChangePassword: true },
+  });
+
+  // The hold goes on first, so there is never a moment when the temporary password
+  // works without it. If the sign-in service then refuses, the hold is lifted again
+  // and the old password keeps working.
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { mustChangePassword: true, updatedBy: actor.id },
+  });
+  try {
+    await setAccountPassword(user.id, input.password);
+  } catch (error) {
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { mustChangePassword: before.mustChangePassword },
+    });
+    throw error;
+  }
+
+  await prisma.$transaction(async (tx) => {
+    // Never the password: only that one was set, and that it must be replaced.
+    await recordAudit(
+      {
+        ...auditContext(actor),
+        action: "iam.user.password_set",
+        module: "iam",
+        entityType: "User",
+        entityId: user.id,
+        summary: `Set a temporary password for ${user.email}`,
+        changes: { mustChangePassword: true },
+        severity: "WARNING",
+      },
+      tx,
+    );
+    await publish(tx, {
+      name: "iam.UserPasswordSet",
+      actorId: actor.id,
+      correlationId: actor.correlationId ?? null,
+      payload: { userId: user.id },
+    });
   });
 
   return { email: user.email };
@@ -741,9 +914,13 @@ export async function deleteUser(
   const user = await findLiveUser(userId);
   await authorizeOn(actor, IAM_PERMISSIONS.USER_DELETE, user);
 
-  if (input.confirmEmail !== user.email.toLowerCase()) {
-    throw new ValidationError("Type the user's email address to confirm.", {
-      confirmEmail: ["This does not match the user's email address."],
+  // Either what they sign in with or their sign-in address confirms the target.
+  const confirmations = [user.email.toLowerCase(), user.username].filter(
+    (value): value is string => value !== null,
+  );
+  if (!confirmations.includes(input.confirmEmail)) {
+    throw new ValidationError("Type the user's username to confirm.", {
+      confirmEmail: ["This does not match the user's username or email address."],
     });
   }
 
@@ -827,7 +1004,9 @@ export async function deleteUser(
 
 export type UserDetail = {
   id: string;
+  /** The sign-in address; an internal one for someone with no mailbox (ADR-035). */
   email: string;
+  username: string | null;
   fullName: string | null;
   locale: string;
   isActive: boolean;
@@ -873,6 +1052,7 @@ export async function getUserDetail(actor: Actor, userId: string): Promise<UserD
     select: {
       id: true,
       email: true,
+      username: true,
       fullName: true,
       locale: true,
       isActive: true,
@@ -976,6 +1156,7 @@ export async function getUserDetail(actor: Actor, userId: string): Promise<UserD
   return {
     id: user.id,
     email: user.email,
+    username: user.username,
     fullName: user.fullName,
     locale: user.locale,
     isActive: user.isActive,

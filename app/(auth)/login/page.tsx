@@ -87,6 +87,8 @@ function noticeFor(reason: string | undefined): string | undefined {
       return "Your account is not active. Contact your administrator if you think this is a mistake.";
     case "password-set":
       return "Your password is set. Sign in with it now.";
+    case "password-changed":
+      return "Your password is changed and you were signed out everywhere. Sign in with your new password.";
     default:
       return undefined;
   }

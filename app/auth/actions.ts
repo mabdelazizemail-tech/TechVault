@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { createServerSupabaseClient } from "@/platform/auth/supabase/server";
+import { resolveSignInEmail } from "@/platform/iam/services/sign-in-service";
 import { recordAuditSafely } from "@/platform/audit/audit";
 import { logger } from "@/platform/observability/logger";
 
@@ -18,15 +19,17 @@ import { logger } from "@/platform/observability/logger";
 export type SignInResult = { error: string } | undefined;
 
 export async function signIn(formData: FormData): Promise<SignInResult> {
-  const email = String(formData.get("email") ?? "")
+  // A username, or an email address for accounts that have one (ADR-035).
+  const identifier = String(formData.get("identifier") ?? formData.get("email") ?? "")
     .trim()
     .toLowerCase();
   const password = String(formData.get("password") ?? "");
   const next = String(formData.get("next") ?? "/dashboard");
 
-  if (email === "" || password === "") {
-    return { error: "Enter your email address and password." };
+  if (identifier === "" || password === "") {
+    return { error: "Enter your username and password." };
   }
+  const email = await resolveSignInEmail(identifier);
 
   const headerList = await headers();
   const ipAddress = headerList.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;

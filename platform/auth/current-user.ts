@@ -2,7 +2,8 @@ import { cache } from "react";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { UnauthenticatedError } from "@/lib/errors";
+import { ForbiddenError, UnauthenticatedError } from "@/lib/errors";
+import { sessionAccess } from "@/platform/auth/access";
 import type { Actor } from "@/platform/authz/authz";
 import { createServerSupabaseClient } from "@/platform/auth/supabase/server";
 import { signingKeys, verifiedUserId } from "@/platform/auth/verify-token";
@@ -25,13 +26,20 @@ import { logger } from "@/platform/observability/logger";
 
 export type CurrentUser = {
   id: string;
+  /** The sign-in address; an internal one for someone with no mailbox (ADR-035). */
   email: string;
+  username: string | null;
   fullName: string | null;
   locale: string;
   orgUnitId: string | null;
   orgUnitPath: string | null;
   hrisEmployeeId: string | null;
+  /** An administrator set a temporary password; nothing else is allowed until it is replaced. */
+  mustChangePassword: boolean;
 };
+
+/** Where a session with a temporary password is held until it chooses its own (ADR-034). */
+export const CHANGE_PASSWORD_PATH = "/auth/change-password";
 
 type Resolution =
   | { status: "anonymous" }
@@ -57,10 +65,12 @@ const resolveCurrentUser = cache(async (): Promise<Resolution> => {
     select: {
       id: true,
       email: true,
+      username: true,
       fullName: true,
       locale: true,
       isActive: true,
       deletedAt: true,
+      mustChangePassword: true,
       orgUnitId: true,
       hrisEmployeeId: true,
       orgUnit: { select: { path: true } },
@@ -76,7 +86,7 @@ const resolveCurrentUser = cache(async (): Promise<Resolution> => {
     return { status: "disabled" };
   }
 
-  if (!user.isActive || user.deletedAt !== null) {
+  if (sessionAccess(user) === "disabled") {
     logger.info("Request by an inactive or deleted account", {
       module: "iam",
       operation: "auth.inactiveAccount",
@@ -90,16 +100,21 @@ const resolveCurrentUser = cache(async (): Promise<Resolution> => {
     user: {
       id: user.id,
       email: user.email,
+      username: user.username,
       fullName: user.fullName,
       locale: user.locale,
       orgUnitId: user.orgUnitId,
       orgUnitPath: user.orgUnit?.path ?? null,
       hrisEmployeeId: user.hrisEmployeeId,
+      mustChangePassword: user.mustChangePassword,
     },
   };
 });
 
-/** The signed-in, active user, or `null`. */
+/**
+ * The signed-in, active user, or `null` — including one who must still change a
+ * temporary password. Use `requireUser` or `getActor` to act on the user's behalf.
+ */
 export async function getCurrentUser(): Promise<CurrentUser | null> {
   const resolution = await resolveCurrentUser();
   return resolution.status === "active" ? resolution.user : null;
@@ -114,6 +129,20 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
  * /login would loop. It goes through /auth/signout, which ends the session first.
  */
 export async function requireUser(): Promise<CurrentUser> {
+  const user = await requireSignedIn();
+  if (user.mustChangePassword) redirect(CHANGE_PASSWORD_PATH);
+  return user;
+}
+
+/**
+ * Like `requireUser`, but also admits an account that must change its temporary
+ * password. Only the change-password page uses it.
+ */
+export async function requireUserForPasswordChange(): Promise<CurrentUser> {
+  return requireSignedIn();
+}
+
+async function requireSignedIn(): Promise<CurrentUser> {
   const resolution = await resolveCurrentUser();
   if (resolution.status === "active") return resolution.user;
   if (resolution.status === "disabled") redirect("/auth/signout?reason=disabled");
@@ -127,6 +156,9 @@ export async function requireUser(): Promise<CurrentUser> {
 export async function requireUserOrThrow(): Promise<CurrentUser> {
   const user = await getCurrentUser();
   if (user === null) throw new UnauthenticatedError();
+  if (user.mustChangePassword) {
+    throw new ForbiddenError("Choose a new password before continuing.");
+  }
   return user;
 }
 
@@ -135,7 +167,20 @@ export async function requireUserOrThrow(): Promise<CurrentUser> {
  * context that audit records and denial logs need (§22).
  */
 export async function getActor(): Promise<Actor> {
-  const user = await requireUserOrThrow();
+  return actorFor(await requireUserOrThrow());
+}
+
+/**
+ * The actor for changing one's own password — the one operation an account with a
+ * temporary password may perform. Never use it for anything else.
+ */
+export async function getPasswordChangeActor(): Promise<Actor & { email: string }> {
+  const user = await getCurrentUser();
+  if (user === null) throw new UnauthenticatedError();
+  return { ...(await actorFor(user)), email: user.email };
+}
+
+async function actorFor(user: CurrentUser): Promise<Actor> {
   const headerList = await headers();
 
   return {

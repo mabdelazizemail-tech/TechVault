@@ -14,10 +14,12 @@ import {
   type Option,
 } from "@/components/ui/form-controls";
 import { useToast } from "@/components/ui/toast";
+import { visibleEmail } from "@/platform/iam/usernames";
 import {
   createUserAction,
   deleteUserAction,
   requestPasswordResetAction,
+  setUserPasswordAction,
   setUserRolesAction,
   setUserStatusAction,
   updateUserAction,
@@ -39,6 +41,9 @@ type UserDialogProps = DialogProps & { user: ManagedUser };
 
 const firstError = (errors: FieldErrors, key: string): string | null =>
   errors[key]?.[0] ?? null;
+
+const USERNAME_HINT =
+  "3 to 32 letters, numbers, dots, hyphens or underscores. Not case-sensitive.";
 
 function FormAlert({ message }: { message: string | null }) {
   if (message === null) return null;
@@ -167,6 +172,7 @@ function CreateUserForm({ onDone }: { onDone: () => void }) {
   const { options, rights, accountAdminConfigured } = useUsersAdmin();
   const notify = useToast();
   const [isPending, startTransition] = useTransition();
+  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [fullName, setFullName] = useState("");
   const [roleIds, setRoleIds] = useState<string[]>([]);
@@ -182,13 +188,19 @@ function CreateUserForm({ onDone }: { onDone: () => void }) {
     setErrors({});
     setMessage(null);
     startTransition(async () => {
+      // Without an email address the only way to set up the account is a password.
+      const setupMethod = email.trim() === "" ? "password" : method;
       const result = await createUserAction({
+        username,
         email,
         fullName,
         roleIds,
         orgUnitId: orgUnitId === "" ? null : orgUnitId,
         isActive: status === "active",
-        setup: method === "invite" ? { method } : { method, password },
+        setup:
+          setupMethod === "invite"
+            ? { method: setupMethod }
+            : { method: setupMethod, password },
       });
       if (!result.ok) {
         setMessage(result.message);
@@ -198,24 +210,57 @@ function CreateUserForm({ onDone }: { onDone: () => void }) {
       setPassword("");
       notify(
         result.data.method === "invite"
-          ? `Created ${result.data.email} and emailed an invitation to set a password.`
-          : `Created ${result.data.email}. Share the temporary password through a secure channel.`,
+          ? `Created ${result.data.username} and emailed an invitation to set a password.`
+          : `Created ${result.data.username}. Share the temporary password through a secure channel.`,
       );
       onDone();
     });
   }
 
+  const usernameError = firstError(errors, "username");
   const emailError = firstError(errors, "email");
   const nameError = firstError(errors, "fullName");
   const unitError = firstError(errors, "orgUnitId");
   const passwordError = firstError(errors, "setup.password");
+  const hasEmail = email.trim() !== "";
+  const effectiveMethod = hasEmail ? method : "password";
 
   return (
     <form onSubmit={submit} noValidate className="flex flex-col gap-4">
       {!accountAdminConfigured && <Notice>{NOT_CONFIGURED_NOTICE}</Notice>}
       <FormAlert message={message} />
 
-      <Field label="Email address" htmlFor="new-user-email" required error={emailError}>
+      <Field
+        label="Username"
+        htmlFor="new-user-username"
+        required
+        error={usernameError}
+        hint={USERNAME_HINT}
+      >
+        <Input
+          id="new-user-username"
+          autoComplete="off"
+          autoCapitalize="none"
+          spellCheck={false}
+          dir="ltr"
+          value={username}
+          onChange={(event) => setUsername(event.target.value)}
+          invalid={usernameError !== null}
+          aria-describedby={describedBy(
+            "new-user-username",
+            usernameError,
+            USERNAME_HINT,
+          )}
+          required
+        />
+      </Field>
+
+      <Field
+        label="Email address (optional)"
+        htmlFor="new-user-email"
+        error={emailError}
+        hint="Leave blank if they have no email. They sign in with the username either way."
+      >
         <Input
           id="new-user-email"
           type="email"
@@ -223,8 +268,11 @@ function CreateUserForm({ onDone }: { onDone: () => void }) {
           value={email}
           onChange={(event) => setEmail(event.target.value)}
           invalid={emailError !== null}
-          aria-describedby={describedBy("new-user-email", emailError)}
-          required
+          aria-describedby={describedBy(
+            "new-user-email",
+            emailError,
+            "Leave blank if they have no email. They sign in with the username either way.",
+          )}
         />
       </Field>
 
@@ -285,14 +333,17 @@ function CreateUserForm({ onDone }: { onDone: () => void }) {
           <input
             type="radio"
             name="setup-method"
-            checked={method === "invite"}
+            checked={effectiveMethod === "invite"}
             onChange={() => setMethod("invite")}
-            className="accent-primary mt-0.5 size-4 cursor-pointer"
+            disabled={!hasEmail}
+            className="accent-primary mt-0.5 size-4 cursor-pointer disabled:cursor-not-allowed"
           />
-          <span>
+          <span className={hasEmail ? undefined : "opacity-50"}>
             <span className="font-extrabold">Email an invitation</span>
             <span className="text-foreground-muted block text-xs">
-              They choose their own password from a link. Recommended.
+              {hasEmail
+                ? "They choose their own password from a link."
+                : "Needs an email address."}
             </span>
           </span>
         </label>
@@ -300,7 +351,7 @@ function CreateUserForm({ onDone }: { onDone: () => void }) {
           <input
             type="radio"
             name="setup-method"
-            checked={method === "password"}
+            checked={effectiveMethod === "password"}
             onChange={() => setMethod("password")}
             className="accent-primary mt-0.5 size-4 cursor-pointer"
           />
@@ -313,7 +364,7 @@ function CreateUserForm({ onDone }: { onDone: () => void }) {
         </label>
       </fieldset>
 
-      {method === "password" && (
+      {effectiveMethod === "password" && (
         <Field
           label="Temporary password"
           htmlFor="new-user-password"
@@ -376,7 +427,9 @@ function EditUserForm({ user, onDone }: { user: ManagedUser; onDone: () => void 
   const notify = useToast();
   const [isPending, startTransition] = useTransition();
   const [fullName, setFullName] = useState(user.fullName ?? "");
-  const [email, setEmail] = useState(user.email);
+  const [username, setUsername] = useState(user.username ?? "");
+  const shownEmail = visibleEmail(user.email) ?? "";
+  const [email, setEmail] = useState(shownEmail);
   const [locale, setLocale] = useState(user.locale);
   const [orgUnitId, setOrgUnitId] = useState(user.orgUnitId ?? "");
   const [status, setStatus] = useState(user.isActive ? "active" : "inactive");
@@ -398,7 +451,16 @@ function EditUserForm({ user, onDone }: { user: ManagedUser; onDone: () => void 
     startTransition(async () => {
       const changes: Record<string, unknown> = {};
       if (fullName.trim() !== (user.fullName ?? "")) changes.fullName = fullName;
-      if (email.trim().toLowerCase() !== user.email) changes.email = email;
+      if (
+        username.trim().toLowerCase() !== (user.username ?? "") &&
+        username.trim() !== ""
+      ) {
+        changes.username = username;
+      }
+      // Removing an address is not offered: blank keeps the current one.
+      if (email.trim() !== "" && email.trim().toLowerCase() !== shownEmail) {
+        changes.email = email;
+      }
       if (locale !== user.locale) changes.locale = locale;
       if (orgUnitId !== (user.orgUnitId ?? "")) {
         changes.orgUnitId = orgUnitId === "" ? null : orgUnitId;
@@ -421,14 +483,20 @@ function EditUserForm({ user, onDone }: { user: ManagedUser; onDone: () => void 
           return;
         }
       }
-      notify(`Saved changes to ${email.trim() || user.email}.`);
+      notify(
+        `Saved changes to ${username.trim() || user.username || shownEmail || "the user"}.`,
+      );
       onDone();
     });
   }
 
+  const usernameError = firstError(errors, "username");
   const emailError = firstError(errors, "email");
   const nameError = firstError(errors, "fullName");
   const unitError = firstError(errors, "orgUnitId");
+  const usernameHint = canEditEmail
+    ? `What they type to sign in. ${USERNAME_HINT}`
+    : "Only an administrator who manages user roles can change how someone signs in.";
   const emailHint = canEditEmail
     ? "Changes the address they sign in with."
     : rights.administer
@@ -452,9 +520,31 @@ function EditUserForm({ user, onDone }: { user: ManagedUser; onDone: () => void 
       </Field>
 
       <Field
-        label="Email address"
+        label="Username"
+        htmlFor="edit-user-username"
+        error={usernameError}
+        hint={usernameHint}
+      >
+        <Input
+          id="edit-user-username"
+          autoCapitalize="none"
+          spellCheck={false}
+          dir="ltr"
+          value={username}
+          onChange={(event) => setUsername(event.target.value)}
+          disabled={!canEditEmail}
+          invalid={usernameError !== null}
+          aria-describedby={describedBy(
+            "edit-user-username",
+            usernameError,
+            usernameHint,
+          )}
+        />
+      </Field>
+
+      <Field
+        label="Email address (optional)"
         htmlFor="edit-user-email"
-        required
         error={emailError}
         hint={emailHint}
       >
@@ -466,7 +556,6 @@ function EditUserForm({ user, onDone }: { user: ManagedUser; onDone: () => void 
           disabled={!canEditEmail}
           invalid={emailError !== null}
           aria-describedby={describedBy("edit-user-email", emailError, emailHint)}
-          required
         />
       </Field>
 
@@ -808,6 +897,111 @@ function ResetPasswordForm({ user, onDone }: { user: ManagedUser; onDone: () => 
   );
 }
 
+/* Temporary password -------------------------------------------------------- */
+
+export function SetPasswordDialog({ user, open, onOpenChange }: UserDialogProps) {
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Set a temporary password?"
+      description={user.username ?? user.email}
+    >
+      <SetPasswordForm user={user} onDone={() => onOpenChange(false)} />
+    </Dialog>
+  );
+}
+
+function SetPasswordForm({ user, onDone }: { user: ManagedUser; onDone: () => void }) {
+  const notify = useToast();
+  const [isPending, startTransition] = useTransition();
+  const [message, setMessage] = useState<string | null>(null);
+  const [errors, setErrors] = useState<FieldErrors>({});
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setMessage(null);
+    setErrors({});
+    startTransition(async () => {
+      const result = await setUserPasswordAction(user.id, { password, confirmPassword });
+      if (!result.ok) {
+        setMessage(result.message);
+        setErrors(result.fieldErrors ?? {});
+        return;
+      }
+      setPassword("");
+      setConfirmPassword("");
+      notify(
+        `Temporary password set for ${user.username ?? result.data.email}. Share it through a secure channel.`,
+      );
+      onDone();
+    });
+  }
+
+  const passwordError = firstError(errors, "password");
+  const confirmError = firstError(errors, "confirmPassword");
+
+  return (
+    <form onSubmit={submit} noValidate className="flex flex-col gap-3">
+      <FormAlert message={message} />
+      <p className="text-foreground text-sm">
+        Their current password stops working. Until they sign in with this one and choose
+        their own, they cannot use TechVault — so you never know the password they end up
+        with. Every change is audited; the password itself never is.
+      </p>
+      <Field
+        label="Temporary password"
+        htmlFor="temporary-password"
+        hint="At least 12 characters."
+        error={passwordError}
+        required
+      >
+        <Input
+          id="temporary-password"
+          type="password"
+          autoComplete="new-password"
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
+          invalid={passwordError !== null}
+          aria-describedby={describedBy(
+            "temporary-password",
+            passwordError,
+            "At least 12 characters.",
+          )}
+          required
+        />
+      </Field>
+      <Field
+        label="Confirm temporary password"
+        htmlFor="temporary-password-confirm"
+        error={confirmError}
+        required
+      >
+        <Input
+          id="temporary-password-confirm"
+          type="password"
+          autoComplete="new-password"
+          value={confirmPassword}
+          onChange={(event) => setConfirmPassword(event.target.value)}
+          invalid={confirmError !== null}
+          aria-describedby={describedBy("temporary-password-confirm", confirmError)}
+          required
+        />
+      </Field>
+      <DialogActions>
+        <Button onClick={onDone} disabled={isPending}>
+          Cancel
+        </Button>
+        <Button type="submit" variant="primary" isPending={isPending}>
+          {isPending ? "Setting…" : "Set temporary password"}
+        </Button>
+      </DialogActions>
+    </form>
+  );
+}
+
 /* Delete user -------------------------------------------------------------- */
 
 export function DeleteUserDialog({
@@ -847,7 +1041,9 @@ function DeleteUserForm({
   const [confirmEmail, setConfirmEmail] = useState("");
   const [errors, setErrors] = useState<FieldErrors>({});
   const [message, setMessage] = useState<string | null>(null);
-  const matches = confirmEmail.trim().toLowerCase() === user.email.toLowerCase();
+  // Type what they sign in with: the username, or the email of an older account.
+  const confirmPhrase = (user.username ?? user.email).toLowerCase();
+  const matches = confirmEmail.trim().toLowerCase() === confirmPhrase;
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -878,7 +1074,7 @@ function DeleteUserForm({
     <form onSubmit={submit} className="flex flex-col gap-3">
       <FormAlert message={message} />
       <ul className="text-foreground flex list-disc flex-col gap-1 ps-5 text-sm">
-        <li>{user.email} can no longer sign in or use TechVault.</li>
+        <li>{user.username ?? user.email} can no longer sign in or use TechVault.</li>
         <li>Their role assignments and group memberships are removed.</li>
         <li>
           {accountAdminConfigured
@@ -887,11 +1083,11 @@ function DeleteUserForm({
         </li>
         <li>
           Their audit history, sign-in history and the records they own are kept, and the
-          email address cannot be reused.
+          username and email address cannot be reused.
         </li>
       </ul>
       <Field
-        label={`Type ${user.email} to confirm`}
+        label={`Type ${confirmPhrase} to confirm`}
         htmlFor="delete-confirm"
         required
         error={confirmError}

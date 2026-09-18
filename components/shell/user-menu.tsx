@@ -2,6 +2,7 @@
 
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { ChevronDown } from "lucide-react";
+import Link from "next/link";
 import { useTransition } from "react";
 
 /**
@@ -61,6 +62,15 @@ export function UserMenu({
           </div>
 
           <DropdownMenu.Separator className="bg-border my-1 h-0.5" />
+
+          <DropdownMenu.Item asChild>
+            <Link
+              href="/account"
+              className="text-foreground data-highlighted:bg-surface-hover block w-full px-2 py-1.5 text-start text-sm font-medium outline-none pointer-coarse:py-2.5"
+            >
+              My account
+            </Link>
+          </DropdownMenu.Item>
 
           <DropdownMenu.Item asChild>
             <button

@@ -44,7 +44,9 @@ export type ListUsersInput = z.input<typeof listUsersInput>;
 /** The user DTO. Deliberately narrow — a DTO is a contract, not a table dump. */
 export type UserSummary = {
   id: string;
+  /** The sign-in address; an internal one for someone with no mailbox (ADR-035). */
   email: string;
+  username: string | null;
   fullName: string | null;
   isActive: boolean;
   orgUnitName: string | null;
@@ -94,6 +96,7 @@ export async function listUsers(
       ? {
           OR: [
             { email: { contains: input.search, mode: "insensitive" as const } },
+            { username: { contains: input.search, mode: "insensitive" as const } },
             { fullName: { contains: input.search, mode: "insensitive" as const } },
           ],
         }
@@ -111,6 +114,7 @@ export async function listUsers(
       select: {
         id: true,
         email: true,
+        username: true,
         fullName: true,
         isActive: true,
         lastLoginAt: true,
@@ -129,6 +133,7 @@ export async function listUsers(
     rows: users.map((user) => ({
       id: user.id,
       email: user.email,
+      username: user.username,
       fullName: user.fullName,
       isActive: user.isActive,
       orgUnitName: user.orgUnit?.name ?? null,
@@ -208,6 +213,7 @@ export async function setUserActive(
       select: {
         id: true,
         email: true,
+        username: true,
         fullName: true,
         isActive: true,
         lastLoginAt: true,
@@ -248,6 +254,7 @@ export async function setUserActive(
     return {
       id: updated.id,
       email: updated.email,
+      username: updated.username,
       fullName: updated.fullName,
       isActive: updated.isActive,
       orgUnitName: updated.orgUnit?.name ?? null,

@@ -18,9 +18,11 @@ import {
   EditUserDialog,
   ResetPasswordDialog,
   RolesDialog,
+  SetPasswordDialog,
   StatusDialog,
   UnitDialog,
 } from "./user-dialogs";
+import { hasMailbox } from "@/platform/iam/usernames";
 import { useUsersAdmin, type ManagedUser } from "./users-admin-context";
 
 const ITEM =
@@ -38,7 +40,7 @@ export function UserRowActions({
   user: ManagedUser;
   placement?: "list" | "detail";
 }) {
-  const { rights } = useUsersAdmin();
+  const { rights, currentUserId, accountAdminConfigured } = useUsersAdmin();
   const { openUserDialog } = useUserDialogActions();
   const open = (kind: UserDialogKind) => openUserDialog({ kind, user, placement });
 
@@ -94,11 +96,19 @@ export function UserRowActions({
               {user.isActive ? "Deactivate" : "Activate"}
             </DropdownMenu.Item>
           )}
-          {rights.administer && user.isActive && (
+          {rights.administer && user.isActive && hasMailbox(user.email) && (
             <DropdownMenu.Item className={ITEM} onSelect={() => open("reset")}>
               Reset password
             </DropdownMenu.Item>
           )}
+          {rights.administer &&
+            user.isActive &&
+            accountAdminConfigured &&
+            user.id !== currentUserId && (
+              <DropdownMenu.Item className={ITEM} onSelect={() => open("password")}>
+                Set temporary password
+              </DropdownMenu.Item>
+            )}
           {rights.delete && (
             <>
               <DropdownMenu.Separator className="bg-border my-1 h-px" />
@@ -157,6 +167,11 @@ export function UserDialogsHost() {
       <ResetPasswordDialog
         user={user}
         open={open && kind === "reset"}
+        onOpenChange={onOpenChange}
+      />
+      <SetPasswordDialog
+        user={user}
+        open={open && kind === "password"}
         onOpenChange={onOpenChange}
       />
       <DeleteUserDialog

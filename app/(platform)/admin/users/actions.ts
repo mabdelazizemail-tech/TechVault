@@ -8,6 +8,7 @@ import {
   createUser,
   deleteUser,
   requestPasswordReset,
+  setUserPassword,
   setUserRoles,
   updateUser,
   type CreatedUser,
@@ -113,6 +114,13 @@ export async function requestPasswordResetAction(
   userId: string,
 ): Promise<ActionResult<{ email: string }>> {
   return run("iam.user.passwordReset", (actor) => requestPasswordReset(actor, userId));
+}
+
+export async function setUserPasswordAction(
+  userId: string,
+  input: unknown,
+): Promise<ActionResult<{ email: string }>> {
+  return run("iam.user.passwordSet", (actor) => setUserPassword(actor, userId, input));
 }
 
 export async function deleteUserAction(

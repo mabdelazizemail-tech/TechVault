@@ -10,6 +10,7 @@ import { listUsers, type UserListItem } from "@/platform/iam/services/user-servi
 import { UserFilters, type UserFilterValues } from "./user-filters";
 import { AddUserButton, UserDialogsHost, UserRowActions } from "./user-row-actions";
 import { UsersAdminProvider } from "./users-admin-context";
+import { visibleEmail } from "@/platform/iam/usernames";
 
 export const metadata: Metadata = { title: "Users" };
 
@@ -124,10 +125,21 @@ export default async function UsersPage({
 
 const COLUMNS: readonly Column<UserListItem>[] = [
   {
+    key: "username",
+    header: "Username",
+    cell: (user) =>
+      user.username === null ? (
+        <Muted>Not set</Muted>
+      ) : (
+        <span dir="ltr">{user.username}</span>
+      ),
+  },
+  {
     key: "email",
     header: "Email",
     sortable: true,
-    cell: (user) => user.email,
+    hideOnMobile: true,
+    cell: (user) => visibleEmail(user.email) ?? <Muted>None</Muted>,
   },
   {
     key: "fullName",
@@ -192,6 +204,7 @@ const COLUMNS: readonly Column<UserListItem>[] = [
         user={{
           id: user.id,
           email: user.email,
+          username: user.username,
           fullName: user.fullName,
           locale: user.locale,
           isActive: user.isActive,

@@ -11,6 +11,7 @@ import { MessagingProvider } from "@/modules/messaging/ui/messaging-provider";
 import { Messenger } from "@/modules/messaging/ui/messenger/messenger";
 import { requireUser } from "@/platform/auth/current-user";
 import { canAll } from "@/platform/authz/authz";
+import { visibleEmail } from "@/platform/iam/usernames";
 
 /**
  * The authenticated platform shell (CLAUDE.md §16.2).
@@ -62,7 +63,11 @@ export default async function PlatformLayout({
         <Header
           mobileNav={<MobileNav sections={sections} />}
           userMenu={
-            <UserMenu fullName={user.fullName} email={user.email} onSignOut={signOut} />
+            <UserMenu
+              fullName={user.fullName ?? user.username}
+              email={visibleEmail(user.email) ?? user.username ?? user.email}
+              onSignOut={signOut}
+            />
           }
         />
         <main className="min-h-0 flex-1 overflow-y-auto">
@@ -79,7 +84,9 @@ export default async function PlatformLayout({
   return (
     <ToastProvider>
       {hasMessaging ? (
-        <MessagingProvider me={{ id: user.id, name: user.fullName ?? user.email }}>
+        <MessagingProvider
+          me={{ id: user.id, name: user.fullName ?? user.username ?? user.email }}
+        >
           {shell}
           <Messenger />
         </MessagingProvider>
