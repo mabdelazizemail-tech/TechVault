@@ -443,6 +443,8 @@ export type CrmDashboard = {
   qualifiedLeads: number;
   openOpportunities: number;
   pipeline: MoneyTotal[];
+  /** Open deals weighted by their probability, per currency — the same rule as the pipeline board. */
+  weightedPipeline: MoneyTotal[];
   wonCount: number;
   won: MoneyTotal[];
   lostCount: number;

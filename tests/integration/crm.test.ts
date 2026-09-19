@@ -481,6 +481,10 @@ describe.skipIf(!hasTestDatabase)("CRM workflow (integration)", () => {
       // Deal figures: one open USD deal, one lost EGP deal, nothing won.
       expect(dashboard.openOpportunities).toBe(1);
       expect(dashboard.pipeline).toEqual([{ currency: "USD", amountMinor: 3_500_000 }]);
+      // 35,000 at 20% — lost deals carry no weight.
+      expect(dashboard.weightedPipeline).toEqual([
+        { currency: "USD", amountMinor: 700_000 },
+      ]);
       expect(dashboard.lostCount).toBe(1);
       expect(dashboard.wonCount).toBe(0);
       expect(dashboard.won).toEqual([]);

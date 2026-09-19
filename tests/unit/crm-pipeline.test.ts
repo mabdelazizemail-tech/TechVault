@@ -12,6 +12,7 @@ import {
   startOfUtcMonth,
   summariseOpen,
   totalsByCurrency,
+  weightedFromGroups,
   weightedMinor,
 } from "@/modules/crm/domain/pipeline";
 
@@ -152,6 +153,27 @@ describe("pipeline figures", () => {
         { currency: "USD", amountMinor: 3_825_001 },
       ],
     });
+  });
+
+  it("weights grouped deals exactly as the board weights them one by one", () => {
+    const deals = [
+      { currency: "USD" as const, amountMinor: 333, probability: 33 },
+      { currency: "USD" as const, amountMinor: 333, probability: 33 },
+      { currency: "USD" as const, amountMinor: 4_500_000, probability: 85 },
+      { currency: "EGP" as const, amountMinor: 12_500_000, probability: 20 },
+    ];
+    expect(
+      weightedFromGroups([
+        { currency: "USD", amountMinor: 333, probability: 33, _count: { _all: 2 } },
+        { currency: "USD", amountMinor: 4_500_000, probability: 85, _count: { _all: 1 } },
+        {
+          currency: "EGP",
+          amountMinor: 12_500_000,
+          probability: 20,
+          _count: { _all: 1 },
+        },
+      ]),
+    ).toEqual(summariseOpen(deals).weighted);
   });
 
   it("reports conversion as a percentage to one decimal, or null with no leads", () => {

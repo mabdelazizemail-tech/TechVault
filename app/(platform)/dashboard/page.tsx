@@ -107,14 +107,21 @@ export default async function DashboardPage() {
             (crm.pipeline.length === 0 ? (
               <StatCard label="Open pipeline" value="—" note="No open opportunities" />
             ) : (
-              crm.pipeline.map((total) => (
-                <StatCard
-                  key={total.currency}
-                  label={`Open pipeline (${total.currency})`}
-                  value={formatMoney(total.amountMinor, total.currency)}
-                  note={`${total.currency} deals only`}
-                />
-              ))
+              crm.pipeline.map((total) => {
+                const weighted =
+                  crm.weightedPipeline.find((row) => row.currency === total.currency)
+                    ?.amountMinor ?? 0;
+                return (
+                  <StatCardLink key={total.currency} href="/crm/opportunities">
+                    <StatCard
+                      label={`Open pipeline (${total.currency})`}
+                      value={formatMoney(total.amountMinor, total.currency)}
+                      note={`Weighted by probability: ${formatMoney(weighted, total.currency)} · ${total.currency} deals only`}
+                      className="h-full"
+                    />
+                  </StatCardLink>
+                );
+              })
             ))}
           {newIdeas !== null && (
             <StatCardLink href="/innovation/ideas?status=NEW">

@@ -245,6 +245,28 @@ export function totalsFromGroups(
   );
 }
 
+/**
+ * Probability-weighted value per currency from open deals grouped by amount and
+ * probability. Identical deals round identically, so weighting one and multiplying
+ * by the count gives the same figure as `summariseOpen`, deal by deal.
+ */
+export function weightedFromGroups(
+  groups: readonly {
+    currency: CrmCurrency;
+    amountMinor: number;
+    probability: number;
+    _count: { _all: number };
+  }[],
+): MoneyTotal[] {
+  return totalsByCurrency(
+    groups.map((group) => ({
+      currency: group.currency,
+      amountMinor:
+        weightedMinor(group.amountMinor, group.probability) * group._count._all,
+    })),
+  );
+}
+
 /** Converted leads as a percentage of all leads, to one decimal; null with no leads. */
 export function conversionRate(converted: number, total: number): number | null {
   if (total <= 0) return null;

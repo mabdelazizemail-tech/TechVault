@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { type Actor, canAll, requirePermission } from "@/platform/authz/authz";
 import { CRM_PERMISSIONS } from "../contracts/permissions";
 import type { ActivityDto, CrmDashboard, MoneyTotal } from "../contracts/types";
-import { conversionRate, totalsFromGroups } from "../domain/pipeline";
+import { conversionRate, totalsFromGroups, weightedFromGroups } from "../domain/pipeline";
 import { stageSelect, toStageDto } from "../repositories/selects";
 import { listActivities } from "./activity-service";
 import { ownerScope } from "./support";
@@ -56,6 +56,7 @@ export async function getCrmDashboard(actor: Actor): Promise<CrmDashboard> {
     qualifiedLeads: leads?.qualified ?? 0,
     openOpportunities: opportunities?.openCount ?? 0,
     pipeline: opportunities?.pipeline ?? [],
+    weightedPipeline: opportunities?.weighted ?? [],
     wonCount: opportunities?.wonCount ?? 0,
     won: opportunities?.won ?? [],
     lostCount: opportunities?.lostCount ?? 0,
@@ -103,6 +104,7 @@ async function leadFigures(actor: Actor) {
 async function opportunityFigures(actor: Actor): Promise<{
   openCount: number;
   pipeline: MoneyTotal[];
+  weighted: MoneyTotal[];
   wonCount: number;
   won: MoneyTotal[];
   lostCount: number;
@@ -126,12 +128,21 @@ async function opportunityFigures(actor: Actor): Promise<{
   // One grouped query instead of five: the open, won and lost figures and the
   // per-stage breakdown are all slices of the same status × stage × currency
   // grouping. Money stays per currency throughout (ADR-016).
-  const groups = await prisma.crmOpportunity.groupBy({
-    by: ["status", "stageId", "currency"],
-    where: where({}),
-    _count: { _all: true },
-    _sum: { amountMinor: true },
-  });
+  const [groups, openByAmount] = await Promise.all([
+    prisma.crmOpportunity.groupBy({
+      by: ["status", "stageId", "currency"],
+      where: where({}),
+      _count: { _all: true },
+      _sum: { amountMinor: true },
+    }),
+    // Weighting rounds each deal, so open deals are grouped by amount and
+    // probability rather than summed first.
+    prisma.crmOpportunity.groupBy({
+      by: ["currency", "amountMinor", "probability"],
+      where: where({ status: "OPEN" }),
+      _count: { _all: true },
+    }),
+  ]);
 
   type Group = (typeof groups)[number];
   const withStatus = (status: string) =>
@@ -146,6 +157,7 @@ async function opportunityFigures(actor: Actor): Promise<{
     openCount: countOf(open),
     // totalsFromGroups merges the several stage rows that share a currency.
     pipeline: totalsFromGroups(open),
+    weighted: weightedFromGroups(openByAmount),
     wonCount: countOf(won),
     won: totalsFromGroups(won),
     lostCount: countOf(withStatus("LOST")),
