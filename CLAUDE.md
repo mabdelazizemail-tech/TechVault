@@ -2247,7 +2247,9 @@ the task's creator and responsible people on creation and on every reply. Analys
 notification service, existed anywhere; the owner chose to build a minimal Committees module, live in-app notifications,
 visibility for members only, and "any member creates tasks; status by the people responsible". _Decision:_ (1) Module
 `modules/committees`, schema `committees`: `committees` and `committee_members`; `meetings` (title, time, location,
-purpose, organiser — the scheduler); `agenda_items` (ordered); `tasks` (description, due `date`, status PENDING,
+purpose, organiser — the scheduler); `agenda_items` (ordered); `tasks` (description, an optional "expected outcome /
+next action" — added the same day by `20261003120000_committees_task_expected_outcome`, NULL when absent, never blank,
+searched and sent with the assignment notice — due `date`, status PENDING,
 IN_PROGRESS or COMPLETED, `completed_at`, a trigger-kept `reply_count`, soft delete, `created_by` as the owner);
 `task_assignees` (exactly one of `user_id` or `manual_name`, by CHECK, with partial unique indexes so nobody is listed
 twice); `task_replies` (append-only by trigger; an entry is a reply, a status change with its from and to, or both). A
@@ -2490,6 +2492,12 @@ messaging permissions), and `platform-admin` all 133 — verified by direct quer
 the section stays hidden until an administrator grants the role and creates a committee. Order on any other database:
 migrate, deploy the code, then seed. Until the notifications migration is applied, the header bell's reads fail quietly
 and it shows nothing.
+
+The task field "Expected outcome / next action" (migration `20261003120000_committees_task_expected_outcome`: one
+nullable column and a length CHECK) is covered by 3 integration and 2 unit tests (full integration suite 273 passing) and
+was applied to Supabase on 2026-10-03 at the owner's request, before the code that reads it was deployed — every task
+query selects the column. Verified by direct query: the nullable `text` column, the CHECK, and a recorded checksum equal
+to the file's.
 
 | Area        | State                                                                                                                                                                                                                                                                                                                                                                      |
 | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

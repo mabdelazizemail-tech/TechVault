@@ -142,10 +142,15 @@ export function taskAssignedNotice(input: {
   meetingDate: string;
   description: string;
   dueDate: string;
+  expectedOutcome?: string | null;
 }): NoticeText {
+  const outcome =
+    input.expectedOutcome === undefined || input.expectedOutcome === null
+      ? ""
+      : ` — Expected outcome: “${preview(input.expectedOutcome, 160)}”`;
   return {
     title: `${input.actorName} assigned you a task`,
-    body: `${input.meetingTitle} (${input.meetingDate}) — “${preview(input.description, 160)}” — due ${input.dueDate}`,
+    body: `${input.meetingTitle} (${input.meetingDate}) — “${preview(input.description, 160)}” — due ${input.dueDate}${outcome}`,
   };
 }
 

@@ -510,6 +510,57 @@ describe.skipIf(!hasTestDatabase)("Committees (integration)", () => {
   /* Editing and deleting                                                     */
   /* ------------------------------------------------------------------------ */
 
+  describe("expected outcome / next action", () => {
+    it("is stored, shown, searched and sent with the assignment", async () => {
+      const { id } = await createTask(
+        as(olivia),
+        meetingId,
+        task({ expectedOutcome: "Board approves the Q4 figures" }),
+      );
+      expect((await getTask(as(bob), id)).expectedOutcome).toBe(
+        "Board approves the Q4 figures",
+      );
+      const [forBob] = await notificationsOf(bob);
+      expect(forBob?.body).toContain("Expected outcome: “Board approves the Q4 figures”");
+      const found = await listTasks(as(bob), { q: "approves" }, { meetingId });
+      expect(found.rows.map((row) => [row.id, row.expectedOutcome])).toEqual([
+        [id, "Board approves the Q4 figures"],
+      ]);
+    });
+
+    it("is optional, and can be added, changed and cleared by an edit", async () => {
+      const { id } = await createTask(as(olivia), meetingId, task());
+      expect((await getTask(as(bob), id)).expectedOutcome).toBeNull();
+
+      await updateTask(
+        as(olivia),
+        id,
+        task({ expectedOutcome: "Send the draft to finance" }),
+      );
+      expect((await getTask(as(bob), id)).expectedOutcome).toBe(
+        "Send the draft to finance",
+      );
+      const audit = await db().auditLog.findFirst({
+        where: { action: "committees.task.updated", entityId: id },
+      });
+      // The audit says it changed without copying the text.
+      expect(audit?.changes).toMatchObject({
+        expectedOutcome: { from: "[changed]", to: "[changed]" },
+      });
+
+      await updateTask(as(olivia), id, task({ expectedOutcome: "  " }));
+      expect((await getTask(as(bob), id)).expectedOutcome).toBeNull();
+    });
+
+    it("is never stored blank, whoever writes it", async () => {
+      const { id } = await createTask(as(olivia), meetingId, task());
+      await expect(
+        db()
+          .$executeRaw`UPDATE committees.tasks SET expected_outcome = '   ' WHERE id = ${id}::uuid`,
+      ).rejects.toThrow(/tasks_expected_outcome_length/);
+    });
+  });
+
   describe("editing and deleting", () => {
     it("lets the creator change responsibility, notifying only the newly responsible", async () => {
       const { id } = await createTask(as(olivia), meetingId, task());

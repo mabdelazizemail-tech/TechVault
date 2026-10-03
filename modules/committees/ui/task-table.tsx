@@ -39,8 +39,15 @@ export function TaskTable({
       key: "task",
       header: "Task",
       cell: (task) => (
-        <span dir="auto" className="block max-w-md">
-          {preview(task.description, 140)}
+        <span className="block max-w-md">
+          <span dir="auto" className="block">
+            {preview(task.description, 140)}
+          </span>
+          {task.expectedOutcome !== null && (
+            <span className="text-foreground-muted mt-0.5 block text-xs font-normal">
+              Next: <span dir="auto">{preview(task.expectedOutcome, 110)}</span>
+            </span>
+          )}
         </span>
       ),
     },

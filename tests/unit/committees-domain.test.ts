@@ -119,6 +119,25 @@ describe("responsible people", () => {
         .success,
     ).toBe(false);
   });
+
+  it("keeps the expected outcome optional, treating blank as absent", () => {
+    const base = {
+      description: "Draft",
+      dueDate: "2026-10-10",
+      assignees: [{ name: "Omar" }],
+    };
+    expect(taskSchema.parse(base).expectedOutcome).toBeNull();
+    expect(
+      taskSchema.parse({ ...base, expectedOutcome: "   " }).expectedOutcome,
+    ).toBeNull();
+    expect(
+      taskSchema.parse({ ...base, expectedOutcome: "  Budget approved by the board " })
+        .expectedOutcome,
+    ).toBe("Budget approved by the board");
+    expect(
+      taskSchema.safeParse({ ...base, expectedOutcome: "x".repeat(2001) }).success,
+    ).toBe(false);
+  });
 });
 
 describe("rights on a task", () => {
@@ -206,6 +225,20 @@ describe("notification text", () => {
     expect(notice.body).toContain("Board meeting (Sat, 3 Oct 2026, 14:00)");
     expect(notice.body).toContain("Prepare the Q4 budget draft");
     expect(notice.body).toContain("due Sat, 10 Oct 2026");
+  });
+
+  it("adds the expected outcome when the task has one", () => {
+    const base = {
+      actorName: "Sara",
+      meetingTitle: "Board",
+      meetingDate: "Sat, 3 Oct 2026, 14:00",
+      description: "Budget",
+      dueDate: "Sat, 10 Oct 2026",
+    };
+    expect(taskAssignedNotice(base).body).not.toContain("Expected outcome");
+    expect(
+      taskAssignedNotice({ ...base, expectedOutcome: "Approved figures" }).body,
+    ).toContain("Expected outcome: “Approved figures”");
   });
 
   it("previews long replies rather than copying them whole", () => {

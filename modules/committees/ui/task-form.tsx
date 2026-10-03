@@ -20,6 +20,7 @@ import { PersonPicker, type PickedPerson } from "./person-picker";
 type TaskValues = {
   id?: string;
   description: string;
+  expectedOutcome: string;
   dueDate: string;
   assignees: PickedPerson[];
 };
@@ -59,7 +60,7 @@ export function NewTaskButton({
         {open && (
           <TaskForm
             meetingId={meetingId}
-            initial={{ description: "", dueDate: "", assignees: [] }}
+            initial={{ description: "", expectedOutcome: "", dueDate: "", assignees: [] }}
             onDone={() => setOpen(false)}
           />
         )}
@@ -71,7 +72,13 @@ export function NewTaskButton({
 export function EditTaskButton({
   task,
 }: {
-  task: { id: string; description: string; dueDate: string; assignees: Assignee[] };
+  task: {
+    id: string;
+    description: string;
+    expectedOutcome: string | null;
+    dueDate: string;
+    assignees: Assignee[];
+  };
 }) {
   const [open, setOpen] = useState(false);
   return (
@@ -89,6 +96,7 @@ export function EditTaskButton({
             initial={{
               id: task.id,
               description: task.description,
+              expectedOutcome: task.expectedOutcome ?? "",
               dueDate: task.dueDate,
               assignees: toPicked(task.assignees),
             }}
@@ -111,6 +119,7 @@ function TaskForm({
 }) {
   const router = useRouter();
   const [description, setDescription] = useState(initial.description);
+  const [expectedOutcome, setExpectedOutcome] = useState(initial.expectedOutcome);
   const [dueDate, setDueDate] = useState(initial.dueDate);
   const [assignees, setAssignees] = useState<PickedPerson[]>(initial.assignees);
   const [errors, setErrors] = useState<Record<string, string[]>>({});
@@ -130,6 +139,7 @@ function TaskForm({
         startTransition(async () => {
           const input = {
             description,
+            expectedOutcome,
             dueDate,
             assignees: assignees.map((person) =>
               person.kind === "user" ? { userId: person.userId } : { name: person.name },
@@ -168,7 +178,24 @@ function TaskForm({
           dir="auto"
           invalid={error("description") !== undefined}
           autoFocus
-          placeholder="What needs to be done, and what does done look like?"
+          placeholder="What needs to be done?"
+        />
+      </Field>
+
+      <Field
+        label="Expected outcome / next action"
+        htmlFor="task-outcome"
+        hint="Optional. What done looks like, or the next step to take."
+        error={error("expectedOutcome")}
+      >
+        <Textarea
+          id="task-outcome"
+          value={expectedOutcome}
+          onChange={(event) => setExpectedOutcome(event.target.value)}
+          rows={2}
+          maxLength={2000}
+          dir="auto"
+          invalid={error("expectedOutcome") !== undefined}
         />
       </Field>
 

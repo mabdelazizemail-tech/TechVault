@@ -77,6 +77,7 @@ const THREAD_LIMIT = 500;
 const taskSelect = {
   id: true,
   description: true,
+  expectedOutcome: true,
   dueDate: true,
   status: true,
   replyCount: true,
@@ -129,6 +130,7 @@ function toListItem(row: TaskRow, today: string): TaskListItem {
       committeeName: row.meeting.committee.name,
     },
     description: row.description,
+    expectedOutcome: row.expectedOutcome,
     dueDate,
     status: row.status,
     displayStatus: displayStatus(row.status, dueDate, today),
@@ -242,6 +244,7 @@ function listWhere(
     and.push({
       OR: [
         { description: contains },
+        { expectedOutcome: contains },
         { assignees: { some: { manualName: contains } } },
         { assignees: { some: { user: { fullName: contains } } } },
       ],
@@ -436,6 +439,7 @@ export async function createTask(
       data: {
         meetingId,
         description: input.description,
+        expectedOutcome: input.expectedOutcome,
         dueDate: dateFromIso(input.dueDate),
         createdBy: actor.id,
         updatedBy: actor.id,
@@ -458,6 +462,7 @@ export async function createTask(
         summary: `Added a task to ${meeting.title}`,
         changes: {
           dueDate: input.dueDate,
+          hasExpectedOutcome: input.expectedOutcome !== null,
           assigneeUserIds: userIds,
           assigneeNames: names,
         },
@@ -485,6 +490,7 @@ export async function createTask(
         meetingDate: formatDateTime(meeting.scheduledAt),
         description: input.description,
         dueDate: formatCalendarDate(input.dueDate),
+        expectedOutcome: input.expectedOutcome,
       }),
       link: taskLink(meetingId, task.id),
     });
@@ -530,9 +536,17 @@ export async function updateTask(
 
   const changes = {
     ...diffForAudit(
-      { description: row.description, dueDate: isoDateOf(row.dueDate) },
-      { description: input.description, dueDate: input.dueDate },
-      ["description"],
+      {
+        description: row.description,
+        expectedOutcome: row.expectedOutcome,
+        dueDate: isoDateOf(row.dueDate),
+      },
+      {
+        description: input.description,
+        expectedOutcome: input.expectedOutcome,
+        dueDate: input.dueDate,
+      },
+      ["description", "expectedOutcome"],
     ),
     ...(addedUsers.length > 0 ? { assigneeUsersAdded: addedUsers } : {}),
     ...(removedUsers.length > 0 ? { assigneeUsersRemoved: removedUsers } : {}),
@@ -547,6 +561,7 @@ export async function updateTask(
       where: { id: taskId },
       data: {
         description: input.description,
+        expectedOutcome: input.expectedOutcome,
         dueDate: dateFromIso(input.dueDate),
         updatedBy: actor.id,
       },
@@ -600,6 +615,7 @@ export async function updateTask(
           meetingDate: formatDateTime(row.meeting.scheduledAt),
           description: input.description,
           dueDate: formatCalendarDate(input.dueDate),
+          expectedOutcome: input.expectedOutcome,
         }),
         link: taskLink(row.meeting.id, taskId),
       });

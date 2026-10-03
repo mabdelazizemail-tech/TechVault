@@ -92,6 +92,7 @@ export default async function TaskPage({
               task={{
                 id: task.id,
                 description: task.description,
+                expectedOutcome: task.expectedOutcome,
                 dueDate: task.dueDate,
                 assignees: task.assignees,
               }}
@@ -108,74 +109,92 @@ export default async function TaskPage({
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
-        <Panel className="overflow-hidden lg:col-span-2">
-          <PanelHeader
-            title={`Discussion (${replyTotal} ${replyTotal === 1 ? "reply" : "replies"})`}
-          />
-          {task.thread.length === 0 ? (
-            <p className="text-foreground-muted px-5 py-4 text-[13px]">
-              No replies yet. Post an update or a question below.
-            </p>
-          ) : (
-            <ol>
-              {task.thread.map((entry) => (
-                <li
-                  key={entry.id}
-                  id={`reply-${entry.id}`}
-                  className="border-border target:bg-surface-hover scroll-mt-24 border-b px-5 py-3 last:border-0"
-                >
-                  <p className="text-foreground-muted flex flex-wrap items-center gap-x-2 text-[12px]">
-                    <span dir="auto" className="text-foreground font-extrabold">
-                      {entry.author.name}
-                    </span>
-                    <time
-                      dateTime={entry.createdAt.toISOString()}
-                      title={formatDateTime(entry.createdAt)}
-                    >
-                      {formatRelative(entry.createdAt)}
-                    </time>
-                  </p>
-                  {entry.statusFrom !== null && entry.statusTo !== null && (
-                    <p className="text-foreground-muted mt-1 flex flex-wrap items-center gap-1.5 text-[12.5px]">
-                      changed the status
-                      <span className="sr-only">
-                        from {TASK_STATUS_LABELS[entry.statusFrom]} to{" "}
-                        {TASK_STATUS_LABELS[entry.statusTo]}
+        <div className="flex flex-col gap-4 lg:col-span-2">
+          <Panel className="px-5 py-4">
+            <p className="label-caps mb-1">Expected outcome / next action</p>
+            {task.expectedOutcome === null ? (
+              <p className="text-foreground-muted text-[13.5px]">
+                Not recorded.
+                {task.rights.canEdit && " Edit the task to add one."}
+              </p>
+            ) : (
+              <p
+                dir="auto"
+                className="text-foreground text-[14px] leading-relaxed whitespace-pre-line"
+              >
+                {task.expectedOutcome}
+              </p>
+            )}
+          </Panel>
+          <Panel className="overflow-hidden">
+            <PanelHeader
+              title={`Discussion (${replyTotal} ${replyTotal === 1 ? "reply" : "replies"})`}
+            />
+            {task.thread.length === 0 ? (
+              <p className="text-foreground-muted px-5 py-4 text-[13px]">
+                No replies yet. Post an update or a question below.
+              </p>
+            ) : (
+              <ol>
+                {task.thread.map((entry) => (
+                  <li
+                    key={entry.id}
+                    id={`reply-${entry.id}`}
+                    className="border-border target:bg-surface-hover scroll-mt-24 border-b px-5 py-3 last:border-0"
+                  >
+                    <p className="text-foreground-muted flex flex-wrap items-center gap-x-2 text-[12px]">
+                      <span dir="auto" className="text-foreground font-extrabold">
+                        {entry.author.name}
                       </span>
-                      <span
-                        aria-hidden="true"
-                        className="inline-flex items-center gap-1.5"
+                      <time
+                        dateTime={entry.createdAt.toISOString()}
+                        title={formatDateTime(entry.createdAt)}
                       >
-                        <TaskStatusBadge status={entry.statusFrom} />
-                        <ArrowRight className="size-3.5" />
-                        <TaskStatusBadge status={entry.statusTo} />
-                      </span>
+                        {formatRelative(entry.createdAt)}
+                      </time>
                     </p>
-                  )}
-                  {entry.body !== null && (
-                    <p
-                      dir="auto"
-                      className="text-foreground mt-1 text-[13.5px] whitespace-pre-line"
-                    >
-                      {entry.body}
-                    </p>
-                  )}
-                </li>
-              ))}
-            </ol>
-          )}
-          {task.threadTruncated && (
-            <p className="text-foreground-muted border-border border-t px-5 py-2 text-xs">
-              This discussion is longer than one page shows; the first 500 entries are
-              listed.
-            </p>
-          )}
-          {task.rights.canReply && (
-            <div className="border-border border-t px-5 py-4">
-              <ReplyForm taskId={task.id} />
-            </div>
-          )}
-        </Panel>
+                    {entry.statusFrom !== null && entry.statusTo !== null && (
+                      <p className="text-foreground-muted mt-1 flex flex-wrap items-center gap-1.5 text-[12.5px]">
+                        changed the status
+                        <span className="sr-only">
+                          from {TASK_STATUS_LABELS[entry.statusFrom]} to{" "}
+                          {TASK_STATUS_LABELS[entry.statusTo]}
+                        </span>
+                        <span
+                          aria-hidden="true"
+                          className="inline-flex items-center gap-1.5"
+                        >
+                          <TaskStatusBadge status={entry.statusFrom} />
+                          <ArrowRight className="size-3.5" />
+                          <TaskStatusBadge status={entry.statusTo} />
+                        </span>
+                      </p>
+                    )}
+                    {entry.body !== null && (
+                      <p
+                        dir="auto"
+                        className="text-foreground mt-1 text-[13.5px] whitespace-pre-line"
+                      >
+                        {entry.body}
+                      </p>
+                    )}
+                  </li>
+                ))}
+              </ol>
+            )}
+            {task.threadTruncated && (
+              <p className="text-foreground-muted border-border border-t px-5 py-2 text-xs">
+                This discussion is longer than one page shows; the first 500 entries are
+                listed.
+              </p>
+            )}
+            {task.rights.canReply && (
+              <div className="border-border border-t px-5 py-4">
+                <ReplyForm taskId={task.id} />
+              </div>
+            )}
+          </Panel>
+        </div>
 
         <div className="flex h-fit flex-col gap-4">
           <Panel className="overflow-hidden">

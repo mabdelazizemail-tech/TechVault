@@ -127,6 +127,8 @@ export type TaskListItem = {
   id: string;
   meeting: { id: string; title: string; scheduledAt: Date; committeeName: string };
   description: string;
+  /** "Expected outcome / next action", or null when none was recorded. */
+  expectedOutcome: string | null;
   /** "YYYY-MM-DD". */
   dueDate: string;
   status: TaskStatus;

@@ -100,6 +100,8 @@ const assignee = z.union([
 
 export const taskSchema = z.object({
   description: requiredText("Task description", 5000),
+  /** "Expected outcome / next action". Optional; blank is absent. */
+  expectedOutcome: optionalText(2000),
   dueDate: isoDate,
   assignees: z
     .array(assignee, { error: "Choose who is responsible." })

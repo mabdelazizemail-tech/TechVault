@@ -59,6 +59,9 @@ test.describe("Committees: meeting to Team To-Do List", () => {
     await page.getByRole("button", { name: "Add new task" }).first().click();
     const form = page.getByRole("dialog");
     await form.getByLabel("Task description").fill(`Draft the Q4 budget ${stamp}`);
+    await form
+      .getByLabel("Expected outcome / next action")
+      .fill("Board approves the Q4 figures");
     const due = new Date(Date.now() + 10 * 86_400_000).toISOString().slice(0, 10);
     await form.getByLabel("Due date").fill(due);
     await form.getByRole("combobox").fill("Omar External");
@@ -70,6 +73,7 @@ test.describe("Committees: meeting to Team To-Do List", () => {
     await expect(
       page.getByRole("heading", { name: `Draft the Q4 budget ${stamp}` }),
     ).toBeVisible();
+    await expect(page.getByText("Board approves the Q4 figures")).toBeVisible();
     await page.getByLabel("Reply").fill("First draft is circulating.");
     await page.getByRole("button", { name: "Post reply" }).click();
     await expect(page.getByText("First draft is circulating.")).toBeVisible();

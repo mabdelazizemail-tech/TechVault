@@ -118,6 +118,9 @@ model CommitteeTask {
   id          String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   meetingId   String              @map("meeting_id") @db.Uuid
   description String
+  /// "Expected outcome / next action": what done looks like, or the next step.
+  /// Optional — tasks recorded before it existed have none.
+  expectedOutcome String?         @map("expected_outcome")
   dueDate     DateTime            @map("due_date") @db.Date
   status      CommitteeTaskStatus @default(PENDING)
   /// Set exactly when the status is Completed (a CHECK holds the two together).
