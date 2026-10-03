@@ -4,11 +4,11 @@ import { ThemeToggle } from "./theme-toggle";
 
 /**
  * The platform header (CLAUDE.md §16.2): the menu button on small screens, where
- * you are, the theme switch and the user menu. Identical across every module.
+ * you are, the notification bell, the theme switch and the user menu. Identical
+ * across every module.
  *
- * Global search and notifications are slots rather than inert buttons: those
- * features do not exist yet, and a control that does nothing is decorative UI
- * (§17.6).
+ * Global search is a slot rather than an inert button: the feature does not exist
+ * yet, and a control that does nothing is decorative UI (§17.6).
  */
 export function Header({
   mobileNav,

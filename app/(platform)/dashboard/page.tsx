@@ -8,6 +8,9 @@ import {
   PanelHeader,
   StatCard,
 } from "@/components/ui/primitives";
+import { COMMITTEES_PERMISSIONS } from "@/modules/committees/contracts/permissions";
+import { getTaskSummary } from "@/modules/committees/contracts/service";
+import { TaskSummaryTiles } from "@/modules/committees/ui/task-table";
 import { CRM_PERMISSIONS } from "@/modules/crm/contracts/permissions";
 import { getCrmDashboard } from "@/modules/crm/contracts/service";
 import { TimelineItem } from "@/modules/crm/ui/activity-timeline";
@@ -35,6 +38,7 @@ export default async function DashboardPage() {
     CRM_PERMISSIONS.ACTIVITY_READ,
     CRM_PERMISSIONS.ACTIVITY_UPDATE,
     INNOVATION_PERMISSIONS.IDEA_READ,
+    COMMITTEES_PERMISSIONS.MEETING_READ,
     IAM_PERMISSIONS.ACCESS,
     IAM_PERMISSIONS.USER_READ,
     IAM_PERMISSIONS.ROLE_READ,
@@ -42,11 +46,13 @@ export default async function DashboardPage() {
   ]);
   const hasCrm = rights[CRM_PERMISSIONS.ACCESS] === true;
   const hasIdeas = rights[INNOVATION_PERMISSIONS.IDEA_READ] === true;
+  const hasCommittees = rights[COMMITTEES_PERMISSIONS.MEETING_READ] === true;
 
-  const [crm, topIdeas, newIdeas] = await Promise.all([
+  const [crm, topIdeas, newIdeas, committeeTasks] = await Promise.all([
     hasCrm ? getCrmDashboard(actor) : null,
     hasIdeas ? listIdeas(actor, { sort: "top" }) : null,
     hasIdeas ? listIdeas(actor, { status: "NEW" }) : null,
+    hasCommittees ? getTaskSummary(actor) : null,
   ]);
 
   const adminLinks = [
@@ -134,6 +140,25 @@ export default async function DashboardPage() {
             </StatCardLink>
           )}
         </section>
+      )}
+
+      {committeeTasks !== null && (
+        <Panel className="mb-4">
+          <PanelHeader
+            title="Committee to-dos"
+            actions={<HeaderLink href="/committees/tasks">All tasks</HeaderLink>}
+          />
+          <div className="p-4">
+            <TaskSummaryTiles
+              summary={committeeTasks}
+              href={(status) =>
+                status === undefined
+                  ? "/committees/tasks"
+                  : `/committees/tasks?status=${status}`
+              }
+            />
+          </div>
+        </Panel>
       )}
 
       <div className="grid gap-4 lg:grid-cols-2">
@@ -235,7 +260,7 @@ export default async function DashboardPage() {
           </Panel>
         )}
 
-        {crm === null && topIdeas === null && !showAdmin && (
+        {crm === null && topIdeas === null && committeeTasks === null && !showAdmin && (
           <Panel className="lg:col-span-2">
             <EmptyState
               title="Nothing to show yet"

@@ -90,6 +90,50 @@ model EventOutbox {
   @@schema("platform")
 }
 
+/// In-app notifications (CLAUDE.md §7, ADR-036): one row per recipient, written by
+/// `platform/notifications` inside the business transaction that caused it, so a
+/// rolled-back change never notifies anyone and a committed one always does.
+///
+/// The text is a snapshot taken when the notification is written. `link` is an
+/// application path, never a URL (a CHECK refuses anything else), and opening it
+/// authorises again: a notification grants nothing.
+///
+/// Invariants Prisma cannot express — the CHECKs, the unread partial index and the
+/// Realtime trigger that tells the recipient's browser a row arrived — are raw SQL
+/// in the migration that creates this table.
+model Notification {
+  id          String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  recipientId String  @map("recipient_id") @db.Uuid
+  /// Dotted kind, e.g. "committees.task.replied".
+  type        String
+  module      String
+  entityType  String  @map("entity_type")
+  entityId    String  @map("entity_id") @db.Uuid
+  /// The record whose creation caused this notification — a task, a reply. With the
+  /// recipient and type it is unique, so one event can never notify a person twice.
+  sourceId    String  @map("source_id") @db.Uuid
+  /// Who acted, or null for the system.
+  actorId     String? @map("actor_id") @db.Uuid
+  title       String
+  body        String
+  /// Application path such as "/committees/meetings/…", starting with one "/".
+  link        String
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  /// Null while unread. A person may mark a notification unread again.
+  readAt    DateTime? @map("read_at") @db.Timestamptz(6)
+
+  recipient User  @relation("NotificationRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  actor     User? @relation("NotificationActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@unique([recipientId, type, sourceId])
+  /// The bell and the notifications page: newest first, per person.
+  @@index([recipientId, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([actorId])
+  @@map("notifications")
+  @@schema("platform")
+}
+
 /// Runtime settings. Anything an administrator should be able to change without a
 /// deploy lives here, not in code (CLAUDE.md §25.3).
 model AppSetting {

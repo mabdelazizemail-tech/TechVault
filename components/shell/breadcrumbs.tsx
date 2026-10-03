@@ -64,6 +64,9 @@ const RECORD_LABELS: Record<string, string> = {
   ideas: "Idea",
   knowledge: "Knowledge",
   projects: "Project",
+  meetings: "Meeting",
+  tasks: "Task",
+  groups: "Committee",
 };
 
 const ERP_RECORD_LABELS: Record<string, string> = {

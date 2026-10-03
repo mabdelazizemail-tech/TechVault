@@ -197,6 +197,17 @@ model User {
   erpApPaymentsApproved  ErpApPayment[]       @relation("ErpApPaymentApprover")
   erpApPaymentsPosted    ErpApPayment[]       @relation("ErpApPaymentPoster")
 
+  // Committees (committees.prisma). Relation fields only.
+  committeeMemberships    CommitteeMember[]       @relation("CommitteeMemberUser")
+  committeeMeetingsRun    CommitteeMeeting[]      @relation("CommitteeMeetingOrganizer")
+  committeeTasksCreated   CommitteeTask[]         @relation("CommitteeTaskCreator")
+  committeeTaskAssignment CommitteeTaskAssignee[] @relation("CommitteeTaskAssigneeUser")
+  committeeTaskReplies    CommitteeTaskReply[]    @relation("CommitteeTaskReplyAuthor")
+
+  // Notifications (platform.prisma). Relation fields only.
+  notificationsReceived Notification[] @relation("NotificationRecipient")
+  notificationsCaused   Notification[] @relation("NotificationActor")
+
   @@index([orgUnitId])
   @@index([hrisEmployeeId])
   @@index([isActive])

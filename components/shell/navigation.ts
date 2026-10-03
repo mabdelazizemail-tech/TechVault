@@ -1,3 +1,4 @@
+import { COMMITTEES_PERMISSIONS } from "@/modules/committees/contracts/permissions";
 import { CRM_PERMISSIONS } from "@/modules/crm/contracts/permissions";
 import { ERP_PERMISSIONS } from "@/modules/erp/contracts/permissions";
 import { INNOVATION_PERMISSIONS } from "@/modules/innovation/contracts/permissions";
@@ -239,6 +240,34 @@ export const NAV_SECTIONS: readonly NavSection[] = [
         label: "Categories",
         href: "/innovation/categories",
         permission: INNOVATION_PERMISSIONS.CATEGORY_ADMINISTER,
+      },
+    ],
+  },
+  {
+    key: "committees",
+    label: "Committees",
+    permission: COMMITTEES_PERMISSIONS.ACCESS,
+    items: [
+      {
+        label: "Overview",
+        href: "/committees",
+        permission: COMMITTEES_PERMISSIONS.ACCESS,
+        exact: true,
+      },
+      {
+        label: "Meetings",
+        href: "/committees/meetings",
+        permission: COMMITTEES_PERMISSIONS.MEETING_READ,
+      },
+      {
+        label: "Team to-dos",
+        href: "/committees/tasks",
+        permission: COMMITTEES_PERMISSIONS.MEETING_READ,
+      },
+      {
+        label: "Committee list",
+        href: "/committees/groups",
+        permission: COMMITTEES_PERMISSIONS.MEETING_READ,
       },
     ],
   },

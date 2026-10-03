@@ -63,6 +63,14 @@ export async function teardownDatabase(): Promise<void> {
  * makes an accidental truncation of a future table visible in review.
  */
 const TABLES = [
+  "platform.notifications",
+  "committees.task_replies",
+  "committees.task_assignees",
+  "committees.tasks",
+  "committees.agenda_items",
+  "committees.meetings",
+  "committees.committee_members",
+  "committees.committees",
   "erp.ap_payment_lines",
   "erp.ap_payments",
   "erp.ap_bill_lines",

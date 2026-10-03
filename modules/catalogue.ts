@@ -33,6 +33,13 @@ import {
   ERP_USER_ROLE,
   ERP_VIEWER_PERMISSIONS,
 } from "@/modules/erp/contracts/permissions";
+import {
+  COMMITTEES_ADMIN_PERMISSIONS,
+  COMMITTEES_ADMIN_ROLE,
+  COMMITTEES_MEMBER_PERMISSIONS,
+  COMMITTEES_PERMISSION_DEFINITIONS,
+  COMMITTEES_USER_ROLE,
+} from "@/modules/committees/contracts/permissions";
 
 /**
  * The permission composition root.
@@ -56,6 +63,7 @@ export const PERMISSION_CATALOGUE: readonly PermissionDefinition[] = [
   ...ERP_PERMISSION_DEFINITIONS,
   // Phase 7: ...HRIS_PERMISSION_DEFINITIONS,
   ...INNOVATION_PERMISSION_DEFINITIONS,
+  ...COMMITTEES_PERMISSION_DEFINITIONS,
   // Phase 9: ...BI_PERMISSION_DEFINITIONS,
 ];
 
@@ -196,6 +204,20 @@ export const SYSTEM_ROLE_DEFINITIONS: readonly SystemRoleDefinition[] = [
     permissions: [...INNOVATION_ADMIN_PERMISSIONS, ...MESSAGING_MEMBER_PERMISSIONS],
   },
   {
+    key: COMMITTEES_USER_ROLE,
+    name: "Committees",
+    description:
+      "Shows Committees. See the meetings, agendas and Team To-Do Lists of one's own committees, schedule and run meetings, add tasks, update the status of one's tasks and reply. Deleting is the Committees admin role.",
+    permissions: [...COMMITTEES_MEMBER_PERMISSIONS, ...MESSAGING_MEMBER_PERMISSIONS],
+  },
+  {
+    key: COMMITTEES_ADMIN_ROLE,
+    name: "Committees admin",
+    description:
+      "Runs Committees: creates committees and chooses their members, and sees, edits and deletes every meeting and task.",
+    permissions: [...COMMITTEES_ADMIN_PERMISSIONS, ...MESSAGING_MEMBER_PERMISSIONS],
+  },
+  {
     key: SYSTEM_ROLES.EMPLOYEE,
     name: "Employee",
     description:
@@ -209,4 +231,5 @@ export const SECTION_ROLE_KEYS: readonly string[] = [
   CRM_USER_ROLE,
   ERP_USER_ROLE,
   INNOVATION_MEMBER_ROLE,
+  COMMITTEES_USER_ROLE,
 ];

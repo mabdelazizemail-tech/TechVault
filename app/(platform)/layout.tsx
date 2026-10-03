@@ -1,6 +1,7 @@
 import { Brand } from "@/components/shell/brand";
 import { Header } from "@/components/shell/header";
 import { MobileNav } from "@/components/shell/mobile-nav";
+import { NotificationBell } from "@/components/shell/notification-bell";
 import { Sidebar } from "@/components/shell/sidebar";
 import { UserMenu } from "@/components/shell/user-menu";
 import { NAV_SECTIONS, navigationPermissionKeys } from "@/components/shell/navigation";
@@ -62,6 +63,7 @@ export default async function PlatformLayout({
       <div className="flex min-w-0 flex-1 flex-col">
         <Header
           mobileNav={<MobileNav sections={sections} />}
+          notifications={<NotificationBell userId={user.id} />}
           userMenu={
             <UserMenu
               fullName={user.fullName ?? user.username}

@@ -1,0 +1,185 @@
+// Committees — committee meetings, their agendas and their Team To-Do Lists.
+// Owner: modules/committees.  Schema: "committees".
+//
+// Deliberately small (ADR-036): a committee has members; a meeting belongs to a
+// committee and has an organiser and an ordered agenda; each meeting has a Team
+// To-Do List of action items, each with responsible people and a discussion.
+//
+// A meeting's members are its committee's members — there is no separate
+// attendee list. Who may see a meeting is decided by the services: members of its
+// committee, its organiser, anyone responsible for one of its tasks, and committee
+// administrators.
+//
+// A task's status is stored as Pending, In progress or Completed. "Overdue" is
+// never stored: it is derived from the due date, so it cannot go stale.
+//
+// Invariants Prisma cannot express — CHECKs, live-row unique indexes, the
+// append-only rule on replies and the reply counter trigger — are raw SQL in the
+// migration that creates these tables.
+//
+// Models are prefixed `Committee` because Prisma model names share one namespace
+// across every schema.
+
+enum CommitteeTaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+
+  @@schema("committees")
+}
+
+model Committee {
+  id          String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String
+  description String?
+  /// Archived committees keep their meetings and tasks but cannot schedule new ones.
+  isActive    Boolean @default(true) @map("is_active")
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+
+  members  CommitteeMember[]
+  meetings CommitteeMeeting[]
+
+  @@index([isActive, name])
+  @@map("committees")
+  @@schema("committees")
+}
+
+model CommitteeMember {
+  committeeId String   @map("committee_id") @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdBy   String?  @map("created_by") @db.Uuid
+
+  committee Committee @relation(fields: [committeeId], references: [id], onDelete: Cascade)
+  user      User      @relation("CommitteeMemberUser", fields: [userId], references: [id], onDelete: Restrict)
+
+  // The primary key serves "who is on this committee"; the index serves "which
+  // committees is this person on", the heart of every visibility check.
+  @@id([committeeId, userId])
+  @@index([userId])
+  @@map("committee_members")
+  @@schema("committees")
+}
+
+model CommitteeMeeting {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  committeeId String   @map("committee_id") @db.Uuid
+  title       String
+  scheduledAt DateTime @map("scheduled_at") @db.Timestamptz(6)
+  location    String?
+  description String?
+  /// The person running the meeting: edits it and its agenda, and manages its tasks.
+  organizerId String   @map("organizer_id") @db.Uuid
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+  createdBy String?   @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+
+  committee   Committee             @relation(fields: [committeeId], references: [id], onDelete: Restrict)
+  organizer   User                  @relation("CommitteeMeetingOrganizer", fields: [organizerId], references: [id], onDelete: Restrict)
+  agendaItems CommitteeAgendaItem[]
+  tasks       CommitteeTask[]
+
+  @@index([committeeId, scheduledAt])
+  @@index([organizerId])
+  @@index([scheduledAt])
+  @@map("meetings")
+  @@schema("committees")
+}
+
+model CommitteeAgendaItem {
+  id        String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  meetingId String  @map("meeting_id") @db.Uuid
+  /// Order on the agenda, from 0. Not unique: moves swap two rows in one transaction.
+  position  Int
+  title     String
+  notes     String?
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy String?  @map("created_by") @db.Uuid
+  updatedBy String?  @map("updated_by") @db.Uuid
+
+  meeting CommitteeMeeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+
+  @@index([meetingId, position])
+  @@map("agenda_items")
+  @@schema("committees")
+}
+
+model CommitteeTask {
+  id          String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  meetingId   String              @map("meeting_id") @db.Uuid
+  description String
+  dueDate     DateTime            @map("due_date") @db.Date
+  status      CommitteeTaskStatus @default(PENDING)
+  /// Set exactly when the status is Completed (a CHECK holds the two together).
+  completedAt DateTime?           @map("completed_at") @db.Timestamptz(6)
+  /// Replies with text, kept exact by a trigger on task_replies.
+  replyCount  Int                 @default(0) @map("reply_count")
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+  /// The task's owner: the person who created it.
+  createdBy String    @map("created_by") @db.Uuid
+  updatedBy String?   @map("updated_by") @db.Uuid
+
+  meeting   CommitteeMeeting      @relation(fields: [meetingId], references: [id], onDelete: Restrict)
+  creator   User                  @relation("CommitteeTaskCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+  assignees CommitteeTaskAssignee[]
+  replies   CommitteeTaskReply[]
+
+  @@index([meetingId, dueDate])
+  @@index([status, dueDate])
+  @@index([dueDate])
+  @@index([createdBy])
+  @@map("tasks")
+  @@schema("committees")
+}
+
+/// One responsible person on a task: a registered user, or a name typed in for
+/// someone who has no account. Exactly one of the two (a CHECK enforces it).
+model CommitteeTaskAssignee {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  taskId     String   @map("task_id") @db.Uuid
+  userId     String?  @map("user_id") @db.Uuid
+  manualName String?  @map("manual_name")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdBy  String?  @map("created_by") @db.Uuid
+
+  task CommitteeTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user User?         @relation("CommitteeTaskAssigneeUser", fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([taskId])
+  @@index([userId])
+  @@map("task_assignees")
+  @@schema("committees")
+}
+
+/// The task's discussion. Append-only (a trigger refuses UPDATE and DELETE), so the
+/// history of a task is complete. An entry is a reply, a status change, or both.
+model CommitteeTaskReply {
+  id         String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  taskId     String               @map("task_id") @db.Uuid
+  authorId   String               @map("author_id") @db.Uuid
+  body       String?
+  statusFrom CommitteeTaskStatus? @map("status_from")
+  statusTo   CommitteeTaskStatus? @map("status_to")
+  createdAt  DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  task   CommitteeTask @relation(fields: [taskId], references: [id], onDelete: Restrict)
+  author User          @relation("CommitteeTaskReplyAuthor", fields: [authorId], references: [id], onDelete: Restrict)
+
+  @@index([taskId, createdAt, id])
+  @@index([authorId])
+  @@map("task_replies")
+  @@schema("committees")
+}
