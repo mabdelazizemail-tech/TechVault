@@ -26,6 +26,7 @@ import {
   PAGE_SIZE,
   TASK_STATUS_LABELS,
   type Assignee,
+  type AssigneeContribution,
   type Paginated,
   type PersonRef,
   type TaskDetail,
@@ -102,7 +103,39 @@ const taskSelect = {
 type TaskRow = Prisma.CommitteeTaskGetPayload<{ select: typeof taskSelect }>;
 
 /** Registered users first, then typed names, each alphabetically. */
-function toAssignees(row: TaskRow): Assignee[] {
+/** Per task, per author: the status they last set, or REPLIED. */
+type Contributions = Map<string, Map<string, AssigneeContribution>>;
+
+/**
+ * What each person has contributed to each of these tasks, from the discussion, in
+ * one statement however many tasks a page holds. DISTINCT ON keeps one row per task
+ * and author: their latest status change if they ever made one, otherwise their
+ * latest reply. Raw SQL because Prisma cannot express DISTINCT ON in the database;
+ * the ids are a bound parameter.
+ */
+async function contributionsFor(taskIds: readonly string[]): Promise<Contributions> {
+  const result: Contributions = new Map();
+  if (taskIds.length === 0) return result;
+  const rows = await prisma.$queryRaw<
+    { task_id: string; author_id: string; status_to: TaskStatus | null }[]
+  >`
+    SELECT DISTINCT ON (r.task_id, r.author_id)
+           r.task_id, r.author_id, r.status_to::text AS status_to
+      FROM committees.task_replies r
+     WHERE r.task_id = ANY(${[...taskIds]}::uuid[])
+     ORDER BY r.task_id, r.author_id, (r.status_to IS NOT NULL) DESC,
+              r.created_at DESC, r.id DESC
+  `;
+  for (const row of rows) {
+    const byAuthor = result.get(row.task_id) ?? new Map<string, AssigneeContribution>();
+    byAuthor.set(row.author_id, row.status_to ?? "REPLIED");
+    result.set(row.task_id, byAuthor);
+  }
+  return result;
+}
+
+function toAssignees(row: TaskRow, contributions: Contributions): Assignee[] {
+  const byAuthor = contributions.get(row.id);
   const list: Assignee[] = row.assignees.map((assignee) =>
     assignee.user !== null
       ? {
@@ -111,6 +144,7 @@ function toAssignees(row: TaskRow): Assignee[] {
           userId: assignee.user.id,
           name: toPerson(assignee.user).name,
           isActive: isActivePerson(assignee.user),
+          contribution: byAuthor?.get(assignee.user.id) ?? null,
         }
       : { kind: "manual" as const, id: assignee.id, name: assignee.manualName ?? "" },
   );
@@ -119,7 +153,11 @@ function toAssignees(row: TaskRow): Assignee[] {
   );
 }
 
-function toListItem(row: TaskRow, today: string): TaskListItem {
+function toListItem(
+  row: TaskRow,
+  today: string,
+  contributions: Contributions,
+): TaskListItem {
   const dueDate = isoDateOf(row.dueDate);
   return {
     id: row.id,
@@ -134,7 +172,7 @@ function toListItem(row: TaskRow, today: string): TaskListItem {
     dueDate,
     status: row.status,
     displayStatus: displayStatus(row.status, dueDate, today),
-    assignees: toAssignees(row),
+    assignees: toAssignees(row, contributions),
     replyCount: row.replyCount,
     createdBy: toPerson(row.creator),
     createdAt: row.createdAt,
@@ -292,8 +330,9 @@ export async function listTasks(
       select: taskSelect,
     }),
   ]);
+  const contributions = await contributionsFor(rows.map((row) => row.id));
   return {
-    rows: rows.map((row) => toListItem(row, today)),
+    rows: rows.map((row) => toListItem(row, today, contributions)),
     total,
     page: params.page,
     pageSize: PAGE_SIZE,
@@ -374,7 +413,7 @@ export async function listMeetingAssignees(
 export async function getTask(actor: Actor, taskId: string): Promise<TaskDetail> {
   const viewer = await viewerFor(actor);
   const row = await loadVisibleTask(viewer, taskId);
-  const [extra, rights] = await Promise.all([
+  const [extra, rights, contributions] = await Promise.all([
     prisma.committeeTask.findUniqueOrThrow({
       where: { id: row.id },
       select: {
@@ -395,10 +434,11 @@ export async function getTask(actor: Actor, taskId: string): Promise<TaskDetail>
       },
     }),
     rightsFor(viewer, row),
+    contributionsFor([row.id]),
   ]);
 
   return {
-    ...toListItem(row, todayInCairo()),
+    ...toListItem(row, todayInCairo(), contributions),
     completedAt: extra.completedAt,
     updatedAt: extra.updatedAt,
     thread: extra.replies.slice(0, THREAD_LIMIT).map((reply) => ({

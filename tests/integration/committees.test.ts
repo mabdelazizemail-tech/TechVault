@@ -510,6 +510,82 @@ describe.skipIf(!hasTestDatabase)("Committees (integration)", () => {
   /* Editing and deleting                                                     */
   /* ------------------------------------------------------------------------ */
 
+  describe("who has taken part (name colours)", () => {
+    const contributionOf = (
+      assignees: readonly { kind: string; name: string; contribution?: unknown }[],
+    ) =>
+      Object.fromEntries(
+        assignees.map((assignee) => [
+          assignee.name,
+          assignee.kind === "user" ? assignee.contribution : "typed",
+        ]),
+      );
+
+    it("colours each responsible person by their own actions only", async () => {
+      const { id } = await createTask(
+        as(olivia),
+        meetingId,
+        task({
+          assignees: [
+            { userId: bob.id },
+            { userId: carol.id },
+            { userId: dave.id },
+            { name: "Omar" },
+          ],
+        }),
+      );
+      // Bob replies and moves it on; Carol only replies; Dave does nothing.
+      await changeTaskStatus(as(bob), id, {
+        status: "IN_PROGRESS",
+        comment: "On it",
+      });
+      await replyToTask(as(bob), id, { body: "Halfway" });
+      await replyToTask(as(carol), id, { body: "I can review it" });
+      // The creator acting is not a responsible person, so colours nobody.
+      await replyToTask(as(olivia), id, { body: "Thanks both" });
+
+      const fromList = (await listTasks(as(olivia), {}, { meetingId })).rows[0];
+      expect(contributionOf(fromList?.assignees ?? [])).toEqual({
+        bob: "IN_PROGRESS",
+        carol: "REPLIED",
+        dave: null,
+        Omar: "typed",
+      });
+      // The task page agrees with the list.
+      expect(contributionOf((await getTask(as(olivia), id)).assignees)).toEqual(
+        contributionOf(fromList?.assignees ?? []),
+      );
+    });
+
+    it("follows each person's latest status change, which outranks a reply", async () => {
+      const { id } = await createTask(
+        as(olivia),
+        meetingId,
+        task({ assignees: [{ userId: bob.id }, { userId: carol.id }] }),
+      );
+      await changeTaskStatus(as(bob), id, { status: "IN_PROGRESS" });
+      await changeTaskStatus(as(carol), id, {
+        status: "COMPLETED",
+        comment: "Done",
+      });
+      await replyToTask(as(carol), id, { body: "Filed the final copy" });
+      expect(contributionOf((await getTask(as(olivia), id)).assignees)).toEqual({
+        bob: "IN_PROGRESS",
+        carol: "COMPLETED",
+      });
+
+      // Bob reopens it: his colour follows his latest move.
+      await changeTaskStatus(as(bob), id, {
+        status: "PENDING",
+        comment: "Figures changed",
+      });
+      expect(contributionOf((await getTask(as(olivia), id)).assignees)).toEqual({
+        bob: "PENDING",
+        carol: "COMPLETED",
+      });
+    });
+  });
+
   describe("expected outcome / next action", () => {
     it("is stored, shown, searched and sent with the assignment", async () => {
       const { id } = await createTask(

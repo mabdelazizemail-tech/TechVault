@@ -1,5 +1,6 @@
 import { preview } from "@/platform/notifications/rules";
 import type {
+  AssigneeContribution,
   AssigneeInput,
   DueWindow,
   TaskDisplayStatus,
@@ -72,6 +73,33 @@ export function normaliseAssignees(inputs: readonly AssigneeInput[]): {
     }
   }
   return { userIds: [...userIds], names: [...names.values()] };
+}
+
+/* Contribution colours ------------------------------------------------------------------ */
+
+export type ContributionTone = "info" | "success" | "warning";
+
+/**
+ * How a responsible person's contribution reads in a list (the owner's colour code):
+ * moved to In progress is blue, Completed green, and taking part without moving it
+ * forward — a reply, or sending it back to Pending — amber. Nothing yet is no colour.
+ * The words always accompany the colour, so it is never conveyed by colour alone.
+ */
+export function contributionDisplay(
+  contribution: AssigneeContribution | null,
+): { tone: ContributionTone; label: string } | null {
+  switch (contribution) {
+    case "IN_PROGRESS":
+      return { tone: "info", label: "moved it to In progress" };
+    case "COMPLETED":
+      return { tone: "success", label: "marked it Completed" };
+    case "PENDING":
+      return { tone: "warning", label: "moved it back to Pending" };
+    case "REPLIED":
+      return { tone: "warning", label: "replied" };
+    case null:
+      return null;
+  }
 }
 
 /* Rights --------------------------------------------------------------------------- */

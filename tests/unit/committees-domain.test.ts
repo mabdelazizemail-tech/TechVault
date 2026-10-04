@@ -7,6 +7,7 @@ import {
 } from "@/modules/committees/contracts/schemas";
 import { addDays, isIsoDate, todayInCairo } from "@/modules/committees/domain/dates";
 import {
+  contributionDisplay,
   displayStatus,
   dueWindowRange,
   meetingRights,
@@ -209,6 +210,27 @@ describe("rights on a task", () => {
       canEdit: true,
       canDelete: true,
     });
+  });
+});
+
+describe("name colours", () => {
+  it("colours a person by what they did: blue, green, amber, or nothing", () => {
+    expect(contributionDisplay("IN_PROGRESS")?.tone).toBe("info");
+    expect(contributionDisplay("COMPLETED")?.tone).toBe("success");
+    expect(contributionDisplay("REPLIED")?.tone).toBe("warning");
+    expect(contributionDisplay("PENDING")?.tone).toBe("warning");
+    expect(contributionDisplay(null)).toBeNull();
+  });
+
+  it("always says it in words too, never by colour alone", () => {
+    for (const contribution of [
+      "IN_PROGRESS",
+      "COMPLETED",
+      "PENDING",
+      "REPLIED",
+    ] as const) {
+      expect(contributionDisplay(contribution)?.label.length).toBeGreaterThan(3);
+    }
   });
 });
 

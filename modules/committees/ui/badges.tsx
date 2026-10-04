@@ -6,6 +6,7 @@ import {
   type Assignee,
   type TaskDisplayStatus,
 } from "../contracts/types";
+import { type ContributionTone, contributionDisplay } from "../domain/tasks";
 
 /**
  * Status and responsible-person presentation for Committees. The colour of a
@@ -52,17 +53,34 @@ export function AssigneeList({
   );
 }
 
+/** The owner's colour code for names, on the theme's own tokens (light and dark). */
+const CONTRIBUTION_CLASSES: Record<ContributionTone, string> = {
+  info: "border-info bg-info-subtle text-info",
+  success: "border-success bg-success-subtle text-success",
+  warning: "border-warning bg-warning-subtle text-warning",
+};
+
 export function AssigneeChip({ assignee }: { assignee: Assignee }) {
   if (assignee.kind === "user") {
+    const shown = contributionDisplay(assignee.contribution);
+    const who = assignee.isActive
+      ? "TechVault user"
+      : "TechVault user (account inactive)";
     return (
       <span
-        className="border-border text-foreground inline-flex max-w-full items-center gap-1 border px-1.5 py-0.5 text-xs font-semibold"
-        title={assignee.isActive ? "TechVault user" : "TechVault user (account inactive)"}
+        className={cn(
+          "inline-flex max-w-full items-center gap-1 border px-1.5 py-0.5 text-xs font-semibold",
+          shown === null
+            ? "border-border text-foreground"
+            : CONTRIBUTION_CLASSES[shown.tone],
+        )}
+        title={shown === null ? `${who} — nothing yet` : `${who} — ${shown.label}`}
       >
         <UserRound aria-hidden="true" className="size-3.5 shrink-0" />
         <span dir="auto" className="truncate">
           {assignee.name}
         </span>
+        {shown !== null && <span className="sr-only">, {shown.label}</span>}
         {!assignee.isActive && (
           <span className="text-foreground-muted font-normal">(inactive)</span>
         )}
@@ -80,6 +98,34 @@ export function AssigneeChip({ assignee }: { assignee: Assignee }) {
       </span>
       <span className="text-foreground-muted not-italic">(not registered)</span>
     </span>
+  );
+}
+
+/** The key to the name colours, shown wherever coloured names appear. */
+export function ContributionLegend({ className }: { className?: string }) {
+  const items: { tone: ContributionTone; label: string }[] = [
+    { tone: "info", label: "moved to In progress" },
+    { tone: "success", label: "marked Completed" },
+    { tone: "warning", label: "replied" },
+  ];
+  return (
+    <p
+      className={cn(
+        "text-foreground-muted flex flex-wrap items-center gap-x-3 gap-y-1 text-xs",
+        className,
+      )}
+    >
+      <span>Name colours show who has taken part:</span>
+      {items.map((item) => (
+        <span key={item.tone} className="inline-flex items-center gap-1.5">
+          <span
+            aria-hidden="true"
+            className={cn("size-3 border", CONTRIBUTION_CLASSES[item.tone])}
+          />
+          {item.label}
+        </span>
+      ))}
+    </p>
   );
 }
 

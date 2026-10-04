@@ -7,7 +7,7 @@ import { cn } from "@/lib/cn";
 import { preview } from "@/platform/notifications/rules";
 import type { Paginated, TaskListItem, TaskSummary } from "../contracts/types";
 import { formatCalendarDate, formatDate } from "../domain/format";
-import { AssigneeList, TaskStatusBadge } from "./badges";
+import { AssigneeList, ContributionLegend, TaskStatusBadge } from "./badges";
 
 /**
  * A Team To-Do List as a table (cards on phones): the task, who is responsible,
@@ -128,19 +128,22 @@ export function TaskTable({
   ];
 
   return (
-    <DataTable
-      columns={columns}
-      rows={page.rows}
-      rowKey={(task) => task.id}
-      rowHref={(task) => `/committees/meetings/${task.meeting.id}/tasks/${task.id}`}
-      basePath={basePath}
-      searchParams={searchParams}
-      sort={sort}
-      page={{ page: page.page, pageSize: page.pageSize, total: page.total }}
-      emptyTitle={emptyTitle}
-      emptyDescription={emptyDescription}
-      emptyAction={emptyAction}
-    />
+    <>
+      {page.rows.length > 0 && <ContributionLegend className="rule-b px-4 py-2" />}
+      <DataTable
+        columns={columns}
+        rows={page.rows}
+        rowKey={(task) => task.id}
+        rowHref={(task) => `/committees/meetings/${task.meeting.id}/tasks/${task.id}`}
+        basePath={basePath}
+        searchParams={searchParams}
+        sort={sort}
+        page={{ page: page.page, pageSize: page.pageSize, total: page.total }}
+        emptyTitle={emptyTitle}
+        emptyDescription={emptyDescription}
+        emptyAction={emptyAction}
+      />
+    </>
   );
 }
 

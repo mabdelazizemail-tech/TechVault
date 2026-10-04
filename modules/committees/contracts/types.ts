@@ -53,8 +53,23 @@ export const DUE_WINDOW_LABELS: Record<DueWindow, string> = {
  * someone without an account. The two are always told apart in the interface.
  */
 export type Assignee =
-  | { kind: "user"; id: string; userId: string; name: string; isActive: boolean }
+  | {
+      kind: "user";
+      id: string;
+      userId: string;
+      name: string;
+      isActive: boolean;
+      /** What this person has done on the task, shown as the colour of their name. */
+      contribution: AssigneeContribution | null;
+    }
   | { kind: "manual"; id: string; name: string };
+
+/**
+ * A responsible person's own part in a task, from its discussion: the status they
+ * last moved it to, or "REPLIED" when they have written but never changed the status.
+ * Null when they have done neither. Typed-in names cannot act, so they have none.
+ */
+export type AssigneeContribution = TaskStatus | "REPLIED";
 
 /** What a form sends for one responsible person. */
 export type AssigneeInput = { userId: string } | { name: string };

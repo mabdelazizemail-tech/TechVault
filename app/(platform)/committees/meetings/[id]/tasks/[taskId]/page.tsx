@@ -13,7 +13,11 @@ import {
   formatDateTime,
   formatRelative,
 } from "@/modules/committees/domain/format";
-import { AssigneeList, TaskStatusBadge } from "@/modules/committees/ui/badges";
+import {
+  AssigneeList,
+  ContributionLegend,
+  TaskStatusBadge,
+} from "@/modules/committees/ui/badges";
 import { orNotFound } from "@/modules/committees/ui/page-helpers";
 import { EditTaskButton } from "@/modules/committees/ui/task-form";
 import {
@@ -215,6 +219,7 @@ export default async function TaskPage({
               </Fact>
               <Fact label="Responsible">
                 <AssigneeList assignees={task.assignees} />
+                <ContributionLegend className="mt-2" />
               </Fact>
               <Fact label="Due date">{formatCalendarDate(task.dueDate)}</Fact>
               <Fact label="Status">
