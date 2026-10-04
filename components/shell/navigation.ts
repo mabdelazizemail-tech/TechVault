@@ -260,7 +260,7 @@ export const NAV_SECTIONS: readonly NavSection[] = [
         permission: COMMITTEES_PERMISSIONS.MEETING_READ,
       },
       {
-        label: "Team to-dos",
+        label: "Team To-Do List",
         href: "/committees/tasks",
         permission: COMMITTEES_PERMISSIONS.MEETING_READ,
       },

@@ -14,7 +14,7 @@ import {
 } from "@/modules/committees/ui/task-table";
 import { getActor } from "@/platform/auth/current-user";
 
-export const metadata: Metadata = { title: "Team to-dos" };
+export const metadata: Metadata = { title: "Team To-Do List" };
 
 const BASE = "/committees/tasks";
 
@@ -48,7 +48,7 @@ export default async function CommitteeTasksPage({
   return (
     <div>
       <PageHeader
-        title="Team to-dos"
+        title="Team To-Do List"
         description="Action items from the meetings of your committees. Open a task to see its discussion or update its status."
       />
 

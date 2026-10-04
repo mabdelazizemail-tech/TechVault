@@ -145,7 +145,7 @@ export default async function DashboardPage() {
       {committeeTasks !== null && (
         <Panel className="mb-4">
           <PanelHeader
-            title="Committee to-dos"
+            title="Team To-Do List"
             actions={<HeaderLink href="/committees/tasks">All tasks</HeaderLink>}
           />
           <div className="p-4">

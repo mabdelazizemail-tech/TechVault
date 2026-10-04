@@ -37,7 +37,7 @@ export default async function CommitteesOverviewPage() {
         actions={<NewMeetingButton committees={schedulable} />}
       />
 
-      <section aria-label="Team to-dos" className="mb-4">
+      <section aria-label="Team To-Do List" className="mb-4">
         <TaskSummaryTiles
           summary={summary}
           href={(status) =>
