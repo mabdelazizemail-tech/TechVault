@@ -48,6 +48,7 @@ import {
   formatExpenseAmount,
   receiptContentType,
   receiptMatchesContent,
+  totalsByCurrency,
 } from "../domain/expenses";
 import {
   COMMITTEES_MODULE,
@@ -369,22 +370,14 @@ export async function getExpenseTotals(
     _sum: { amountMinor: true },
     _count: { _all: true },
   });
-
-  const totals = new Map<string, ExpenseTotal>();
-  for (const group of groups) {
-    const total = totals.get(group.currency) ?? {
+  return totalsByCurrency(
+    groups.map((group) => ({
       currency: group.currency,
-      claimedMinor: 0,
-      approvedMinor: 0,
-      count: 0,
-    };
-    const amount = group._sum.amountMinor ?? 0;
-    total.claimedMinor += amount;
-    total.count += group._count._all;
-    if (group.status === "APPROVED") total.approvedMinor += amount;
-    totals.set(group.currency, total);
-  }
-  return [...totals.values()].sort((a, b) => a.currency.localeCompare(b.currency));
+      status: group.status,
+      amountMinor: group._sum.amountMinor ?? 0,
+      count: group._count._all,
+    })),
+  );
 }
 
 /** The people who have claimed expenses, for an approver's filter. Empty for anyone else. */

@@ -315,6 +315,44 @@ describe.skipIf(!hasTestDatabase)("Mission expenses (integration)", () => {
       expect((await listExpenses(as(carol), { status: "REJECTED" })).total).toBe(1);
     });
 
+    it("totals each mission per currency on the missions list, for approvers only", async () => {
+      await createMission(as(carol), { name: "Dubai Visit", defaultCurrency: "AED" });
+      const dinner = await claim(alice, { amount: "100.00" });
+      await claim(bob, { amount: "30.00" });
+      await claim(bob, { amount: "20.00", currency: "EUR", category: "COFFEE" });
+      const rejected = await claim(alice, { amount: "999.00" });
+      const deleted = await claim(alice, { amount: "500.00" });
+      await reviewExpense(as(carol), dinner.id, { decision: "APPROVED" });
+      await reviewExpense(as(carol), rejected.id, { decision: "REJECTED" });
+      await deleteExpense(as(carol), deleted.id);
+
+      const rows = (await listMissions(as(carol))).rows;
+      expect(rows.map((row) => [row.name, row.expenseCount, row.totals])).toEqual([
+        ["Dubai Visit", 0, []],
+        [
+          "Turkey Trip",
+          4,
+          [
+            { currency: "EUR", claimedMinor: 2000, approvedMinor: 0, count: 1 },
+            { currency: "TRY", claimedMinor: 13000, approvedMinor: 10000, count: 2 },
+          ],
+        ],
+      ]);
+
+      // A mission administrator who may not see others' claims gets no totals.
+      const keeper = await createRole("mission-keeper", [
+        COMMITTEES_PERMISSIONS.ACCESS,
+        COMMITTEES_PERMISSIONS.EXPENSE_READ,
+        COMMITTEES_PERMISSIONS.MISSION_ADMINISTER,
+      ]);
+      const hana = await createUser({ email: "hana@example.com" });
+      await grantRole(hana.id, keeper.id);
+      expect((await listMissions(as(hana))).rows.map((row) => row.totals)).toEqual([
+        null,
+        null,
+      ]);
+    });
+
     it("filters by expense date range", async () => {
       await claim(alice, { expenseDate: addDays(todayInCairo(), -10) });
       await claim(alice);

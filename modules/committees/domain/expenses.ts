@@ -103,6 +103,45 @@ export function formatExpenseAmount(minor: number, currency: string): string {
   return `${currency} ${whole}.${fraction}`;
 }
 
+/* Totals --------------------------------------------------------------------------- */
+
+/**
+ * One currency's totals: submitted and approved claims, rejected ones left out.
+ * Amounts in different currencies are never added together.
+ */
+export type CurrencyTotal = {
+  currency: string;
+  claimedMinor: number;
+  approvedMinor: number;
+  count: number;
+};
+
+/** Folds per-currency, per-status sums (a database groupBy) into one total per currency, sorted by code. */
+export function totalsByCurrency(
+  groups: readonly {
+    currency: string;
+    status: ExpenseStatus;
+    amountMinor: number;
+    count: number;
+  }[],
+): CurrencyTotal[] {
+  const totals = new Map<string, CurrencyTotal>();
+  for (const group of groups) {
+    if (group.status === "REJECTED") continue;
+    const total = totals.get(group.currency) ?? {
+      currency: group.currency,
+      claimedMinor: 0,
+      approvedMinor: 0,
+      count: 0,
+    };
+    total.claimedMinor += group.amountMinor;
+    total.count += group.count;
+    if (group.status === "APPROVED") total.approvedMinor += group.amountMinor;
+    totals.set(group.currency, total);
+  }
+  return [...totals.values()].sort((a, b) => a.currency.localeCompare(b.currency));
+}
+
 /* Receipt pictures ----------------------------------------------------------------- */
 
 /** The largest receipt accepted, after the phone has shrunk it (a CHECK holds it too). */

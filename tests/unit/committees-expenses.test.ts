@@ -6,6 +6,7 @@ import {
   parseAmountText,
   receiptContentType,
   receiptMatchesContent,
+  totalsByCurrency,
 } from "@/modules/committees/domain/expenses";
 
 /** Pure rules behind mission expenses (ADR-037). */
@@ -36,6 +37,23 @@ describe("amounts", () => {
   it("formats with the currency, two decimals and thousands separators", () => {
     expect(formatExpenseAmount(125050, "TRY")).toBe("TRY 1,250.50");
     expect(formatExpenseAmount(5, "EUR")).toBe("EUR 0.05");
+  });
+});
+
+describe("totals", () => {
+  it("adds up per currency, never across, and leaves rejected claims out", () => {
+    expect(
+      totalsByCurrency([
+        { currency: "TRY", status: "SUBMITTED", amountMinor: 3000, count: 1 },
+        { currency: "TRY", status: "APPROVED", amountMinor: 10000, count: 2 },
+        { currency: "TRY", status: "REJECTED", amountMinor: 999, count: 1 },
+        { currency: "EUR", status: "APPROVED", amountMinor: 2000, count: 1 },
+      ]),
+    ).toEqual([
+      { currency: "EUR", claimedMinor: 2000, approvedMinor: 2000, count: 1 },
+      { currency: "TRY", claimedMinor: 13000, approvedMinor: 10000, count: 3 },
+    ]);
+    expect(totalsByCurrency([])).toEqual([]);
   });
 });
 

@@ -1,4 +1,9 @@
-import type { ExpenseCategory, ExpenseCurrency, ExpenseStatus } from "../domain/expenses";
+import type {
+  CurrencyTotal,
+  ExpenseCategory,
+  ExpenseCurrency,
+  ExpenseStatus,
+} from "../domain/expenses";
 
 /**
  * DTOs and vocabularies Committees exposes (CLAUDE.md §9 rule 5). Services return
@@ -198,6 +203,8 @@ export type MissionDto = {
   defaultCurrency: string;
   isActive: boolean;
   expenseCount: number;
+  /** One per currency claimed; null for someone who may not see others' claims. */
+  totals: ExpenseTotal[] | null;
 };
 
 /** A mission as the expense form offers it. */
@@ -233,10 +240,5 @@ export type ExpenseDetail = ExpenseListItem & {
  * Totals for the expenses a list shows, one row per currency — amounts in different
  * currencies are never added together.
  */
-export type ExpenseTotal = {
-  currency: string;
-  /** Submitted and approved claims; rejected ones are left out. */
-  claimedMinor: number;
-  approvedMinor: number;
-  count: number;
-};
+/** One currency: submitted and approved claims, rejected ones left out. */
+export type ExpenseTotal = CurrencyTotal;

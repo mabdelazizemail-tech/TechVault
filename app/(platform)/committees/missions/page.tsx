@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { ButtonLink } from "@/components/ui/button";
 import { DataTable, type Column } from "@/components/ui/data-table";
 import { FilterBar } from "@/components/ui/filter-bar";
 import { Badge, PageHeader, Panel } from "@/components/ui/primitives";
 import { listMissions } from "@/modules/committees/contracts/service";
 import type { MissionDto } from "@/modules/committees/contracts/types";
+import { formatExpenseAmount } from "@/modules/committees/domain/expenses";
 import {
   EditMissionButton,
   NewMissionButton,
@@ -40,7 +42,39 @@ const columns: Column<MissionDto>[] = [
     key: "expenses",
     header: "Expenses",
     align: "end",
-    cell: (mission) => mission.expenseCount,
+    cell: (mission) =>
+      mission.expenseCount === 0 ? (
+        0
+      ) : (
+        <Link
+          href={`/committees/expenses?mission=${mission.id}`}
+          className="text-primary-ink font-bold hover:underline"
+        >
+          {mission.expenseCount}
+        </Link>
+      ),
+  },
+  {
+    key: "total",
+    header: "Total claimed",
+    align: "end",
+    cell: (mission) =>
+      mission.totals === null || mission.totals.length === 0 ? (
+        <span className="text-foreground-muted">—</span>
+      ) : (
+        <span className="inline-flex flex-col items-end gap-1">
+          {mission.totals.map((total) => (
+            <span key={total.currency} className="tabular-nums">
+              <span className="text-foreground block font-semibold">
+                {formatExpenseAmount(total.claimedMinor, total.currency)}
+              </span>
+              <span className="text-foreground-muted block text-xs">
+                {formatExpenseAmount(total.approvedMinor, total.currency)} approved
+              </span>
+            </span>
+          ))}
+        </span>
+      ),
   },
   {
     key: "status",
@@ -83,7 +117,7 @@ export default async function MissionsPage({
     <div>
       <PageHeader
         title="Missions"
-        description="Trips and visits that expenses are claimed against. Deactivate a finished mission: its expenses stay, and it is no longer offered on the expense form."
+        description="Trips and visits that expenses are claimed against, with what has been claimed on each — one total per currency, rejected claims left out. Deactivate a finished mission: its expenses stay, and it is no longer offered on the expense form."
         actions={<NewMissionButton />}
       />
 

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { diffForAudit, recordAudit } from "@/platform/audit/audit";
 import {
   type Actor,
+  canGlobally,
   requireGlobalPermission,
   requirePermission,
 } from "@/platform/authz/authz";
@@ -12,8 +13,10 @@ import {
   PAGE_SIZE,
   type MissionDto,
   type MissionOption,
+  type ExpenseTotal,
   type Paginated,
 } from "../contracts/types";
+import { totalsByCurrency } from "../domain/expenses";
 import {
   COMMITTEES_MODULE,
   assertId,
@@ -74,15 +77,60 @@ export async function listMissions(
       },
     }),
   ]);
+  const totals = await missionTotals(
+    actor,
+    rows.map((row) => row.id),
+  );
   return {
     rows: rows.map(({ _count, ...mission }) => ({
       ...mission,
       expenseCount: _count.expenses,
+      totals: totals === null ? null : (totals.get(mission.id) ?? []),
     })),
     total,
     page,
     pageSize: PAGE_SIZE,
   };
+}
+
+/**
+ * What has been claimed on each mission, one total per currency, for someone who may
+ * see everyone's claims (an approver); null for anyone else. One grouped query for
+ * the whole page.
+ */
+async function missionTotals(
+  actor: Actor,
+  missionIds: string[],
+): Promise<Map<string, ExpenseTotal[]> | null> {
+  if (!(await canGlobally(actor, COMMITTEES_PERMISSIONS.EXPENSE_APPROVE))) return null;
+  if (missionIds.length === 0) return new Map();
+  const groups = await prisma.committeeMissionExpense.groupBy({
+    by: ["missionId", "currency", "status"],
+    where: {
+      missionId: { in: missionIds },
+      deletedAt: null,
+      status: { not: "REJECTED" },
+    },
+    _sum: { amountMinor: true },
+    _count: { _all: true },
+  });
+  const byMission = new Map<string, typeof groups>();
+  for (const group of groups) {
+    byMission.set(group.missionId, [...(byMission.get(group.missionId) ?? []), group]);
+  }
+  return new Map(
+    [...byMission].map(([missionId, missionGroups]) => [
+      missionId,
+      totalsByCurrency(
+        missionGroups.map((group) => ({
+          currency: group.currency,
+          status: group.status,
+          amountMinor: group._sum.amountMinor ?? 0,
+          count: group._count._all,
+        })),
+      ),
+    ]),
+  );
 }
 
 export async function createMission(
