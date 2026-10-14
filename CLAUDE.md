@@ -2564,9 +2564,12 @@ production holds `committees-admin`, so each can review the others' claims, but 
 an administrator adds one under Committees → Missions before anyone can claim. Order on any other database: migrate,
 deploy the code, then seed.
 
-Deleting claims (ADR-037 (8)) adds migration `20261014120000_committees_expense_soft_delete`, applied to the scratch
-cluster only: it is **not** yet on Supabase. It must be applied before the code that reads it is deployed, because every
-expense query filters on `deleted_at`. No seed is needed: it reuses `committees.committee.administer`.
+Deleting claims (ADR-037 (8)) adds migration `20261014120000_committees_expense_soft_delete`, tested on the scratch
+cluster and applied to Supabase by the owner on 2026-10-14 (17:31 UTC). Verified there by direct query: both columns,
+`mission_expenses_deleted_recorded`, the `deleted_by` foreign key, the replaced guard, and a recorded checksum equal to
+the file's. The code was then deployed (`d3299ec`, Vercel reported success; `/api/health/ready` 200 with `database: ok`).
+On any other database, migrate before deploying, because every expense query filters on `deleted_at`. No seed is
+needed: it reuses `committees.committee.administer`.
 
 | Area        | State                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
