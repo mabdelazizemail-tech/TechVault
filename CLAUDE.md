@@ -2545,10 +2545,17 @@ to the file's.
 
 ### 🟡 Mission expenses (Committees) — built 2026-10-14 at the owner's request
 
-Design decisions are in ADR-037. Migration `20261014100000_committees_mission_expenses` is applied to a throwaway local
-PostgreSQL 17 cluster only (§29 #49). It is **not** applied to Supabase and the seed has not been re-run there (owner
-review, §8.5). Order on any database: migrate, deploy the code, then seed — the seed grants the four new permissions
-(137 in all) that show "Mission expenses" and "Missions" in the Committees section.
+Design decisions are in ADR-037. Migration `20261014100000_committees_mission_expenses` was tested on a throwaway local
+PostgreSQL 17 cluster (§29 #49) and applied to Supabase by the owner on 2026-10-14 (16:57 UTC). Verified there by direct
+query: the 3 tables with RLS enabled, the `mission_expenses_guard` trigger, 13 CHECK constraints, no table grant for
+`anon` or `authenticated`, 0 rows, and a recorded checksum equal to the file's. The code was then deployed to
+production (`ab58cba`, Vercel reported success): `/api/health/ready` 200 with `database: ok`, and
+`/committees/expenses`, `/committees/expenses/new` and `/committees/missions` redirect anonymous visitors to sign-in.
+`npm run db:seed` was run on Supabase afterwards: 137 permissions; `committees-user` holds `committees.expense.read`
+and `.create`, `committees-admin` and `platform-admin` all four — verified by direct query. Every active user in
+production holds `committees-admin`, so each can review the others' claims, but not their own. No mission exists yet:
+an administrator adds one under Committees → Missions before anyone can claim. Order on any other database: migrate,
+deploy the code, then seed.
 
 | Area        | State                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -2556,7 +2563,7 @@ review, §8.5). Order on any database: migrate, deploy the code, then seed — t
 | Services    | ✅ Missions (list, create, edit, deactivate — administrators), receipt upload preparation and verification by content, submit, list with filters by mission, person (approvers), category, status and expense dates, per-currency totals, approve or reject with an optional note, audited receipt viewing. Every write: permission → Zod → one transaction with audit record and outbox event.                          |
 | UI          | ✅ Committees → Mission expenses (totals per currency, filters, table that becomes cards on phones, "View" receipt link, status badges); a phone-first form (mission, category tiles, date, amount, currency, "Take a picture" on touch screens or "Upload a picture", preview, replace and remove, a sticky submit bar on phones); claim page with the receipt picture and the review panel; Committees → Missions.     |
 | Tests       | ✅ 17 integration tests (storage faked: mission rights and names, deactivation, receipt type, size and content checks, a receipt used once and never someone else's, visibility, totals, date filter, review rights, self-review, a second review, a unit-scoped approver refused, database guard and CHECKs, RLS) and 11 unit tests. Full integration suite 619 passing on the scratch cluster; unit suite 327 passing. |
-| **Missing** | Not applied to Supabase, not deployed. No signed-in walk-through on a phone (§29 #53). Approved claims are not reimbursed or posted to the ledger (§29 #54); approvers are not notified of new claims; abandoned uploads are not cleaned up (§29 #23).                                                                                                                                                                   |
+| **Missing** | No signed-in walk-through on a phone (§29 #53). Approved claims are not reimbursed or posted to the ledger (§29 #54); approvers are not notified of new claims; abandoned uploads are not cleaned up (§29 #23).                                                                                                                                                                                                          |
 
 ### 📋 Not started
 
