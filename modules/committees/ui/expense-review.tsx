@@ -1,13 +1,13 @@
 "use client";
 
-import { CircleCheck, CircleX } from "lucide-react";
+import { CircleCheck, CircleX, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogActions } from "@/components/ui/dialog";
 import { Field, Textarea } from "@/components/ui/form-controls";
 import { useToast } from "@/components/ui/toast";
-import { reviewExpenseAction } from "./actions";
+import { deleteExpenseAction, reviewExpenseAction } from "./actions";
 import { FormError } from "./badges";
 
 /**
@@ -106,5 +106,70 @@ export function ExpenseReview({
         </DialogActions>
       </Dialog>
     </div>
+  );
+}
+
+/**
+ * Deleting a claim (Committees administrators), whatever its status. Confirmed in a
+ * dialog that names the claim and says what happens (§17.4).
+ */
+export function DeleteExpenseButton({
+  expenseId,
+  label,
+  submitter,
+}: {
+  expenseId: string;
+  /** "Dinner TRY 1,250.00 on Turkey Trip by Amr Hassouna". */
+  label: string;
+  submitter: string;
+}) {
+  const router = useRouter();
+  const toast = useToast();
+  const [open, setOpen] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  return (
+    <>
+      <Button
+        variant="secondary"
+        size="sm"
+        icon={<Trash2 aria-hidden="true" size={14} />}
+        onClick={() => setOpen(true)}
+      >
+        Delete
+      </Button>
+      <Dialog
+        open={open}
+        onOpenChange={setOpen}
+        title="Delete this expense?"
+        description={`${label}. It disappears from every list and total, for everyone, and ${submitter} is notified. It stays on record in the audit trail.`}
+      >
+        {formError !== null && <FormError message={formError} />}
+        <DialogActions>
+          <Button variant="secondary" onClick={() => setOpen(false)} disabled={isPending}>
+            Cancel
+          </Button>
+          <Button
+            variant="danger"
+            isPending={isPending}
+            onClick={() =>
+              startTransition(async () => {
+                const result = await deleteExpenseAction(expenseId);
+                if (!result.ok) {
+                  setFormError(result.message);
+                  return;
+                }
+                toast("Expense deleted.");
+                setOpen(false);
+                router.push("/committees/expenses");
+              })
+            }
+          >
+            {isPending ? "Deleting…" : "Delete expense"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </>
   );
 }

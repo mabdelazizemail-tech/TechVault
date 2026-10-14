@@ -70,6 +70,8 @@ import {
  *   stored bytes really are the picture declared (`verifyReceipt`).
  * - A claim never changes after it is submitted, and nobody reviews their own — the
  *   database refuses both whatever the code does.
+ * - A Committees administrator may delete a claim whatever its status. Deleting marks
+ *   it, so it leaves every list, total and page but stays on record.
  */
 
 const NOT_CONFIGURED =
@@ -91,9 +93,11 @@ async function expenseViewer(actor: Actor): Promise<ExpenseViewer> {
   };
 }
 
-/** Own claims, or every claim for an approver — the one rule behind every read. */
+/** Live claims: own, or everyone's for an approver — the one rule behind every read. */
 function visibleWhere(viewer: ExpenseViewer): Prisma.CommitteeMissionExpenseWhereInput {
-  return viewer.isApprover ? {} : { submittedBy: viewer.actor.id };
+  return viewer.isApprover
+    ? { deletedAt: null }
+    : { deletedAt: null, submittedBy: viewer.actor.id };
 }
 
 export function isReceiptStorageAvailable(): boolean {
@@ -389,6 +393,7 @@ export async function listExpenseSubmitters(actor: Actor): Promise<PersonRef[]> 
   if (!viewer.isApprover) return [];
   const groups = await prisma.committeeMissionExpense.groupBy({
     by: ["submittedBy"],
+    where: { deletedAt: null },
     orderBy: { submittedBy: "asc" },
     take: 300,
   });
@@ -423,6 +428,7 @@ export async function getExpense(
     receipt: row.receipt,
     canReview:
       viewer.isApprover && row.status === "SUBMITTED" && row.submittedBy !== actor.id,
+    canDelete: await canGlobally(actor, COMMITTEES_PERMISSIONS.ADMINISTER),
   };
 }
 
@@ -442,8 +448,8 @@ export async function reviewExpense(
 ): Promise<void> {
   await requireGlobalPermission(actor, COMMITTEES_PERMISSIONS.EXPENSE_APPROVE);
   assertId(expenseId, "expense");
-  const expense = await prisma.committeeMissionExpense.findUnique({
-    where: { id: expenseId },
+  const expense = await prisma.committeeMissionExpense.findFirst({
+    where: { id: expenseId, deletedAt: null },
     select: {
       submittedBy: true,
       status: true,
@@ -468,7 +474,7 @@ export async function reviewExpense(
   await prisma.$transaction(async (tx) => {
     // Conditional, so two approvers acting at once cannot both review it.
     const reviewed = await tx.committeeMissionExpense.updateMany({
-      where: { id: expenseId, status: "SUBMITTED" },
+      where: { id: expenseId, status: "SUBMITTED", deletedAt: null },
       data: {
         status: input.decision,
         reviewedBy: actor.id,
@@ -508,6 +514,70 @@ export async function reviewExpense(
       title: `${reviewer?.name ?? "An approver"} ${approved ? "approved" : "rejected"} your expense`,
       body: input.note === null ? what : `${what} — “${input.note}”`,
       link: `/committees/expenses/${expenseId}`,
+    });
+  });
+}
+
+/**
+ * Deletes a claim, whatever its status (Committees administrators). The row is marked
+ * deleted rather than removed — the database refuses removal — so the audit trail and
+ * the receipt picture stay on record. The submitter is told.
+ */
+export async function deleteExpense(actor: Actor, expenseId: string): Promise<void> {
+  await requireGlobalPermission(actor, COMMITTEES_PERMISSIONS.ADMINISTER);
+  assertId(expenseId, "expense");
+  const expense = await prisma.committeeMissionExpense.findFirst({
+    where: { id: expenseId, deletedAt: null },
+    select: {
+      submittedBy: true,
+      status: true,
+      category: true,
+      amountMinor: true,
+      currency: true,
+      mission: { select: { id: true, name: true } },
+    },
+  });
+  if (expense === null) throw new NotFoundError("expense");
+  const people = await findDirectoryPeople(actor, [actor.id, expense.submittedBy]);
+  const nameOf = (id: string) => people.find((person) => person.id === id)?.name;
+  const what = `${EXPENSE_CATEGORY_LABELS[expense.category]} ${formatExpenseAmount(expense.amountMinor, expense.currency)} on ${expense.mission.name}`;
+
+  await prisma.$transaction(async (tx) => {
+    // Conditional, so two administrators deleting at once delete it once.
+    const deleted = await tx.committeeMissionExpense.updateMany({
+      where: { id: expenseId, deletedAt: null },
+      data: { deletedAt: new Date(), deletedBy: actor.id },
+    });
+    if (deleted.count !== 1) throw new NotFoundError("expense");
+    await recordAudit(
+      {
+        ...auditFields(actor),
+        action: "committees.expense.deleted",
+        module: COMMITTEES_MODULE,
+        entityType: "CommitteeMissionExpense",
+        entityId: expenseId,
+        summary: `Deleted ${what} claimed by ${nameOf(expense.submittedBy) ?? "a former user"} (${expense.status.toLowerCase()})`,
+        severity: "WARNING",
+      },
+      tx,
+    );
+    await publish(tx, {
+      name: COMMITTEES_EVENTS.MISSION_EXPENSE_DELETED,
+      actorId: actor.id,
+      correlationId: actor.correlationId ?? null,
+      payload: { expenseId, missionId: expense.mission.id },
+    });
+    await notify(tx, {
+      type: COMMITTEES_NOTIFICATIONS.EXPENSE_DELETED,
+      module: COMMITTEES_MODULE,
+      entityType: "CommitteeMissionExpense",
+      entityId: expenseId,
+      sourceId: expenseId,
+      actorId: actor.id,
+      recipientIds: [expense.submittedBy],
+      title: `${nameOf(actor.id) ?? "An administrator"} deleted your expense`,
+      body: what,
+      link: "/committees/expenses",
     });
   });
 }

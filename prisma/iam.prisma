@@ -206,6 +206,7 @@ model User {
   committeeReceipts         CommitteeExpenseReceipt[] @relation("CommitteeReceiptUploader")
   committeeExpenses         CommitteeMissionExpense[] @relation("CommitteeExpenseSubmitter")
   committeeExpensesReviewed CommitteeMissionExpense[] @relation("CommitteeExpenseReviewer")
+  committeeExpensesDeleted  CommitteeMissionExpense[] @relation("CommitteeExpenseDeleter")
 
   // Notifications (platform.prisma). Relation fields only.
   notificationsReceived Notification[] @relation("NotificationRecipient")

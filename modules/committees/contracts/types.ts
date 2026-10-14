@@ -225,6 +225,8 @@ export type ExpenseDetail = ExpenseListItem & {
   receipt: { fileName: string; contentType: string; sizeBytes: number };
   /** True for someone who may approve or reject it now (never its submitter). */
   canReview: boolean;
+  /** True for a Committees administrator, who may delete it whatever its status. */
+  canDelete: boolean;
 };
 
 /**

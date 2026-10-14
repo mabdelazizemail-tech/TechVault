@@ -12,6 +12,7 @@ import {
 } from "@/modules/committees/contracts/permissions";
 import {
   createMission,
+  deleteExpense,
   getExpense,
   getExpenseTotals,
   getReceiptLink,
@@ -413,6 +414,107 @@ describe.skipIf(!hasTestDatabase)("Mission expenses (integration)", () => {
   });
 
   /* ------------------------------------------------------------------------ */
+  /* Deleting                                                                 */
+  /* ------------------------------------------------------------------------ */
+
+  describe("deleting", () => {
+    it("lets an administrator delete a claim whatever its status, out of every list and total", async () => {
+      const dinner = await claim(alice, { amount: "100.00" });
+      const taxi = await claim(alice, { amount: "50.00", category: "TRANSPORTATION" });
+      await reviewExpense(as(carol), dinner.id, { decision: "APPROVED" });
+      expect((await getExpense(as(carol), dinner.id)).canDelete).toBe(true);
+
+      await deleteExpense(as(carol), dinner.id);
+
+      expect((await listExpenses(as(carol))).rows.map((row) => row.id)).toEqual([
+        taxi.id,
+      ]);
+      expect((await listExpenses(as(alice))).total).toBe(1);
+      expect(await getExpenseTotals(as(carol))).toEqual([
+        { currency: "TRY", claimedMinor: 5000, approvedMinor: 0, count: 1 },
+      ]);
+      expect((await listMissions(as(carol))).rows[0]?.expenseCount).toBe(1);
+      await expect(getExpense(as(alice), dinner.id)).rejects.toBeInstanceOf(
+        NotFoundError,
+      );
+      await expect(getExpense(as(carol), dinner.id)).rejects.toBeInstanceOf(
+        NotFoundError,
+      );
+      await expect(getReceiptLink(as(carol), dinner.id)).rejects.toBeInstanceOf(
+        NotFoundError,
+      );
+
+      // Kept on record, marked by whom.
+      const row = await db().committeeMissionExpense.findUniqueOrThrow({
+        where: { id: dinner.id },
+        select: { deletedBy: true, deletedAt: true, status: true },
+      });
+      expect(row).toMatchObject({ deletedBy: carol.id, status: "APPROVED" });
+      expect(row.deletedAt).not.toBeNull();
+      const [audit] = await db().auditLog.findMany({
+        where: { action: "committees.expense.deleted" },
+      });
+      expect(audit?.severity).toBe("WARNING");
+      expect(audit?.summary).toBe(
+        "Deleted Dinner TRY 100.00 on Turkey Trip claimed by alice (approved)",
+      );
+      expect(
+        await db().eventOutbox.count({
+          where: { name: "committees.MissionExpenseDeleted" },
+        }),
+      ).toBe(1);
+      const notice = await db().notification.findFirst({
+        where: { recipientId: alice.id, type: "committees.expense.deleted" },
+      });
+      expect(notice?.title).toBe("carol deleted your expense");
+      expect(notice?.link).toBe("/committees/expenses");
+
+      // Once: a second delete, or a review, finds nothing.
+      await expect(deleteExpense(as(carol), dinner.id)).rejects.toBeInstanceOf(
+        NotFoundError,
+      );
+      await expect(
+        reviewExpense(as(carol), taxi.id, { decision: "REJECTED" }),
+      ).resolves.toBeUndefined();
+      await deleteExpense(as(carol), taxi.id);
+      await expect(
+        reviewExpense(as(carol), taxi.id, { decision: "APPROVED" }),
+      ).rejects.toBeInstanceOf(NotFoundError);
+    });
+
+    it("lets an administrator delete their own claim, telling nobody", async () => {
+      const own = await claim(carol);
+      await deleteExpense(as(carol), own.id);
+      expect((await listExpenses(as(carol))).total).toBe(0);
+      expect(await db().notification.count()).toBe(0);
+    });
+
+    it("is refused to members and to an administrator scoped to a unit", async () => {
+      const { id } = await claim(alice);
+      expect((await getExpense(as(alice), id)).canDelete).toBe(false);
+      await expect(deleteExpense(as(alice), id)).rejects.toBeInstanceOf(ForbiddenError);
+      await expect(deleteExpense(as(bob), id)).rejects.toBeInstanceOf(ForbiddenError);
+      await expect(deleteExpense(as(erin), id)).rejects.toBeInstanceOf(ForbiddenError);
+
+      const unit = await db().organizationalUnit.create({
+        data: { key: "giza", name: "Giza", path: "/giza", depth: 0 },
+        select: { id: true },
+      });
+      const scoped = await createRole("scoped-admin", [
+        COMMITTEES_PERMISSIONS.ACCESS,
+        COMMITTEES_PERMISSIONS.ADMINISTER,
+      ]);
+      const gina = await createUser({ email: "gina@example.com", orgUnitId: unit.id });
+      await grantRole(gina.id, scoped.id, {
+        scopeType: "ORG_UNIT",
+        scopeOrgUnitId: unit.id,
+      });
+      await expect(deleteExpense(as(gina), id)).rejects.toBeInstanceOf(ForbiddenError);
+      expect((await listExpenses(as(carol))).total).toBe(1);
+    });
+  });
+
+  /* ------------------------------------------------------------------------ */
   /* Database invariants, for every writer                                    */
   /* ------------------------------------------------------------------------ */
 
@@ -453,6 +555,35 @@ describe.skipIf(!hasTestDatabase)("Mission expenses (integration)", () => {
           VALUES (${turkey}::uuid, ${alice.id}::uuid, 'OTHER', CURRENT_DATE, 100, 'TRY',
                   ${receipt}::uuid)`,
       ).rejects.toThrow(/mission_expenses_other_described/);
+    });
+
+    it("marks a claim deleted on its own, with who did it, and never changes it again", async () => {
+      const { id } = await claim(alice);
+      await expect(
+        db().$executeRaw`
+          UPDATE committees.mission_expenses SET deleted_at = now() WHERE id = ${id}::uuid`,
+      ).rejects.toThrow(/mission_expenses_deleted_recorded/);
+      await expect(
+        db().$executeRaw`
+          UPDATE committees.mission_expenses
+             SET deleted_at = now(), deleted_by = ${carol.id}::uuid, status = 'APPROVED',
+                 reviewed_by = ${carol.id}::uuid, reviewed_at = now()
+           WHERE id = ${id}::uuid`,
+      ).rejects.toThrow(/cannot also review it/);
+
+      await reviewExpense(as(carol), id, { decision: "REJECTED" });
+      await db().$executeRaw`
+        UPDATE committees.mission_expenses
+           SET deleted_at = now(), deleted_by = ${carol.id}::uuid
+         WHERE id = ${id}::uuid`;
+      await expect(
+        db().$executeRaw`
+          UPDATE committees.mission_expenses SET deleted_at = NULL, deleted_by = NULL
+           WHERE id = ${id}::uuid`,
+      ).rejects.toThrow(/deleted mission expense cannot change/);
+      await expect(
+        db().$executeRaw`DELETE FROM committees.mission_expenses WHERE id = ${id}::uuid`,
+      ).rejects.toThrow(/never deleted/);
     });
 
     it("has row-level security on the new tables", async () => {

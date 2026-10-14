@@ -221,6 +221,12 @@ export async function reviewExpenseAction(
   );
 }
 
+export async function deleteExpenseAction(expenseId: string): Promise<ActionResult> {
+  return run("committees.expense.delete", (actor) =>
+    done(committees.deleteExpense(actor, expenseId)),
+  );
+}
+
 export async function createMissionAction(
   input: unknown,
 ): Promise<ActionResult<{ id: string }>> {

@@ -70,7 +70,7 @@ export async function listMissions(
         description: true,
         defaultCurrency: true,
         isActive: true,
-        _count: { select: { expenses: true } },
+        _count: { select: { expenses: { where: { deletedAt: null } } } },
       },
     }),
   ]);

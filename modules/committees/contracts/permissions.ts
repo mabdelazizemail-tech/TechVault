@@ -31,7 +31,7 @@ export const COMMITTEES_PERMISSIONS = {
   /** Reply in a task's discussion. */
   TASK_REPLY: "committees.task_reply.create",
 
-  /** Create and edit committees and their members; see, edit and delete everything. */
+  /** Create and edit committees and their members; see, edit and delete everything; delete mission expenses. */
   ADMINISTER: "committees.committee.administer",
 
   /** See one's own mission expenses (ADR-037). */

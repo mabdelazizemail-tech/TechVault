@@ -290,6 +290,9 @@ model CommitteeMissionExpense {
   reviewedBy  String?                  @map("reviewed_by") @db.Uuid
   reviewedAt  DateTime?                @map("reviewed_at") @db.Timestamptz(6)
   reviewNote  String?                  @map("review_note")
+  /// Set when an administrator deletes the claim; it then leaves every list and total (ADR-037).
+  deletedAt   DateTime?                @map("deleted_at") @db.Timestamptz(6)
+  deletedBy   String?                  @map("deleted_by") @db.Uuid
 
   /// The submission date.
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
@@ -298,6 +301,7 @@ model CommitteeMissionExpense {
   mission   CommitteeMission        @relation(fields: [missionId], references: [id], onDelete: Restrict)
   submitter User                    @relation("CommitteeExpenseSubmitter", fields: [submittedBy], references: [id], onDelete: Restrict)
   reviewer  User?                   @relation("CommitteeExpenseReviewer", fields: [reviewedBy], references: [id], onDelete: Restrict)
+  deleter   User?                   @relation("CommitteeExpenseDeleter", fields: [deletedBy], references: [id], onDelete: Restrict)
   receipt   CommitteeExpenseReceipt @relation(fields: [receiptId], references: [id], onDelete: Restrict)
 
   @@index([missionId, expenseDate])

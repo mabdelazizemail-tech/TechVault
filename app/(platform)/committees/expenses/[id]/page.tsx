@@ -13,7 +13,10 @@ import {
   CATEGORY_ICONS,
   ExpenseStatusBadge,
 } from "@/modules/committees/ui/expense-badges";
-import { ExpenseReview } from "@/modules/committees/ui/expense-review";
+import {
+  DeleteExpenseButton,
+  ExpenseReview,
+} from "@/modules/committees/ui/expense-review";
 import { orNotFound } from "@/modules/committees/ui/page-helpers";
 import { getActor } from "@/platform/auth/current-user";
 
@@ -32,6 +35,7 @@ export default async function ExpensePage({
   const category = EXPENSE_CATEGORY_LABELS[expense.category];
   const Icon = CATEGORY_ICONS[expense.category];
   const receiptUrl = `/committees/expenses/${expense.id}/receipt`;
+  const label = `${category} ${amount} on ${expense.mission.name} by ${expense.submitter.name}`;
 
   return (
     <div className="mx-auto max-w-4xl">
@@ -47,7 +51,16 @@ export default async function ExpensePage({
             {amount}
           </h1>
         </div>
-        <ExpenseStatusBadge status={expense.status} />
+        <div className="flex items-center gap-2">
+          <ExpenseStatusBadge status={expense.status} />
+          {expense.canDelete && (
+            <DeleteExpenseButton
+              expenseId={expense.id}
+              label={label}
+              submitter={expense.submitter.name}
+            />
+          )}
+        </div>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-5">
@@ -126,10 +139,7 @@ export default async function ExpensePage({
             <Panel className="overflow-hidden">
               <PanelHeader title="Review" />
               <div className="px-4 py-4">
-                <ExpenseReview
-                  expenseId={expense.id}
-                  label={`${category} ${amount} on ${expense.mission.name} by ${expense.submitter.name}`}
-                />
+                <ExpenseReview expenseId={expense.id} label={label} />
               </div>
             </Panel>
           )}

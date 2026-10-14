@@ -49,6 +49,7 @@ export {
 } from "../services/mission-service";
 
 export {
+  deleteExpense,
   getExpense,
   getExpenseTotals,
   getReceiptLink,
