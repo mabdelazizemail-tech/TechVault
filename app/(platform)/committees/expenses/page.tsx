@@ -107,18 +107,21 @@ export default async function ExpensesPage({
     {
       key: "receipt",
       header: "Receipt",
-      cell: (expense) => (
-        <a
-          href={`${BASE}/${expense.id}/receipt`}
-          target="_blank"
-          rel="noopener"
-          className="text-primary-ink inline-flex items-center gap-1 text-xs font-bold hover:underline pointer-coarse:min-h-10"
-        >
-          <Paperclip aria-hidden="true" className="size-3.5" />
-          View
-          <span className="sr-only"> the receipt (opens in a new tab)</span>
-        </a>
-      ),
+      cell: (expense) =>
+        !expense.hasReceipt ? (
+          <span className="text-foreground-muted text-xs">None</span>
+        ) : (
+          <a
+            href={`${BASE}/${expense.id}/receipt`}
+            target="_blank"
+            rel="noopener"
+            className="text-primary-ink inline-flex items-center gap-1 text-xs font-bold hover:underline pointer-coarse:min-h-10"
+          >
+            <Paperclip aria-hidden="true" className="size-3.5" />
+            View
+            <span className="sr-only"> the receipt (opens in a new tab)</span>
+          </a>
+        ),
     },
     {
       key: "status",
@@ -247,7 +250,7 @@ export default async function ExpensesPage({
           }
           emptyDescription={
             canSubmit
-              ? "Claim what you paid on a mission — choose the mission and category, enter the amount and take a picture of the receipt."
+              ? "Claim what you paid on a mission — choose the mission and category, enter the amount and, if you have it, take a picture of the receipt."
               : "Expense claims on missions appear here."
           }
           emptyAction={

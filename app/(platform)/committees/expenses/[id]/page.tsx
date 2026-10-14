@@ -2,7 +2,7 @@ import { ExternalLink } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { BreadcrumbTitle } from "@/components/shell/breadcrumbs";
-import { Panel, PanelHeader } from "@/components/ui/primitives";
+import { EmptyState, Panel, PanelHeader } from "@/components/ui/primitives";
 import { getExpense } from "@/modules/committees/contracts/service";
 import {
   EXPENSE_CATEGORY_LABELS,
@@ -68,25 +68,34 @@ export default async function ExpensePage({
           <PanelHeader
             title="Invoice / receipt"
             actions={
-              <a
-                href={receiptUrl}
-                target="_blank"
-                rel="noopener"
-                className="text-primary-ink inline-flex items-center gap-1 text-xs font-bold hover:underline"
-              >
-                Open full size
-                <ExternalLink aria-hidden="true" className="size-3.5" />
-              </a>
+              expense.receipt !== null && (
+                <a
+                  href={receiptUrl}
+                  target="_blank"
+                  rel="noopener"
+                  className="text-primary-ink inline-flex items-center gap-1 text-xs font-bold hover:underline"
+                >
+                  Open full size
+                  <ExternalLink aria-hidden="true" className="size-3.5" />
+                </a>
+              )
             }
           />
-          <div className="bg-surface-sunken p-2">
-            {/* eslint-disable-next-line @next/next/no-img-element -- served through an authorised, expiring redirect, which next/image cannot optimise */}
-            <img
-              src={receiptUrl}
-              alt={`Receipt for ${category} ${amount}`}
-              className="mx-auto max-h-[70dvh] w-full object-contain"
+          {expense.receipt === null ? (
+            <EmptyState
+              title="No receipt attached"
+              description="This expense was submitted without a picture of its invoice or receipt."
             />
-          </div>
+          ) : (
+            <div className="bg-surface-sunken p-2">
+              {/* eslint-disable-next-line @next/next/no-img-element -- served through an authorised, expiring redirect, which next/image cannot optimise */}
+              <img
+                src={receiptUrl}
+                alt={`Receipt for ${category} ${amount}`}
+                className="mx-auto max-h-[70dvh] w-full object-contain"
+              />
+            </div>
+          )}
         </Panel>
 
         <div className="flex flex-col gap-4 lg:col-span-2">

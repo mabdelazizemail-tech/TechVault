@@ -209,7 +209,12 @@ export const expenseSchema = z
       return parsed.minor;
     }),
     currency,
-    receiptId: z.uuid({ error: "Attach a picture of the invoice or receipt." }),
+    /** Optional: a claim may be submitted without a picture. */
+    receiptId: z
+      .uuid({ error: "The receipt picture could not be used. Please attach it again." })
+      .or(z.literal(""))
+      .nullish()
+      .transform((value) => (value === "" || value === undefined ? null : value)),
   })
   .superRefine((value, context) => {
     if (value.category === "OTHER" && value.description === null) {

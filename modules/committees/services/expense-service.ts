@@ -66,9 +66,10 @@ import {
  * - Everyone with `committees.expense.read` sees their own claims; holders of
  *   `committees.expense.approve` (organisation-wide) see everyone's. Anything else
  *   is "not found".
- * - The receipt goes from the phone straight to private storage through a one-time
- *   link (`prepareReceiptUpload`); before the claim is saved the server checks the
- *   stored bytes really are the picture declared (`verifyReceipt`).
+ * - The receipt picture is optional. When there is one it goes from the phone straight
+ *   to private storage through a one-time link (`prepareReceiptUpload`); before the
+ *   claim is saved the server checks the stored bytes really are the picture declared
+ *   (`verifyReceipt`).
  * - A claim never changes after it is submitted, and nobody reviews their own — the
  *   database refuses both whatever the code does.
  * - A Committees administrator may delete a claim whatever its status. Deleting marks
@@ -217,21 +218,24 @@ export async function submitExpense(
       expenseDate: ["The expense date cannot be in the future."],
     });
   }
-  await verifyReceipt(actor, input.receiptId);
+  const receiptId = input.receiptId;
+  if (receiptId !== null) await verifyReceipt(actor, receiptId);
 
   return prisma.$transaction(async (tx) => {
-    // Claims the verified picture for this claim only; a second use finds nothing.
-    const claimed = await tx.committeeExpenseReceipt.updateMany({
-      where: { id: input.receiptId, uploadedBy: actor.id, status: "PENDING" },
-      data: { status: "READY" },
-    });
-    if (claimed.count !== 1) {
-      throw new ValidationError(
-        "The receipt picture could not be used. Please attach it again.",
-        {
-          receipt: ["The receipt picture could not be used. Please attach it again."],
-        },
-      );
+    if (receiptId !== null) {
+      // Claims the verified picture for this claim only; a second use finds nothing.
+      const claimed = await tx.committeeExpenseReceipt.updateMany({
+        where: { id: receiptId, uploadedBy: actor.id, status: "PENDING" },
+        data: { status: "READY" },
+      });
+      if (claimed.count !== 1) {
+        throw new ValidationError(
+          "The receipt picture could not be used. Please attach it again.",
+          {
+            receipt: ["The receipt picture could not be used. Please attach it again."],
+          },
+        );
+      }
     }
     const expense = await tx.committeeMissionExpense.create({
       data: {
@@ -242,7 +246,7 @@ export async function submitExpense(
         expenseDate: dateFromIso(input.expenseDate),
         amountMinor: input.amount,
         currency: input.currency,
-        receiptId: input.receiptId,
+        receiptId,
       },
       select: { id: true },
     });
@@ -253,7 +257,7 @@ export async function submitExpense(
         module: COMMITTEES_MODULE,
         entityType: "CommitteeMissionExpense",
         entityId: expense.id,
-        summary: `Claimed ${EXPENSE_CATEGORY_LABELS[input.category]} ${formatExpenseAmount(input.amount, input.currency)} on ${mission.name}`,
+        summary: `Claimed ${EXPENSE_CATEGORY_LABELS[input.category]} ${formatExpenseAmount(input.amount, input.currency)} on ${mission.name}${receiptId === null ? ", without a receipt" : ""}`,
       },
       tx,
     );
@@ -286,6 +290,7 @@ const listSelect = {
   status: true,
   createdAt: true,
   reviewedAt: true,
+  receiptId: true,
   mission: { select: { id: true, name: true } },
   submitter: { select: personSelect },
   reviewer: { select: personSelect },
@@ -307,6 +312,7 @@ function toListItem(row: ListRow): ExpenseListItem {
     submittedAt: row.createdAt,
     reviewer: row.reviewer === null ? null : toPerson(row.reviewer),
     reviewedAt: row.reviewedAt,
+    hasReceipt: row.receiptId !== null,
   };
 }
 
@@ -586,7 +592,9 @@ export async function getReceiptLink(actor: Actor, expenseId: string): Promise<s
     where: { id: expenseId, ...visibleWhere(viewer) },
     select: { receipt: { select: { storageKey: true, status: true } } },
   });
-  if (row === null || row.receipt.status !== "READY") throw new NotFoundError("receipt");
+  if (row === null || row.receipt === null || row.receipt.status !== "READY") {
+    throw new NotFoundError("receipt");
+  }
   if (!isStorageConfigured()) throw new BusinessRuleError(NOT_CONFIGURED);
 
   const url = await createDownloadUrl(row.receipt.storageKey, {

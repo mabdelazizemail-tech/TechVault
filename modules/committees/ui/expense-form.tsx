@@ -25,8 +25,9 @@ import { prepareReceiptImage } from "./receipt-image";
 /**
  * Submitting a mission expense, built for a phone first: one column, large tiles
  * for the category, a numeric keypad for the amount, and the camera one tap away for
- * the receipt. The picture is shrunk on the phone, previewed, and only uploaded when
- * the claim is submitted — straight to private storage, never through the app server.
+ * the receipt, which is optional. A picture is shrunk on the phone, previewed, and
+ * only uploaded when the claim is submitted — straight to private storage, never
+ * through the app server.
  * The submitter is the signed-in account; nobody types their own name.
  */
 
@@ -125,7 +126,6 @@ export function ExpenseForm({
     if (expenseDate === "") found.expenseDate = "Choose the date of the expense.";
     const parsed = parseAmountText(amount);
     if (!parsed.ok) found.amount = parsed.message;
-    if (receipt === null) found.receipt = "Attach a picture of the invoice or receipt.";
     return found;
   }
 
@@ -168,12 +168,13 @@ export function ExpenseForm({
     setFormError(null);
     const found = validate();
     setErrors(found);
-    if (Object.keys(found).length > 0 || receipt === null) {
+    if (Object.keys(found).length > 0) {
       setFormError("Please complete the highlighted fields.");
       return;
     }
-    const receiptId = await uploadReceipt(receipt);
-    if (receiptId === null) {
+    // The picture is optional; when one was chosen it must upload before the claim is saved.
+    const receiptId = receipt === null ? null : await uploadReceipt(receipt);
+    if (receipt !== null && receiptId === null) {
       setPhase("idle");
       return;
     }
@@ -368,10 +369,14 @@ export function ExpenseForm({
 
         <fieldset className="flex flex-col gap-2">
           <legend className="label-caps mb-2">
-            Invoice / receipt<span className="text-primary ms-0.5">*</span>
+            Invoice / receipt{" "}
+            <span className="text-foreground-muted normal-case">(optional)</span>
           </legend>
           {!storageAvailable ? (
-            <FormError message="Receipt pictures cannot be stored on this server yet, so expenses cannot be submitted. Ask an administrator to configure storage." />
+            <p className="text-foreground-muted text-sm">
+              Pictures cannot be attached on this server yet. You can still submit the
+              expense without one.
+            </p>
           ) : receipt === null ? (
             <div
               className={cn(
@@ -384,7 +389,7 @@ export function ExpenseForm({
                 Upload the invoice or take a picture
               </p>
               <p className="text-foreground-muted text-xs">
-                JPG, JPEG or PNG · Required before submission
+                JPG, JPEG or PNG · Optional, but it helps the approver
               </p>
               <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
                 {/* Phones and tablets open the camera straight away; a mouse has no camera. */}
@@ -486,7 +491,6 @@ export function ExpenseForm({
           type="submit"
           variant="primary"
           isPending={busy}
-          disabled={!storageAvailable}
           className="w-full sm:w-auto"
         >
           {phase === "uploading"

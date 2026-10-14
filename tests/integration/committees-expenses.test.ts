@@ -131,7 +131,8 @@ describe.skipIf(!hasTestDatabase)("Mission expenses (integration)", () => {
       amount: "1,250.50",
       currency: "TRY",
       ...overrides,
-      receiptId: overrides.receiptId ?? (await uploadReceipt(user)),
+      receiptId:
+        "receiptId" in overrides ? overrides.receiptId : await uploadReceipt(user),
     });
   }
 
@@ -185,13 +186,14 @@ describe.skipIf(!hasTestDatabase)("Mission expenses (integration)", () => {
         reviewer: null,
         canReview: false,
       });
-      expect(expense.receipt.contentType).toBe("image/jpeg");
+      expect(expense.receipt?.contentType).toBe("image/jpeg");
+      expect(expense.hasReceipt).toBe(true);
       const row = await db().committeeMissionExpense.findUniqueOrThrow({
         where: { id },
         select: { receipt: { select: { status: true, storageKey: true } } },
       });
-      expect(row.receipt.status).toBe("READY");
-      expect(row.receipt.storageKey).toMatch(
+      expect(row.receipt?.status).toBe("READY");
+      expect(row.receipt?.storageKey).toMatch(
         /^committees\/receipts\/\d{4}\/\d{2}\/[0-9a-f]{32}\.jpg$/,
       );
       expect(
@@ -202,6 +204,29 @@ describe.skipIf(!hasTestDatabase)("Mission expenses (integration)", () => {
           where: { name: "committees.MissionExpenseSubmitted" },
         }),
       ).toBe(1);
+    });
+
+    it("accepts a claim without a receipt picture, even with no storage configured", async () => {
+      storage.isStorageConfigured.mockReturnValue(false);
+      const { id } = await claim(alice, { receiptId: null });
+      const expense = await getExpense(as(alice), id);
+      expect(expense).toMatchObject({
+        receipt: null,
+        hasReceipt: false,
+        status: "SUBMITTED",
+      });
+      expect((await listExpenses(as(carol))).rows[0]?.hasReceipt).toBe(false);
+      await expect(getReceiptLink(as(alice), id)).rejects.toBeInstanceOf(NotFoundError);
+      expect(storage.readObjectStart).not.toHaveBeenCalled();
+      const [audit] = await db().auditLog.findMany({
+        where: { action: "committees.expense.submitted" },
+      });
+      expect(audit?.summary).toBe(
+        "Claimed Dinner TRY 1,250.50 on Turkey Trip, without a receipt",
+      );
+      // It is reviewed like any other claim.
+      await reviewExpense(as(carol), id, { decision: "APPROVED" });
+      expect((await getExpense(as(alice), id)).status).toBe("APPROVED");
     });
 
     it("needs a description for Other, a positive amount and no future date", async () => {

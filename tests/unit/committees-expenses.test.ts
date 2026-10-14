@@ -107,8 +107,13 @@ describe("the expense form's schema", () => {
     expect(expenseSchema.safeParse({ ...base, description: "  " }).success).toBe(true);
   });
 
-  it("requires a receipt, a supported currency and a real date", () => {
-    expect(expenseSchema.safeParse({ ...base, receiptId: "" }).success).toBe(false);
+  it("makes the receipt optional, and a supported currency and a real date required", () => {
+    for (const receiptId of ["", null, undefined]) {
+      expect(expenseSchema.parse({ ...base, receiptId }).receiptId).toBeNull();
+    }
+    expect(expenseSchema.safeParse({ ...base, receiptId: "not-an-id" }).success).toBe(
+      false,
+    );
     expect(expenseSchema.safeParse({ ...base, currency: "JPY" }).success).toBe(false);
     expect(expenseSchema.safeParse({ ...base, expenseDate: "2026-02-30" }).success).toBe(
       false,

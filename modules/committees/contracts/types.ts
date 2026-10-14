@@ -225,11 +225,14 @@ export type ExpenseListItem = {
   submittedAt: Date;
   reviewer: PersonRef | null;
   reviewedAt: Date | null;
+  /** False when the claim was submitted without a picture of its receipt. */
+  hasReceipt: boolean;
 };
 
 export type ExpenseDetail = ExpenseListItem & {
   reviewNote: string | null;
-  receipt: { fileName: string; contentType: string; sizeBytes: number };
+  /** Null when the claim was submitted without a picture. */
+  receipt: { fileName: string; contentType: string; sizeBytes: number } | null;
   /** True for someone who may approve or reject it now (never its submitter). */
   canReview: boolean;
   /** True for a Committees administrator, who may delete it whatever its status. */

@@ -285,7 +285,8 @@ model CommitteeMissionExpense {
   /// Integer minor units of `currency` (ADR-006); every supported currency has two decimals.
   amountMinor Int                      @map("amount_minor")
   currency    String                   @db.Char(3)
-  receiptId   String                   @unique @map("receipt_id") @db.Uuid
+  /// Optional: a claim may be submitted without a picture of its receipt.
+  receiptId   String?                  @unique @map("receipt_id") @db.Uuid
   status      CommitteeExpenseStatus   @default(SUBMITTED)
   reviewedBy  String?                  @map("reviewed_by") @db.Uuid
   reviewedAt  DateTime?                @map("reviewed_at") @db.Timestamptz(6)
@@ -298,11 +299,11 @@ model CommitteeMissionExpense {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  mission   CommitteeMission        @relation(fields: [missionId], references: [id], onDelete: Restrict)
-  submitter User                    @relation("CommitteeExpenseSubmitter", fields: [submittedBy], references: [id], onDelete: Restrict)
-  reviewer  User?                   @relation("CommitteeExpenseReviewer", fields: [reviewedBy], references: [id], onDelete: Restrict)
-  deleter   User?                   @relation("CommitteeExpenseDeleter", fields: [deletedBy], references: [id], onDelete: Restrict)
-  receipt   CommitteeExpenseReceipt @relation(fields: [receiptId], references: [id], onDelete: Restrict)
+  mission   CommitteeMission         @relation(fields: [missionId], references: [id], onDelete: Restrict)
+  submitter User                     @relation("CommitteeExpenseSubmitter", fields: [submittedBy], references: [id], onDelete: Restrict)
+  reviewer  User?                    @relation("CommitteeExpenseReviewer", fields: [reviewedBy], references: [id], onDelete: Restrict)
+  deleter   User?                    @relation("CommitteeExpenseDeleter", fields: [deletedBy], references: [id], onDelete: Restrict)
+  receipt   CommitteeExpenseReceipt? @relation(fields: [receiptId], references: [id], onDelete: Restrict)
 
   @@index([missionId, expenseDate])
   @@index([submittedBy, createdAt])
