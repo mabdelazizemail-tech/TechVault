@@ -67,6 +67,7 @@ const RECORD_LABELS: Record<string, string> = {
   meetings: "Meeting",
   tasks: "Task",
   groups: "Committee",
+  expenses: "Expense",
 };
 
 const ERP_RECORD_LABELS: Record<string, string> = {

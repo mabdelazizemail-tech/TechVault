@@ -26,6 +26,7 @@ export function FilterBar({
   searchLabel,
   selects = [],
   preserve = {},
+  dateRange,
 }: {
   basePath: string;
   query?: string;
@@ -34,9 +35,14 @@ export function FilterBar({
   selects?: FilterSelect[];
   /** Params kept across a filter change, such as the active status tab. */
   preserve?: Record<string, string | undefined>;
+  /** "From" and "to" dates, sent as `from` and `to` (YYYY-MM-DD). Omit for none. */
+  dateRange?: { from?: string; to?: string };
 }) {
   const active =
-    (query ?? "") !== "" || selects.some((select) => (select.value ?? "") !== "");
+    (query ?? "") !== "" ||
+    selects.some((select) => (select.value ?? "") !== "") ||
+    (dateRange?.from ?? "") !== "" ||
+    (dateRange?.to ?? "") !== "";
   const kept = new URLSearchParams(
     Object.entries(preserve).filter(
       (entry): entry is [string, string] => (entry[1] ?? "") !== "",
@@ -52,6 +58,7 @@ export function FilterBar({
         query,
         values: selects.map((select) => select.value),
         preserve,
+        dateRange,
       })}
       method="get"
       action={basePath}
@@ -105,6 +112,28 @@ export function FilterBar({
           ))}
         </select>
       ))}
+
+      {dateRange !== undefined && (
+        <span className="flex flex-wrap items-center gap-2">
+          {(["from", "to"] as const).map((name) => (
+            <label
+              key={name}
+              className="text-foreground-muted flex items-center gap-1.5 text-xs"
+            >
+              {name === "from" ? "From" : "To"}
+              <input
+                type="date"
+                name={name}
+                defaultValue={dateRange[name] ?? ""}
+                className={cn(
+                  controlClasses,
+                  "border-border-strong min-h-9 w-auto pointer-coarse:min-h-11",
+                )}
+              />
+            </label>
+          ))}
+        </span>
+      )}
 
       <button
         type="submit"

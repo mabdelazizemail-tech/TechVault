@@ -40,3 +40,22 @@ export {
   replyToTask,
   updateTask,
 } from "../services/task-service";
+
+export {
+  createMission,
+  listMissionOptions,
+  listMissions,
+  updateMission,
+} from "../services/mission-service";
+
+export {
+  getExpense,
+  getExpenseTotals,
+  getReceiptLink,
+  isReceiptStorageAvailable,
+  listExpenseSubmitters,
+  listExpenses,
+  prepareReceiptUpload,
+  reviewExpense,
+  submitExpense,
+} from "../services/expense-service";

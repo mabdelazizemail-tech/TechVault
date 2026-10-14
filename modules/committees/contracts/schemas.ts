@@ -1,5 +1,11 @@
 import { z } from "zod";
 import { isIsoDate } from "../domain/dates";
+import {
+  EXPENSE_CATEGORIES,
+  EXPENSE_CURRENCIES,
+  EXPENSE_STATUSES,
+  parseAmountText,
+} from "../domain/expenses";
 import { DUE_WINDOWS, TASK_DISPLAY_STATUSES, TASK_STATUSES } from "./types";
 
 /**
@@ -165,6 +171,69 @@ export const committeeListParamsSchema = z.object({
   page: z.coerce.number().int().min(1).catch(1),
   q: z.string().trim().max(200).optional().catch(undefined),
   show: z.enum(["active", "archived"]).catch("active"),
+});
+
+/* Mission expenses (ADR-037) ------------------------------------------------------ */
+
+const currency = z.enum(EXPENSE_CURRENCIES, { error: "Choose a currency." });
+
+export const missionSchema = z.object({
+  name: requiredText("Mission name", 120),
+  description: optionalText(2000),
+  defaultCurrency: currency,
+  isActive: z.boolean().default(true),
+});
+
+export const receiptUploadSchema = z.object({
+  fileName: requiredText("File name", 255),
+  sizeBytes: z.number().int().positive("The picture is empty."),
+});
+
+/**
+ * A claim as the form sends it. The amount arrives as typed text and is converted to
+ * minor units exactly; "Other" needs a description; the submitter, status and
+ * submission date are never taken from the client.
+ */
+export const expenseSchema = z
+  .object({
+    missionId: z.uuid({ error: "Choose a mission." }),
+    category: z.enum(EXPENSE_CATEGORIES, { error: "Choose a category." }),
+    description: optionalText(1000),
+    expenseDate: isoDate,
+    amount: z.string({ error: "Enter the amount." }).transform((value, context) => {
+      const parsed = parseAmountText(value);
+      if (!parsed.ok) {
+        context.addIssue({ code: "custom", message: parsed.message });
+        return z.NEVER;
+      }
+      return parsed.minor;
+    }),
+    currency,
+    receiptId: z.uuid({ error: "Attach a picture of the invoice or receipt." }),
+  })
+  .superRefine((value, context) => {
+    if (value.category === "OTHER" && value.description === null) {
+      context.addIssue({
+        code: "custom",
+        path: ["description"],
+        message: "Describe the expense.",
+      });
+    }
+  });
+
+export const expenseReviewSchema = z.object({
+  decision: z.enum(["APPROVED", "REJECTED"], { error: "Approve or reject." }),
+  note: optionalText(1000),
+});
+
+export const expenseListParamsSchema = z.object({
+  page: z.coerce.number().int().min(1).catch(1),
+  mission: z.uuid().optional().catch(undefined),
+  user: z.uuid().optional().catch(undefined),
+  category: z.enum(EXPENSE_CATEGORIES).optional().catch(undefined),
+  status: z.enum(EXPENSE_STATUSES).optional().catch(undefined),
+  from: z.string().refine(isIsoDate).optional().catch(undefined),
+  to: z.string().refine(isIsoDate).optional().catch(undefined),
 });
 
 /* Re-exported so forms can blank-check optional values the same way. */

@@ -190,3 +190,50 @@ export async function deleteTaskAction(
 ): Promise<ActionResult<{ meetingId: string }>> {
   return run("committees.task.delete", (actor) => committees.deleteTask(actor, taskId));
 }
+
+/* Mission expenses ------------------------------------------------------------------ */
+
+export async function prepareReceiptUploadAction(input: {
+  fileName: string;
+  sizeBytes: number;
+}): Promise<ActionResult<{ receiptId: string; uploadUrl: string; contentType: string }>> {
+  return run(
+    "committees.receipt.prepare",
+    (actor) => committees.prepareReceiptUpload(actor, input),
+    { revalidate: false },
+  );
+}
+
+export async function submitExpenseAction(
+  input: unknown,
+): Promise<ActionResult<{ id: string }>> {
+  return run("committees.expense.submit", (actor) =>
+    committees.submitExpense(actor, input),
+  );
+}
+
+export async function reviewExpenseAction(
+  expenseId: string,
+  input: unknown,
+): Promise<ActionResult> {
+  return run("committees.expense.review", (actor) =>
+    done(committees.reviewExpense(actor, expenseId, input)),
+  );
+}
+
+export async function createMissionAction(
+  input: unknown,
+): Promise<ActionResult<{ id: string }>> {
+  return run("committees.mission.create", (actor) =>
+    committees.createMission(actor, input),
+  );
+}
+
+export async function updateMissionAction(
+  missionId: string,
+  input: unknown,
+): Promise<ActionResult> {
+  return run("committees.mission.update", (actor) =>
+    done(committees.updateMission(actor, missionId, input)),
+  );
+}

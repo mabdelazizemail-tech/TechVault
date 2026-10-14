@@ -115,18 +115,18 @@ model CommitteeAgendaItem {
 }
 
 model CommitteeTask {
-  id          String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  meetingId   String              @map("meeting_id") @db.Uuid
-  description String
+  id              String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  meetingId       String              @map("meeting_id") @db.Uuid
+  description     String
   /// "Expected outcome / next action": what done looks like, or the next step.
   /// Optional — tasks recorded before it existed have none.
-  expectedOutcome String?         @map("expected_outcome")
-  dueDate     DateTime            @map("due_date") @db.Date
-  status      CommitteeTaskStatus @default(PENDING)
+  expectedOutcome String?             @map("expected_outcome")
+  dueDate         DateTime            @map("due_date") @db.Date
+  status          CommitteeTaskStatus @default(PENDING)
   /// Set exactly when the status is Completed (a CHECK holds the two together).
-  completedAt DateTime?           @map("completed_at") @db.Timestamptz(6)
+  completedAt     DateTime?           @map("completed_at") @db.Timestamptz(6)
   /// Replies with text, kept exact by a trigger on task_replies.
-  replyCount  Int                 @default(0) @map("reply_count")
+  replyCount      Int                 @default(0) @map("reply_count")
 
   createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -135,8 +135,8 @@ model CommitteeTask {
   createdBy String    @map("created_by") @db.Uuid
   updatedBy String?   @map("updated_by") @db.Uuid
 
-  meeting   CommitteeMeeting      @relation(fields: [meetingId], references: [id], onDelete: Restrict)
-  creator   User                  @relation("CommitteeTaskCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+  meeting   CommitteeMeeting        @relation(fields: [meetingId], references: [id], onDelete: Restrict)
+  creator   User                    @relation("CommitteeTaskCreator", fields: [createdBy], references: [id], onDelete: Restrict)
   assignees CommitteeTaskAssignee[]
   replies   CommitteeTaskReply[]
 
@@ -184,5 +184,126 @@ model CommitteeTaskReply {
   @@index([taskId, createdAt, id])
   @@index([authorId])
   @@map("task_replies")
+  @@schema("committees")
+}
+
+/**
+ * --------------------------------------------------------------------------
+ */
+/**
+ * Mission expenses (ADR-037)
+ */
+/**
+ * --------------------------------------------------------------------------
+ */
+
+enum CommitteeExpenseCategory {
+  DINNER
+  TRANSPORTATION
+  VISA
+  LUNCH
+  COFFEE
+  OTHER
+
+  @@schema("committees")
+}
+
+enum CommitteeExpenseStatus {
+  SUBMITTED
+  APPROVED
+  REJECTED
+
+  @@schema("committees")
+}
+
+/// A receipt is PENDING from the moment its upload is authorised until the expense
+/// that uses it is saved and the stored bytes have been checked; only READY ones are
+/// served.
+enum CommitteeReceiptStatus {
+  PENDING
+  READY
+
+  @@schema("committees")
+}
+
+/// A business trip or visit that expenses are claimed against ("Turkey Trip").
+/// Deactivated, never deleted: its expenses are its record.
+model CommitteeMission {
+  id              String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name            String
+  description     String?
+  /// Offered first on the expense form; a claim may still be in another currency.
+  defaultCurrency String  @map("default_currency") @db.Char(3)
+  isActive        Boolean @default(true) @map("is_active")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdBy String?  @map("created_by") @db.Uuid
+  updatedBy String?  @map("updated_by") @db.Uuid
+
+  expenses CommitteeMissionExpense[]
+
+  @@index([isActive, name])
+  @@map("missions")
+  @@schema("committees")
+}
+
+/// A receipt picture in private object storage. Metadata only — never the bytes
+/// (CLAUDE.md §12.1).
+model CommitteeExpenseReceipt {
+  id          String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  /// Random, server-chosen object key. The uploaded file name is never part of it.
+  storageKey  String                 @unique @map("storage_key")
+  fileName    String                 @map("file_name")
+  /// Decided by the server from the verified content.
+  contentType String                 @map("content_type")
+  sizeBytes   Int                    @map("size_bytes")
+  status      CommitteeReceiptStatus @default(PENDING)
+  uploadedBy  String                 @map("uploaded_by") @db.Uuid
+  createdAt   DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  uploader User                     @relation("CommitteeReceiptUploader", fields: [uploadedBy], references: [id], onDelete: Restrict)
+  expense  CommitteeMissionExpense?
+
+  @@index([uploadedBy, status])
+  @@map("expense_receipts")
+  @@schema("committees")
+}
+
+/// One claimed expense on a mission, by the person who paid it. Its details never
+/// change after submission (a trigger enforces it): a mistake is rejected and
+/// claimed again, so what was approved is what was claimed.
+model CommitteeMissionExpense {
+  id          String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  missionId   String                   @map("mission_id") @db.Uuid
+  /// Taken from the signed-in account, never typed.
+  submittedBy String                   @map("submitted_by") @db.Uuid
+  category    CommitteeExpenseCategory
+  /// Required when the category is Other (a CHECK holds it).
+  description String?
+  expenseDate DateTime                 @map("expense_date") @db.Date
+  /// Integer minor units of `currency` (ADR-006); every supported currency has two decimals.
+  amountMinor Int                      @map("amount_minor")
+  currency    String                   @db.Char(3)
+  receiptId   String                   @unique @map("receipt_id") @db.Uuid
+  status      CommitteeExpenseStatus   @default(SUBMITTED)
+  reviewedBy  String?                  @map("reviewed_by") @db.Uuid
+  reviewedAt  DateTime?                @map("reviewed_at") @db.Timestamptz(6)
+  reviewNote  String?                  @map("review_note")
+
+  /// The submission date.
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  mission   CommitteeMission        @relation(fields: [missionId], references: [id], onDelete: Restrict)
+  submitter User                    @relation("CommitteeExpenseSubmitter", fields: [submittedBy], references: [id], onDelete: Restrict)
+  reviewer  User?                   @relation("CommitteeExpenseReviewer", fields: [reviewedBy], references: [id], onDelete: Restrict)
+  receipt   CommitteeExpenseReceipt @relation(fields: [receiptId], references: [id], onDelete: Restrict)
+
+  @@index([missionId, expenseDate])
+  @@index([submittedBy, createdAt])
+  @@index([status, createdAt])
+  @@index([expenseDate])
+  @@map("mission_expenses")
   @@schema("committees")
 }

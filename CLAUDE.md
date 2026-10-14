@@ -1574,6 +1574,7 @@ reference by ID.
 | Employee, Department, JobTitle, Org structure, Compensation, Attendance, Leave, Performance | **HRIS**                                         | `hris`                  | Store `hris_employee_id`; **never** read sensitive tables               |
 | Idea, Assessment, Vote, Comment, Points, Badge                                              | **Innovation**                                   | `innovation`            | Read via contracts                                                      |
 | Committee, Meeting, Agenda item, Meeting task (Team To-Do List), Task reply                 | **Committees** (ADR-036)                         | `committees`            | Read via contracts                                                      |
+| Mission, Mission expense, Expense receipt                                                   | **Committees** (ADR-037)                         | `committees`            | Read via contracts                                                      |
 | KPI, Dashboard, Report, Rollup, Materialised view                                           | **BI**                                           | `bi`                    | Read BI views; BI reads everyone, writes no one                         |
 | Workflow definition, instance, task, history                                                | **Workflow** (`platform/workflow`)               | `platform`              | Start instances, subscribe to completion                                |
 | Notification, template, channel, preference                                                 | **Notifications** (`platform/notifications`)     | `platform`              | Call the channel-agnostic API                                           |
@@ -2283,6 +2284,41 @@ organisation's volume; the summary and lists read transactional tables live. _Re
 notifications are required, committees need attendees beyond their members, or task volume makes search or the
 summary slow (§6.7).
 
+**ADR-037 — Mission expenses: a claim with a mandatory receipt picture, reviewed once, never edited.** _Context:_ the
+owner asked for a simple, phone-first "Mission Expense Submission" form under Committees: pick a mission, a category,
+the date, amount and currency, attach a picture of the receipt (camera or upload), and see the claim's status; people
+see their own claims, managers see everyone's and approve or reject them. No ECM exists (Phase 3), payables (ADR-033)
+are for suppliers, not staff, and Phase 2 storage exists only as the private bucket of ADR-021. _Decision:_ (1) Three
+tables in `committees`: `missions` (name unique case-insensitively, a default currency, an active flag — deactivated,
+never deleted), `expense_receipts` (one private storage object each: key, cleaned file name, type, size, PENDING →
+READY) and `mission_expenses` (mission, submitter, category — Dinner, Transportation, Visa, Lunch meal, Coffee, Other,
+an enum because the owner fixed the list — description required for Other, expense date, amount in minor units with
+its currency among EGP, USD, EUR, GBP, TRY, AED and SAR, one receipt, status SUBMITTED → APPROVED or REJECTED with
+reviewer, time and optional note). (2) The database owns the claim for every writer: CHECKs (amount above zero and at
+most 10,000,000.00, currency format, Other described, reviewer and review time set exactly when the status is not
+SUBMITTED, a note only once reviewed, the reviewer never the submitter, receipts JPEG or PNG and at most 10 MB); a guard
+trigger refuses deleting a claim, changing what was claimed, and changing a claim once reviewed — a correction is a
+rejection and a new claim. RLS deny-by-default, API roles revoked. (3) Receipts follow ADR-021's pattern: the phone
+re-encodes the picture as a JPEG at most 2,000 pixels long (small on mobile data, and it drops embedded location data),
+uploads it straight to the private bucket at `committees/receipts/yyyy/mm/<random>` through a one-time signed URL, and
+at submission the server checks that the receipt is the submitter's, pending, less than a day old, of the declared size
+and really a JPEG or PNG by its first bytes, then claims it in the same transaction as the expense. Viewing goes through
+`/committees/expenses/<id>/receipt`, authorised like the claim, audited, and redirected to a link that expires in five
+minutes. (4) Permissions: `committees.expense.read` and `committees.expense.create` join the member tier
+(`committees-user`); `committees.expense.approve` and `committees.mission.administer` are administrator rights
+(`committees-admin`) that pass only organisation-wide (ADR-025), so the section role keeps no approve right (ADR-030).
+A person sees their own claims; a holder of the approve right sees everyone's and can filter by person; nobody reviews
+their own claim (service and CHECK). (5) Totals are per currency and never summed across currencies; rejected claims
+are left out; "claimed" counts submitted and approved claims, "approved" only approved ones. (6) Submitting writes an
+audit record and `committees.MissionExpenseSubmitted`; a review writes an audit record,
+`committees.MissionExpenseReviewed` (ids only) and an in-app notification to the submitter (ADR-036). (7) The expense
+date may be at most one day after today in Cairo, for travellers in later time zones; amounts accept Arabic digits.
+_Consequences:_ approved claims are recorded, not paid — nothing posts to the ledger or reaches payables; there are no
+per-diem limits or spending policies; approvers are not told about new claims; an upload abandoned before submission
+stays in storage (as in §29 #23). _Revisit when:_ claims must be reimbursed through ERP (post approved claims as a
+liability to the employee, with HRIS identities), approval needs more than one step (the workflow engine), or ECM
+ships (move receipts into it).
+
 ---
 
 ## 28. Current Implementation Status
@@ -2507,6 +2543,21 @@ to the file's.
 | Tests       | ✅ 39 integration tests (both permission directions, visibility, notification recipients — nobody about their own action, nobody twice, inactive accounts skipped — filters, summary, database invariants) and 26 unit tests. Full integration suite 270 passing on the scratch cluster; `npm run verify` 312 passing; build succeeds.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | **Missing** | No signed-in browser walk-through (§29 #50); `tests/e2e/committees.spec.ts` skips without credentials; no e-mail channel; no attendee list beyond committee members.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 
+### 🟡 Mission expenses (Committees) — built 2026-10-14 at the owner's request
+
+Design decisions are in ADR-037. Migration `20261014100000_committees_mission_expenses` is applied to a throwaway local
+PostgreSQL 17 cluster only (§29 #49). It is **not** applied to Supabase and the seed has not been re-run there (owner
+review, §8.5). Order on any database: migrate, deploy the code, then seed — the seed grants the four new permissions
+(137 in all) that show "Mission expenses" and "Missions" in the Committees section.
+
+| Area        | State                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Data model  | ✅ 3 `committees` tables: missions, expense_receipts, mission_expenses. CHECKs on amounts, currency, Other's description, review fields and self-review; case-insensitive unique mission names; a guard trigger that refuses deleting, editing or re-reviewing a claim; deny-by-default RLS, API roles revoked.                                                                                                          |
+| Services    | ✅ Missions (list, create, edit, deactivate — administrators), receipt upload preparation and verification by content, submit, list with filters by mission, person (approvers), category, status and expense dates, per-currency totals, approve or reject with an optional note, audited receipt viewing. Every write: permission → Zod → one transaction with audit record and outbox event.                          |
+| UI          | ✅ Committees → Mission expenses (totals per currency, filters, table that becomes cards on phones, "View" receipt link, status badges); a phone-first form (mission, category tiles, date, amount, currency, "Take a picture" on touch screens or "Upload a picture", preview, replace and remove, a sticky submit bar on phones); claim page with the receipt picture and the review panel; Committees → Missions.     |
+| Tests       | ✅ 17 integration tests (storage faked: mission rights and names, deactivation, receipt type, size and content checks, a receipt used once and never someone else's, visibility, totals, date filter, review rights, self-review, a second review, a unit-scoped approver refused, database guard and CHECKs, RLS) and 11 unit tests. Full integration suite 619 passing on the scratch cluster; unit suite 327 passing. |
+| **Missing** | Not applied to Supabase, not deployed. No signed-in walk-through on a phone (§29 #53). Approved claims are not reimbursed or posted to the ledger (§29 #54); approvers are not notified of new claims; abandoned uploads are not cleaned up (§29 #23).                                                                                                                                                                   |
+
 ### 📋 Not started
 
 ECM, HRIS and BI, and ERP beyond finance, receivables and payables. The ECM, HRIS and BI navigation entries and permission keys are declared
@@ -2603,6 +2654,8 @@ Open debt and risk:
 | 50  | **Committees not exercised in a browser**                          | Services, triggers and RLS are covered by 39 integration tests and the schema is live in production, but the screens, the bell's Realtime delivery and the `realtime.messages` policy have not run with a signed-in committee member                                                                                    | Give two people the Committees role and a committee; walk task → reply → status with both signed in and watch the bell; run `tests/e2e/committees.spec.ts` against a test database                    | 🟡 Medium |
 | 51  | **Notifications are in-app only**                                  | No e-mail, SMS or WhatsApp channel exists; someone not signed in learns of a task only when they next open TechVault                                                                                                                                                                                                    | Add an e-mail channel fed by `platform.notifications` through the Phase 2 job queue, with an SMTP provider (ADR needed)                                                                               | 🟢 Low    |
 | 52  | **Timestamps shift on a database server not set to UTC**           | On the scratch cluster (time zone Africa/Cairo) a meeting time written through `@prisma/adapter-pg` read back three hours early; Supabase runs in UTC, so production is unaffected, but any `timestamptz` written by the app is at risk on another server                                                               | Keep every database on UTC (`ALTER DATABASE … SET timezone TO 'UTC'`), or pin the session time zone in `lib/prisma.ts` after confirming the adapter's behaviour                                       | 🟢 Low    |
+| 53  | **Mission expenses not exercised on a phone**                      | Services, the database guard and RLS are covered by 17 integration tests with storage faked; the camera capture, the in-browser re-encoding and the signed upload to the real bucket have not run on a phone against Supabase                                                                                           | After migrating and seeding, submit a claim from a phone with the camera, view the receipt, and approve it as a second person                                                                         | 🟡 Medium |
+| 54  | **Approved mission expenses are not reimbursed through ERP**       | Approval records the decision only; nothing posts the claim to the ledger or pays it, so reimbursement happens outside TechVault                                                                                                                                                                                        | Post approved claims to an employee liability through the ledger engine when ERP reimbursement is wanted (with HRIS identities)                                                                       | 🟢 Low    |
 | 39  | **Sidebar can show ERP to a user with only scoped finance grants** | Navigation evaluates without a target, so any scope shows the section; the ERP layout then returns not-found (ADR-025). Nothing is exposed                                                                                                                                                                              | Let a navigation section require global grants                                                                                                                                                        | 🟢 Low    |
 
 Add real debt here as it accrues, with why it was accepted and the trigger to repay it. A

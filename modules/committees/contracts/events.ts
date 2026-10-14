@@ -12,6 +12,10 @@ export const COMMITTEES_EVENTS = {
   TASK_CREATED: "committees.TaskCreated",
   /** { taskId, meetingId, from, to } */
   TASK_STATUS_CHANGED: "committees.TaskStatusChanged",
+  /** { expenseId, missionId, currency, amountMinor } */
+  MISSION_EXPENSE_SUBMITTED: "committees.MissionExpenseSubmitted",
+  /** { expenseId, status } */
+  MISSION_EXPENSE_REVIEWED: "committees.MissionExpenseReviewed",
 } as const;
 
 /** Notification kinds Committees writes (platform/notifications). */
@@ -19,4 +23,5 @@ export const COMMITTEES_NOTIFICATIONS = {
   TASK_ASSIGNED: "committees.task.assigned",
   TASK_REPLIED: "committees.task.replied",
   TASK_STATUS_CHANGED: "committees.task.status_changed",
+  EXPENSE_REVIEWED: "committees.expense.reviewed",
 } as const;

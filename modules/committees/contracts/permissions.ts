@@ -33,6 +33,18 @@ export const COMMITTEES_PERMISSIONS = {
 
   /** Create and edit committees and their members; see, edit and delete everything. */
   ADMINISTER: "committees.committee.administer",
+
+  /** See one's own mission expenses (ADR-037). */
+  EXPENSE_READ: "committees.expense.read",
+  /** Submit a mission expense with its receipt. */
+  EXPENSE_CREATE: "committees.expense.create",
+  /**
+   * See every mission expense and approve or reject them — never one's own.
+   * Organisation-wide only (ADR-025): expenses carry no org unit to scope by.
+   */
+  EXPENSE_APPROVE: "committees.expense.approve",
+  /** Add, edit and deactivate missions. Organisation-wide only. */
+  MISSION_ADMINISTER: "committees.mission.administer",
 } as const;
 
 type CommitteesPermissionKey =
@@ -80,6 +92,22 @@ export const COMMITTEES_PERMISSION_DEFINITIONS: readonly PermissionDefinition[] 
     "ADMINISTER",
     "Create committees and choose their members; see, edit and delete every meeting and task.",
   ),
+  define(COMMITTEES_PERMISSIONS.EXPENSE_READ, "READ", "See one's own mission expenses."),
+  define(
+    COMMITTEES_PERMISSIONS.EXPENSE_CREATE,
+    "CREATE",
+    "Submit mission expenses with a receipt picture.",
+  ),
+  define(
+    COMMITTEES_PERMISSIONS.EXPENSE_APPROVE,
+    "APPROVE",
+    "See everyone's mission expenses and approve or reject them (never one's own).",
+  ),
+  define(
+    COMMITTEES_PERMISSIONS.MISSION_ADMINISTER,
+    "ADMINISTER",
+    "Add, edit and deactivate the missions expenses are claimed against.",
+  ),
 ];
 
 /** What every committee member may do: take part, never delete. */
@@ -91,6 +119,8 @@ export const COMMITTEES_MEMBER_PERMISSIONS: readonly string[] = [
   COMMITTEES_PERMISSIONS.TASK_CREATE,
   COMMITTEES_PERMISSIONS.TASK_UPDATE,
   COMMITTEES_PERMISSIONS.TASK_REPLY,
+  COMMITTEES_PERMISSIONS.EXPENSE_READ,
+  COMMITTEES_PERMISSIONS.EXPENSE_CREATE,
 ];
 
 /** Everything in Committees. */

@@ -64,6 +64,9 @@ export async function teardownDatabase(): Promise<void> {
  */
 const TABLES = [
   "platform.notifications",
+  "committees.mission_expenses",
+  "committees.expense_receipts",
+  "committees.missions",
   "committees.task_replies",
   "committees.task_assignees",
   "committees.tasks",

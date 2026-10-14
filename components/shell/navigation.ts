@@ -265,9 +265,19 @@ export const NAV_SECTIONS: readonly NavSection[] = [
         permission: COMMITTEES_PERMISSIONS.MEETING_READ,
       },
       {
+        label: "Mission expenses",
+        href: "/committees/expenses",
+        permission: COMMITTEES_PERMISSIONS.EXPENSE_READ,
+      },
+      {
         label: "Committee list",
         href: "/committees/groups",
         permission: COMMITTEES_PERMISSIONS.MEETING_READ,
+      },
+      {
+        label: "Missions",
+        href: "/committees/missions",
+        permission: COMMITTEES_PERMISSIONS.MISSION_ADMINISTER,
       },
     ],
   },

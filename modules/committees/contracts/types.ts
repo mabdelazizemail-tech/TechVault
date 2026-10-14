@@ -1,3 +1,5 @@
+import type { ExpenseCategory, ExpenseCurrency, ExpenseStatus } from "../domain/expenses";
+
 /**
  * DTOs and vocabularies Committees exposes (CLAUDE.md §9 rule 5). Services return
  * these, never Prisma entities.
@@ -183,4 +185,56 @@ export type TaskSummary = {
   inProgress: number;
   completed: number;
   overdue: number;
+};
+
+/* Mission expenses (ADR-037) ------------------------------------------------------ */
+
+export type { ExpenseCategory, ExpenseCurrency, ExpenseStatus };
+
+export type MissionDto = {
+  id: string;
+  name: string;
+  description: string | null;
+  defaultCurrency: string;
+  isActive: boolean;
+  expenseCount: number;
+};
+
+/** A mission as the expense form offers it. */
+export type MissionOption = { id: string; name: string; defaultCurrency: string };
+
+export type ExpenseListItem = {
+  id: string;
+  mission: { id: string; name: string };
+  submitter: PersonRef;
+  category: ExpenseCategory;
+  description: string | null;
+  /** "YYYY-MM-DD". */
+  expenseDate: string;
+  amountMinor: number;
+  currency: string;
+  status: ExpenseStatus;
+  /** The submission date. */
+  submittedAt: Date;
+  reviewer: PersonRef | null;
+  reviewedAt: Date | null;
+};
+
+export type ExpenseDetail = ExpenseListItem & {
+  reviewNote: string | null;
+  receipt: { fileName: string; contentType: string; sizeBytes: number };
+  /** True for someone who may approve or reject it now (never its submitter). */
+  canReview: boolean;
+};
+
+/**
+ * Totals for the expenses a list shows, one row per currency — amounts in different
+ * currencies are never added together.
+ */
+export type ExpenseTotal = {
+  currency: string;
+  /** Submitted and approved claims; rejected ones are left out. */
+  claimedMinor: number;
+  approvedMinor: number;
+  count: number;
 };

@@ -908,7 +908,7 @@ describe.skipIf(!hasTestDatabase)("Committees (integration)", () => {
           FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
          WHERE (n.nspname = 'committees' AND c.relkind = 'r')
             OR (n.nspname = 'platform' AND c.relname = 'notifications')`;
-      expect(tables).toHaveLength(8);
+      expect(tables).toHaveLength(11);
       expect(tables.every((table) => table.relrowsecurity)).toBe(true);
       const triggers = await db().$queryRaw<{ tgname: string }[]>`
         SELECT tgname FROM pg_trigger
