@@ -56,23 +56,30 @@ const columns: Column<MissionDto>[] = [
   },
   {
     key: "total",
-    header: "Total claimed",
+    header: "Total claimed (USD)",
     align: "end",
     cell: (mission) =>
-      mission.totals === null || mission.totals.length === 0 ? (
+      mission.totals === null || mission.totals.currencies.length === 0 ? (
         <span className="text-foreground-muted">—</span>
       ) : (
-        <span className="inline-flex flex-col items-end gap-1">
-          {mission.totals.map((total) => (
-            <span key={total.currency} className="tabular-nums">
-              <span className="text-foreground block font-semibold">
-                {formatExpenseAmount(total.claimedMinor, total.currency)}
-              </span>
-              <span className="text-foreground-muted block text-xs">
-                {formatExpenseAmount(total.approvedMinor, total.currency)} approved
-              </span>
+        <span className="inline-flex flex-col items-end gap-0.5 tabular-nums">
+          <span className="text-foreground font-semibold">
+            {formatExpenseAmount(mission.totals.usd.claimedMinor, "USD")}
+          </span>
+          <span className="text-foreground-muted text-xs">
+            {formatExpenseAmount(mission.totals.usd.approvedMinor, "USD")} approved
+          </span>
+          {mission.totals.usd.pendingCount > 0 && (
+            <span className="text-warning text-xs">
+              {mission.totals.usd.pendingCount} not converted yet
             </span>
-          ))}
+          )}
+          {/* What was actually spent, before conversion. */}
+          <span className="text-foreground-muted mt-1 text-xs">
+            {mission.totals.currencies
+              .map((total) => formatExpenseAmount(total.claimedMinor, total.currency))
+              .join(" · ")}
+          </span>
         </span>
       ),
   },
@@ -117,7 +124,7 @@ export default async function MissionsPage({
     <div>
       <PageHeader
         title="Missions"
-        description="Trips and visits that expenses are claimed against, with what has been claimed on each — one total per currency, rejected claims left out. Deactivate a finished mission: its expenses stay, and it is no longer offered on the expense form."
+        description="Trips and visits that expenses are claimed against, with what has been claimed on each in USD — every claim at the exchange rate of the moment it was submitted, rejected claims left out. Deactivate a finished mission: its expenses stay, and it is no longer offered on the expense form."
         actions={<NewMissionButton />}
       />
 

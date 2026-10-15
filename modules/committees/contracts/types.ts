@@ -3,6 +3,7 @@ import type {
   ExpenseCategory,
   ExpenseCurrency,
   ExpenseStatus,
+  UsdTotal,
 } from "../domain/expenses";
 
 /**
@@ -203,8 +204,8 @@ export type MissionDto = {
   defaultCurrency: string;
   isActive: boolean;
   expenseCount: number;
-  /** One per currency claimed; null for someone who may not see others' claims. */
-  totals: ExpenseTotal[] | null;
+  /** What was claimed on it; null for someone who may not see others' claims. */
+  totals: ExpenseTotals | null;
 };
 
 /** A mission as the expense form offers it. */
@@ -227,6 +228,22 @@ export type ExpenseListItem = {
   reviewedAt: Date | null;
   /** False when the claim was submitted without a picture of its receipt. */
   hasReceipt: boolean;
+  /** The amount in USD at the claim's fixed rate; null while it waits for a rate. */
+  amountUsdMinor: number | null;
+};
+
+/** How a claim was converted to USD (ADR-038). */
+export type ExpenseConversion = {
+  amountMinor: number;
+  /** Units of the claim's currency per 1 USD, as stored ("49.45021"). */
+  rate: string;
+  /** When the provider published the rate. */
+  rateAt: Date;
+  /** "exchangerate-api", or "fixed" for a claim made in USD. */
+  source: string;
+  convertedAt: Date;
+  /** At submission, or later because the rate service could not be reached then. */
+  timing: "submission" | "later";
 };
 
 export type ExpenseDetail = ExpenseListItem & {
@@ -237,11 +254,17 @@ export type ExpenseDetail = ExpenseListItem & {
   canReview: boolean;
   /** True for a Committees administrator, who may delete it whatever its status. */
   canDelete: boolean;
+  /** Null while the claim waits for a rate. */
+  usd: ExpenseConversion | null;
 };
 
-/**
- * Totals for the expenses a list shows, one row per currency — amounts in different
- * currencies are never added together.
- */
 /** One currency: submitted and approved claims, rejected ones left out. */
 export type ExpenseTotal = CurrencyTotal;
+
+/**
+ * Totals for a set of claims: one per currency as claimed, and all of them in USD at
+ * each claim's own fixed rate. Rejected claims are left out of both.
+ */
+export type ExpenseTotals = { currencies: ExpenseTotal[]; usd: UsdTotal };
+
+export type { UsdTotal };

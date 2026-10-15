@@ -23,6 +23,7 @@ import { formatCalendarDate, formatDate } from "@/modules/committees/domain/form
 import { ExpenseStatusBadge } from "@/modules/committees/ui/expense-badges";
 import { flatParams } from "@/modules/committees/ui/page-helpers";
 import { getActor } from "@/platform/auth/current-user";
+import { EXCHANGE_RATE_ATTRIBUTION } from "@/platform/integrations/exchange-rates";
 import { can } from "@/platform/authz/authz";
 import { preview } from "@/platform/notifications/rules";
 
@@ -84,8 +85,17 @@ export default async function ExpensesPage({
       header: "Amount",
       align: "end",
       cell: (expense) => (
-        <span className="font-semibold whitespace-nowrap">
-          {formatExpenseAmount(expense.amountMinor, expense.currency)}
+        <span className="inline-flex flex-col items-end">
+          <span className="font-semibold whitespace-nowrap">
+            {formatExpenseAmount(expense.amountMinor, expense.currency)}
+          </span>
+          {expense.currency !== "USD" && (
+            <span className="text-foreground-muted text-xs whitespace-nowrap tabular-nums">
+              {expense.amountUsdMinor === null
+                ? "USD pending"
+                : `≈ ${formatExpenseAmount(expense.amountUsdMinor, "USD")}`}
+            </span>
+          )}
         </span>
       ),
     },
@@ -161,13 +171,25 @@ export default async function ExpensesPage({
         }
       />
 
-      {totals.length > 0 && (
+      {totals.currencies.length > 0 && (
         <section aria-label="Totals" className="mb-4">
           <p className="label-caps mb-2">
-            Totals for these filters · per currency · rejected claims left out
+            Totals for these filters · rejected claims left out
           </p>
           <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {totals.map((total) => (
+            <li className="panel border-primary p-4">
+              <p className="label-caps">All claims in USD</p>
+              <p className="text-foreground mt-1 text-2xl font-bold tabular-nums">
+                {formatExpenseAmount(totals.usd.claimedMinor, "USD")}
+              </p>
+              <p className="text-foreground-muted mt-1 text-xs">
+                Approved {formatExpenseAmount(totals.usd.approvedMinor, "USD")} · each
+                claim at its rate when submitted
+                {totals.usd.pendingCount > 0 &&
+                  ` · ${totals.usd.pendingCount} not converted yet`}
+              </p>
+            </li>
+            {totals.currencies.map((total) => (
               <li key={total.currency} className="panel p-4">
                 <p className="label-caps">{total.currency}</p>
                 <p className="text-foreground mt-1 text-2xl font-bold tabular-nums">
@@ -180,6 +202,18 @@ export default async function ExpensesPage({
               </li>
             ))}
           </ul>
+          {totals.currencies.some((total) => total.currency !== "USD") && (
+            <p className="text-foreground-muted mt-2 text-xs">
+              <a
+                href={EXCHANGE_RATE_ATTRIBUTION.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:underline"
+              >
+                {EXCHANGE_RATE_ATTRIBUTION.label}
+              </a>
+            </p>
+          )}
         </section>
       )}
 

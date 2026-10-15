@@ -13,10 +13,11 @@ import {
   PAGE_SIZE,
   type MissionDto,
   type MissionOption,
-  type ExpenseTotal,
+  type ExpenseTotals,
   type Paginated,
 } from "../contracts/types";
-import { totalsByCurrency } from "../domain/expenses";
+import { summariseExpenseGroups } from "../domain/expenses";
+import { convertPendingExpenses, toExpenseGroup } from "./expense-service";
 import {
   COMMITTEES_MODULE,
   assertId,
@@ -85,7 +86,8 @@ export async function listMissions(
     rows: rows.map(({ _count, ...mission }) => ({
       ...mission,
       expenseCount: _count.expenses,
-      totals: totals === null ? null : (totals.get(mission.id) ?? []),
+      totals:
+        totals === null ? null : (totals.get(mission.id) ?? summariseExpenseGroups([])),
     })),
     total,
     page,
@@ -94,16 +96,17 @@ export async function listMissions(
 }
 
 /**
- * What has been claimed on each mission, one total per currency, for someone who may
- * see everyone's claims (an approver); null for anyone else. One grouped query for
- * the whole page.
+ * What has been claimed on each mission — per currency, and all of it in USD at each
+ * claim's own fixed rate — for someone who may see everyone's claims (an approver);
+ * null for anyone else. One grouped query for the whole page.
  */
 async function missionTotals(
   actor: Actor,
   missionIds: string[],
-): Promise<Map<string, ExpenseTotal[]> | null> {
+): Promise<Map<string, ExpenseTotals> | null> {
   if (!(await canGlobally(actor, COMMITTEES_PERMISSIONS.EXPENSE_APPROVE))) return null;
   if (missionIds.length === 0) return new Map();
+  await convertPendingExpenses();
   const groups = await prisma.committeeMissionExpense.groupBy({
     by: ["missionId", "currency", "status"],
     where: {
@@ -111,8 +114,8 @@ async function missionTotals(
       deletedAt: null,
       status: { not: "REJECTED" },
     },
-    _sum: { amountMinor: true },
-    _count: { _all: true },
+    _sum: { amountMinor: true, amountUsdMinor: true },
+    _count: { _all: true, usdRate: true },
   });
   const byMission = new Map<string, typeof groups>();
   for (const group of groups) {
@@ -121,14 +124,7 @@ async function missionTotals(
   return new Map(
     [...byMission].map(([missionId, missionGroups]) => [
       missionId,
-      totalsByCurrency(
-        missionGroups.map((group) => ({
-          currency: group.currency,
-          status: group.status,
-          amountMinor: group._sum.amountMinor ?? 0,
-          count: group._count._all,
-        })),
-      ),
+      summariseExpenseGroups(missionGroups.map(toExpenseGroup)),
     ]),
   );
 }

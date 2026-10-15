@@ -7,8 +7,13 @@ import { getExpense } from "@/modules/committees/contracts/service";
 import {
   EXPENSE_CATEGORY_LABELS,
   formatExpenseAmount,
+  formatRate,
 } from "@/modules/committees/domain/expenses";
-import { formatCalendarDate, formatDateTime } from "@/modules/committees/domain/format";
+import {
+  formatCalendarDate,
+  formatDate,
+  formatDateTime,
+} from "@/modules/committees/domain/format";
 import {
   CATEGORY_ICONS,
   ExpenseStatusBadge,
@@ -19,6 +24,7 @@ import {
 } from "@/modules/committees/ui/expense-review";
 import { orNotFound } from "@/modules/committees/ui/page-helpers";
 import { getActor } from "@/platform/auth/current-user";
+import { EXCHANGE_RATE_ATTRIBUTION } from "@/platform/integrations/exchange-rates";
 
 export const metadata: Metadata = { title: "Expense" };
 
@@ -117,6 +123,36 @@ export default async function ExpensePage({
               <Fact label="Amount">
                 <span className="font-semibold tabular-nums">{amount}</span>
               </Fact>
+              {expense.currency !== "USD" && (
+                <Fact label="In USD">
+                  {expense.usd === null ? (
+                    <span className="text-foreground-muted">
+                      Waiting for an exchange rate
+                    </span>
+                  ) : (
+                    <>
+                      <span className="font-semibold tabular-nums">
+                        {formatExpenseAmount(expense.usd.amountMinor, "USD")}
+                      </span>
+                      <span className="text-foreground-muted block text-xs">
+                        At {formatRate(expense.usd.rate)} {expense.currency} per USD, the
+                        rate of {formatDate(expense.usd.rateAt)}
+                        {expense.usd.timing === "submission"
+                          ? ", taken when it was submitted."
+                          : `, taken on ${formatDate(expense.usd.convertedAt)} because no rate was available when it was submitted.`}{" "}
+                        <a
+                          href={EXCHANGE_RATE_ATTRIBUTION.href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="hover:underline"
+                        >
+                          {EXCHANGE_RATE_ATTRIBUTION.label}
+                        </a>
+                      </span>
+                    </>
+                  )}
+                </Fact>
+              )}
               <Fact label="Submitted by">
                 <span dir="auto">{expense.submitter.name}</span>
               </Fact>

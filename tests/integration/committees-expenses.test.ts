@@ -55,6 +55,27 @@ const storage = vi.hoisted(() => ({
 
 vi.mock("@/platform/storage/storage", () => storage);
 
+/** The exchange-rate feed is faked too: tests choose the rates, and the network is never touched. */
+const exchange = vi.hoisted(() => ({
+  getUsdRates: vi.fn(),
+  EXCHANGE_RATE_SOURCE: "exchangerate-api",
+  EXCHANGE_RATE_ATTRIBUTION: { label: "Rates", href: "https://example.test" },
+}));
+
+vi.mock("@/platform/integrations/exchange-rates", () => exchange);
+
+/** Units per 1 USD, as the feed published them on 15 October 2026. */
+const TODAY = {
+  perUsd: new Map([
+    ["USD", "1"],
+    ["TRY", "49.45021"],
+    ["EUR", "0.894425"],
+    ["EGP", "53.095404"],
+  ]),
+  publishedAt: new Date("2026-10-15T00:02:31Z"),
+  source: "exchangerate-api" as const,
+};
+
 const JPEG_HEAD = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46]);
 const PDF_HEAD = new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d, 0x31]);
 
@@ -77,6 +98,7 @@ describe.skipIf(!hasTestDatabase)("Mission expenses (integration)", () => {
     vi.clearAllMocks();
     objects.clear();
     storage.isStorageConfigured.mockReturnValue(true);
+    exchange.getUsdRates.mockResolvedValue(TODAY);
     await resetDatabase();
     await seedPermissions();
     const member = await createRole("committees-user", COMMITTEES_MEMBER_PERMISSIONS);
@@ -329,13 +351,20 @@ describe.skipIf(!hasTestDatabase)("Mission expenses (integration)", () => {
       });
       await claim(bob, { amount: "30.00" });
 
-      expect(await getExpenseTotals(as(carol), { mission: turkey })).toEqual([
-        { currency: "EUR", claimedMinor: 2000, approvedMinor: 0, count: 1 },
-        { currency: "TRY", claimedMinor: 13000, approvedMinor: 10000, count: 2 },
-      ]);
-      expect(await getExpenseTotals(as(alice))).toEqual([
-        { currency: "TRY", claimedMinor: 10000, approvedMinor: 10000, count: 1 },
-      ]);
+      // TRY 100.00 → USD 2.02, TRY 30.00 → USD 0.61, EUR 20.00 → USD 22.36.
+      expect(await getExpenseTotals(as(carol), { mission: turkey })).toEqual({
+        currencies: [
+          { currency: "EUR", claimedMinor: 2000, approvedMinor: 0, count: 1 },
+          { currency: "TRY", claimedMinor: 13000, approvedMinor: 10000, count: 2 },
+        ],
+        usd: { claimedMinor: 2499, approvedMinor: 202, count: 3, pendingCount: 0 },
+      });
+      expect(await getExpenseTotals(as(alice))).toEqual({
+        currencies: [
+          { currency: "TRY", claimedMinor: 10000, approvedMinor: 10000, count: 1 },
+        ],
+        usd: { claimedMinor: 202, approvedMinor: 202, count: 1, pendingCount: 0 },
+      });
       expect((await listExpenses(as(carol), { category: "COFFEE" })).total).toBe(1);
       expect((await listExpenses(as(carol), { status: "REJECTED" })).total).toBe(1);
     });
@@ -353,14 +382,24 @@ describe.skipIf(!hasTestDatabase)("Mission expenses (integration)", () => {
 
       const rows = (await listMissions(as(carol))).rows;
       expect(rows.map((row) => [row.name, row.expenseCount, row.totals])).toEqual([
-        ["Dubai Visit", 0, []],
+        [
+          "Dubai Visit",
+          0,
+          {
+            currencies: [],
+            usd: { claimedMinor: 0, approvedMinor: 0, count: 0, pendingCount: 0 },
+          },
+        ],
         [
           "Turkey Trip",
           4,
-          [
-            { currency: "EUR", claimedMinor: 2000, approvedMinor: 0, count: 1 },
-            { currency: "TRY", claimedMinor: 13000, approvedMinor: 10000, count: 2 },
-          ],
+          {
+            currencies: [
+              { currency: "EUR", claimedMinor: 2000, approvedMinor: 0, count: 1 },
+              { currency: "TRY", claimedMinor: 13000, approvedMinor: 10000, count: 2 },
+            ],
+            usd: { claimedMinor: 2499, approvedMinor: 202, count: 3, pendingCount: 0 },
+          },
         ],
       ]);
 
@@ -477,6 +516,98 @@ describe.skipIf(!hasTestDatabase)("Mission expenses (integration)", () => {
   });
 
   /* ------------------------------------------------------------------------ */
+  /* Converting to USD (ADR-038)                                              */
+  /* ------------------------------------------------------------------------ */
+
+  describe("converting to USD", () => {
+    it("fixes the rate of the moment of submission, and the database derives the USD amount", async () => {
+      const { id } = await claim(alice);
+      const expense = await getExpense(as(alice), id);
+      // TRY 1,250.50 at 49.45021 per USD = USD 25.29.
+      expect(expense.amountUsdMinor).toBe(2529);
+      expect(expense.usd).toEqual({
+        amountMinor: 2529,
+        rate: "49.45021",
+        rateAt: TODAY.publishedAt,
+        source: "exchangerate-api",
+        convertedAt: expect.any(Date),
+        timing: "submission",
+      });
+      expect((await listExpenses(as(alice))).rows[0]?.amountUsdMinor).toBe(2529);
+
+      // A later rate never changes a claim already converted.
+      exchange.getUsdRates.mockResolvedValue({
+        ...TODAY,
+        perUsd: new Map([...TODAY.perUsd, ["TRY", "60"]]),
+      });
+      expect((await getExpense(as(carol), id)).usd?.rate).toBe("49.45021");
+    });
+
+    it("converts a claim made in USD at par, without asking the feed", async () => {
+      exchange.getUsdRates.mockClear();
+      const { id } = await claim(alice, { currency: "USD", amount: "259.05" });
+      expect(exchange.getUsdRates).not.toHaveBeenCalled();
+      expect((await getExpense(as(alice), id)).usd).toMatchObject({
+        amountMinor: 25905,
+        rate: "1",
+        source: "fixed",
+      });
+    });
+
+    it("saves a claim when no rate can be had, and converts it later with that day's rate", async () => {
+      exchange.getUsdRates.mockResolvedValue(null);
+      const { id } = await claim(alice);
+      const pending = await getExpense(as(alice), id);
+      expect(pending).toMatchObject({
+        usd: null,
+        amountUsdMinor: null,
+        status: "SUBMITTED",
+      });
+      expect((await getExpenseTotals(as(carol))).usd).toEqual({
+        claimedMinor: 0,
+        approvedMinor: 0,
+        count: 1,
+        pendingCount: 1,
+      });
+      // Reviewed while still unconverted: the rate can still be added afterwards.
+      await reviewExpense(as(carol), id, { decision: "APPROVED" });
+
+      // Ten minutes later the feed answers again (only Date is faked; the database is real).
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(new Date(Date.now() + 10 * 60 * 1000));
+      try {
+        exchange.getUsdRates.mockResolvedValue(TODAY);
+        expect((await getExpenseTotals(as(carol))).usd).toEqual({
+          claimedMinor: 2529,
+          approvedMinor: 2529,
+          count: 1,
+          pendingCount: 0,
+        });
+      } finally {
+        vi.useRealTimers();
+      }
+      expect((await getExpense(as(alice), id)).usd).toMatchObject({
+        amountMinor: 2529,
+        rate: "49.45021",
+        timing: "later",
+      });
+    });
+
+    it("shows the USD total on the missions list, counting claims not converted yet", async () => {
+      await claim(alice, { amount: "100.00" });
+      exchange.getUsdRates.mockResolvedValue(null);
+      await claim(bob, { amount: "20.00", currency: "EUR" });
+      const [turkeyRow] = (await listMissions(as(carol))).rows;
+      expect(turkeyRow?.totals?.usd).toEqual({
+        claimedMinor: 202,
+        approvedMinor: 0,
+        count: 2,
+        pendingCount: 1,
+      });
+    });
+  });
+
+  /* ------------------------------------------------------------------------ */
   /* Deleting                                                                 */
   /* ------------------------------------------------------------------------ */
 
@@ -493,7 +624,7 @@ describe.skipIf(!hasTestDatabase)("Mission expenses (integration)", () => {
         taxi.id,
       ]);
       expect((await listExpenses(as(alice))).total).toBe(1);
-      expect(await getExpenseTotals(as(carol))).toEqual([
+      expect((await getExpenseTotals(as(carol))).currencies).toEqual([
         { currency: "TRY", claimedMinor: 5000, approvedMinor: 0, count: 1 },
       ]);
       expect((await listMissions(as(carol))).rows[0]?.expenseCount).toBe(1);
@@ -647,6 +778,40 @@ describe.skipIf(!hasTestDatabase)("Mission expenses (integration)", () => {
       await expect(
         db().$executeRaw`DELETE FROM committees.mission_expenses WHERE id = ${id}::uuid`,
       ).rejects.toThrow(/never deleted/);
+    });
+
+    it("derives the USD amount itself, and fixes a rate once, whole", async () => {
+      exchange.getUsdRates.mockResolvedValue(null);
+      const { id } = await claim(alice);
+      await expect(
+        db().$executeRaw`
+          UPDATE committees.mission_expenses SET amount_usd_minor = 1 WHERE id = ${id}::uuid`,
+      ).rejects.toThrow(/amount_usd_minor/);
+      await expect(
+        db().$executeRaw`
+          UPDATE committees.mission_expenses SET usd_rate = 50 WHERE id = ${id}::uuid`,
+      ).rejects.toThrow(/mission_expenses_usd_recorded/);
+      await db().$executeRaw`
+        UPDATE committees.mission_expenses
+           SET usd_rate = 50, usd_rate_at = now(), usd_rate_source = 'test',
+               usd_converted_at = now()
+         WHERE id = ${id}::uuid`;
+      const [row] = await db().$queryRaw<{ amount_usd_minor: bigint }[]>`
+        SELECT amount_usd_minor FROM committees.mission_expenses WHERE id = ${id}::uuid`;
+      // TRY 1,250.50 at 50 per USD = USD 25.01.
+      expect(Number(row?.amount_usd_minor)).toBe(2501);
+      await expect(
+        db().$executeRaw`
+          UPDATE committees.mission_expenses SET usd_rate = 49 WHERE id = ${id}::uuid`,
+      ).rejects.toThrow(/fixed once set/);
+      await expect(
+        db().$executeRaw`
+          INSERT INTO committees.mission_expenses
+            (mission_id, submitted_by, category, expense_date, amount_minor, currency,
+             usd_rate, usd_rate_at, usd_rate_source, usd_converted_at)
+          VALUES (${turkey}::uuid, ${alice.id}::uuid, 'DINNER', CURRENT_DATE, 100, 'USD',
+                  2, now(), 'test', now())`,
+      ).rejects.toThrow(/mission_expenses_usd_par/);
     });
 
     it("has row-level security on the new tables", async () => {

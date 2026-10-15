@@ -15,6 +15,7 @@ import {
   requirePermission,
 } from "@/platform/authz/authz";
 import { publish } from "@/platform/events/publish";
+import { getUsdRates, type UsdRates } from "@/platform/integrations/exchange-rates";
 import { findDirectoryPeople } from "@/platform/iam/services/directory-service";
 import { notify } from "@/platform/notifications/notifications";
 import {
@@ -35,7 +36,7 @@ import {
   PAGE_SIZE,
   type ExpenseDetail,
   type ExpenseListItem,
-  type ExpenseTotal,
+  type ExpenseTotals,
   type Paginated,
   type PersonRef,
 } from "../contracts/types";
@@ -48,7 +49,10 @@ import {
   formatExpenseAmount,
   receiptContentType,
   receiptMatchesContent,
-  totalsByCurrency,
+  summariseExpenseGroups,
+  conversionTiming,
+  type ExpenseGroup,
+  type ExpenseStatus,
 } from "../domain/expenses";
 import {
   COMMITTEES_MODULE,
@@ -74,6 +78,9 @@ import {
  *   database refuses both whatever the code does.
  * - A Committees administrator may delete a claim whatever its status. Deleting marks
  *   it, so it leaves every list, total and page but stays on record.
+ * - Each claim is converted to USD at the rate of the moment it is submitted, fixed
+ *   once (ADR-038). When the rate service cannot be reached, the claim is saved anyway
+ *   and converted at that day's rate before the next page shows USD figures.
  */
 
 const NOT_CONFIGURED =
@@ -100,6 +107,79 @@ function visibleWhere(viewer: ExpenseViewer): Prisma.CommitteeMissionExpenseWher
   return viewer.isApprover
     ? { deletedAt: null }
     : { deletedAt: null, submittedBy: viewer.actor.id };
+}
+
+/* -------------------------------------------------------------------------- */
+/* USD conversion (ADR-038)                                                   */
+/* -------------------------------------------------------------------------- */
+
+/** The source recorded for a claim made in USD, which needs no rate. */
+const PAR_SOURCE = "fixed";
+const PENDING_BATCH = 50;
+
+type Conversion = { usdRate: string; usdRateAt: Date; usdRateSource: string };
+
+/** The rate a claim in `currency` takes now, or null when none is available. */
+function conversionFrom(
+  currency: string,
+  rates: UsdRates | null,
+  now: Date,
+): Conversion | null {
+  if (currency === "USD")
+    return { usdRate: "1", usdRateAt: now, usdRateSource: PAR_SOURCE };
+  const rate = rates?.perUsd.get(currency);
+  if (rates === null || rate === undefined) return null;
+  return { usdRate: rate, usdRateAt: rates.publishedAt, usdRateSource: rates.source };
+}
+
+/**
+ * Gives claims still waiting for a rate — submitted while the rate service could
+ * not be reached, or before conversion existed — today's rate. Runs before any page
+ * shows USD figures. Only rows still without a rate are written, so two pages
+ * loading at once cannot convert a claim twice, and the database refuses to change a
+ * rate once set.
+ */
+export async function convertPendingExpenses(): Promise<void> {
+  const pending = await prisma.committeeMissionExpense.findMany({
+    where: { usdRate: null, deletedAt: null },
+    orderBy: { createdAt: "asc" },
+    take: PENDING_BATCH,
+    select: { id: true, currency: true },
+  });
+  if (pending.length === 0) return;
+  const now = new Date();
+  const rates = pending.some((claim) => claim.currency !== "USD")
+    ? await getUsdRates()
+    : null;
+  const byCurrency = new Map<string, string[]>();
+  for (const claim of pending) {
+    byCurrency.set(claim.currency, [...(byCurrency.get(claim.currency) ?? []), claim.id]);
+  }
+  for (const [currency, ids] of byCurrency) {
+    const conversion = conversionFrom(currency, rates, now);
+    if (conversion === null) continue;
+    await prisma.committeeMissionExpense.updateMany({
+      where: { id: { in: ids }, usdRate: null, deletedAt: null },
+      data: { ...conversion, usdConvertedAt: now },
+    });
+  }
+}
+
+/** A database group of claims (one currency and status) as the pure totals take it. */
+export function toExpenseGroup(group: {
+  currency: string;
+  status: ExpenseStatus;
+  _sum: { amountMinor: number | null; amountUsdMinor: bigint | null };
+  _count: { _all: number; usdRate: number };
+}): ExpenseGroup {
+  return {
+    currency: group.currency,
+    status: group.status,
+    amountMinor: group._sum.amountMinor ?? 0,
+    count: group._count._all,
+    convertedCount: group._count.usdRate,
+    usdMinor: Number(group._sum.amountUsdMinor ?? BigInt(0)),
+  };
 }
 
 export function isReceiptStorageAvailable(): boolean {
@@ -220,6 +300,14 @@ export async function submitExpense(
   }
   const receiptId = input.receiptId;
   if (receiptId !== null) await verifyReceipt(actor, receiptId);
+  // The rate of the moment of submission. When it cannot be had, the claim is saved
+  // anyway and converted later (convertPendingExpenses).
+  const now = new Date();
+  const conversion = conversionFrom(
+    input.currency,
+    input.currency === "USD" ? null : await getUsdRates(),
+    now,
+  );
 
   return prisma.$transaction(async (tx) => {
     if (receiptId !== null) {
@@ -247,6 +335,7 @@ export async function submitExpense(
         amountMinor: input.amount,
         currency: input.currency,
         receiptId,
+        ...(conversion === null ? {} : { ...conversion, usdConvertedAt: now }),
       },
       select: { id: true },
     });
@@ -291,6 +380,7 @@ const listSelect = {
   createdAt: true,
   reviewedAt: true,
   receiptId: true,
+  amountUsdMinor: true,
   mission: { select: { id: true, name: true } },
   submitter: { select: personSelect },
   reviewer: { select: personSelect },
@@ -313,6 +403,7 @@ function toListItem(row: ListRow): ExpenseListItem {
     reviewer: row.reviewer === null ? null : toPerson(row.reviewer),
     reviewedAt: row.reviewedAt,
     hasReceipt: row.receiptId !== null,
+    amountUsdMinor: row.amountUsdMinor === null ? null : Number(row.amountUsdMinor),
   };
 }
 
@@ -340,6 +431,7 @@ export async function listExpenses(
 ): Promise<Paginated<ExpenseListItem> & { isApprover: boolean }> {
   const viewer = await expenseViewer(actor);
   const params = expenseListParamsSchema.parse(rawParams);
+  await convertPendingExpenses();
   const where = listWhere(viewer, params);
   const [total, rows] = await Promise.all([
     prisma.committeeMissionExpense.count({ where }),
@@ -361,29 +453,23 @@ export async function listExpenses(
 }
 
 /**
- * Totals for the same filters as the list, one row per currency: amounts in
- * different currencies are never added together. Rejected claims are left out.
+ * Totals for the same filters as the list: one per currency as claimed, and all of
+ * them in USD at each claim's own fixed rate. Rejected claims are left out.
  */
 export async function getExpenseTotals(
   actor: Actor,
   rawParams: Record<string, unknown> = {},
-): Promise<ExpenseTotal[]> {
+): Promise<ExpenseTotals> {
   const viewer = await expenseViewer(actor);
   const params = expenseListParamsSchema.parse(rawParams);
+  await convertPendingExpenses();
   const groups = await prisma.committeeMissionExpense.groupBy({
     by: ["currency", "status"],
     where: { AND: [listWhere(viewer, params), { status: { not: "REJECTED" } }] },
-    _sum: { amountMinor: true },
-    _count: { _all: true },
+    _sum: { amountMinor: true, amountUsdMinor: true },
+    _count: { _all: true, usdRate: true },
   });
-  return totalsByCurrency(
-    groups.map((group) => ({
-      currency: group.currency,
-      status: group.status,
-      amountMinor: group._sum.amountMinor ?? 0,
-      count: group._count._all,
-    })),
-  );
+  return summariseExpenseGroups(groups.map(toExpenseGroup));
 }
 
 /** The people who have claimed expenses, for an approver's filter. Empty for anyone else. */
@@ -411,12 +497,17 @@ export async function getExpense(
 ): Promise<ExpenseDetail> {
   const viewer = await expenseViewer(actor);
   assertId(expenseId, "expense");
+  await convertPendingExpenses();
   const row = await prisma.committeeMissionExpense.findFirst({
     where: { id: expenseId, ...visibleWhere(viewer) },
     select: {
       ...listSelect,
       submittedBy: true,
       reviewNote: true,
+      usdRate: true,
+      usdRateAt: true,
+      usdRateSource: true,
+      usdConvertedAt: true,
       receipt: { select: { fileName: true, contentType: true, sizeBytes: true } },
     },
   });
@@ -428,6 +519,21 @@ export async function getExpense(
     canReview:
       viewer.isApprover && row.status === "SUBMITTED" && row.submittedBy !== actor.id,
     canDelete: await canGlobally(actor, COMMITTEES_PERMISSIONS.ADMINISTER),
+    usd:
+      row.usdRate === null ||
+      row.usdRateAt === null ||
+      row.usdRateSource === null ||
+      row.usdConvertedAt === null ||
+      row.amountUsdMinor === null
+        ? null
+        : {
+            amountMinor: Number(row.amountUsdMinor),
+            rate: row.usdRate.toString(),
+            rateAt: row.usdRateAt,
+            source: row.usdRateSource,
+            convertedAt: row.usdConvertedAt,
+            timing: conversionTiming(row.createdAt, row.usdConvertedAt),
+          },
   };
 }
 

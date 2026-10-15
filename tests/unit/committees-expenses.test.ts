@@ -6,6 +6,9 @@ import {
   parseAmountText,
   receiptContentType,
   receiptMatchesContent,
+  conversionTiming,
+  formatRate,
+  summariseExpenseGroups,
   totalsByCurrency,
 } from "@/modules/committees/domain/expenses";
 
@@ -54,6 +57,62 @@ describe("totals", () => {
       { currency: "TRY", claimedMinor: 13000, approvedMinor: 10000, count: 3 },
     ]);
     expect(totalsByCurrency([])).toEqual([]);
+  });
+});
+
+describe("totals in USD", () => {
+  it("adds every currency at each claim's own rate, counting claims not converted yet", () => {
+    expect(
+      summariseExpenseGroups([
+        {
+          currency: "TRY",
+          status: "APPROVED",
+          amountMinor: 10000,
+          count: 1,
+          convertedCount: 1,
+          usdMinor: 202,
+        },
+        {
+          currency: "TRY",
+          status: "SUBMITTED",
+          amountMinor: 8000,
+          count: 2,
+          convertedCount: 1,
+          usdMinor: 61,
+        },
+        {
+          currency: "EUR",
+          status: "SUBMITTED",
+          amountMinor: 2000,
+          count: 1,
+          convertedCount: 1,
+          usdMinor: 2236,
+        },
+        {
+          currency: "TRY",
+          status: "REJECTED",
+          amountMinor: 99900,
+          count: 1,
+          convertedCount: 1,
+          usdMinor: 2020,
+        },
+      ]).usd,
+    ).toEqual({ claimedMinor: 2499, approvedMinor: 202, count: 4, pendingCount: 1 });
+  });
+
+  it("shows a stored rate without trailing zeros", () => {
+    expect(formatRate("49.4502100000")).toBe("49.45021");
+    expect(formatRate("1.0000000000")).toBe("1");
+    expect(formatRate("1")).toBe("1");
+    expect(formatRate("0.8944250000")).toBe("0.894425");
+  });
+
+  it("says whether a claim took its rate at submission or later", () => {
+    const submitted = new Date("2026-10-15T09:00:00Z");
+    expect(conversionTiming(submitted, new Date("2026-10-15T09:00:01Z"))).toBe(
+      "submission",
+    );
+    expect(conversionTiming(submitted, new Date("2026-10-15T09:10:00Z"))).toBe("later");
   });
 });
 

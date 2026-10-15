@@ -142,6 +142,63 @@ export function totalsByCurrency(
   return [...totals.values()].sort((a, b) => a.currency.localeCompare(b.currency));
 }
 
+/**
+ * Every currency converted to USD at each claim's own fixed rate (ADR-038):
+ * submitted and approved claims, rejected ones left out. `pendingCount` claims have
+ * no rate yet and are not in the amounts.
+ */
+export type UsdTotal = {
+  claimedMinor: number;
+  approvedMinor: number;
+  count: number;
+  pendingCount: number;
+};
+
+/** One database group: claims of one currency and status. */
+export type ExpenseGroup = {
+  currency: string;
+  status: ExpenseStatus;
+  amountMinor: number;
+  count: number;
+  /** Of `count`, how many have a USD rate, and their USD amount. */
+  convertedCount: number;
+  usdMinor: number;
+};
+
+/** Per-currency totals and the USD total, from the same groups. */
+export function summariseExpenseGroups(groups: readonly ExpenseGroup[]): {
+  currencies: CurrencyTotal[];
+  usd: UsdTotal;
+} {
+  const usd: UsdTotal = { claimedMinor: 0, approvedMinor: 0, count: 0, pendingCount: 0 };
+  for (const group of groups) {
+    if (group.status === "REJECTED") continue;
+    usd.claimedMinor += group.usdMinor;
+    if (group.status === "APPROVED") usd.approvedMinor += group.usdMinor;
+    usd.count += group.count;
+    usd.pendingCount += group.count - group.convertedCount;
+  }
+  return { currencies: totalsByCurrency(groups), usd };
+}
+
+/** "49.4502100000" → "49.45021": a stored rate without trailing zeros. */
+export function formatRate(rate: string): string {
+  return rate.includes(".") ? rate.replace(/0+$/, "").replace(/\.$/, "") : rate;
+}
+
+/**
+ * Whether a claim took its rate when it was submitted, or later because the rate
+ * service could not be reached then (or the claim predates conversion).
+ */
+export function conversionTiming(
+  submittedAt: Date,
+  convertedAt: Date,
+): "submission" | "later" {
+  return convertedAt.getTime() - submittedAt.getTime() <= 2 * 60 * 1000
+    ? "submission"
+    : "later";
+}
+
 /* Receipt pictures ----------------------------------------------------------------- */
 
 /** The largest receipt accepted, after the phone has shrunk it (a CHECK holds it too). */
