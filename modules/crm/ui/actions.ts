@@ -258,3 +258,35 @@ export async function deleteActivityAction(activityId: string): Promise<ActionRe
     return null;
   });
 }
+
+/* Deal attachments (ADR-039) ------------------------------------------------ */
+
+export async function prepareAttachmentAction(
+  opportunityId: string,
+  input: { fileName: string; sizeBytes: number },
+): Promise<
+  ActionResult<{ attachmentId: string; uploadUrl: string; contentType: string }>
+> {
+  return run("crm.opportunity.attachment.prepare", (actor) =>
+    crm.prepareOpportunityAttachment(actor, opportunityId, input),
+  );
+}
+
+export async function attachFilesAction(
+  opportunityId: string,
+  input: { attachmentIds: string[] },
+): Promise<ActionResult<{ attached: number }>> {
+  return run("crm.opportunity.attachment.attach", (actor) =>
+    crm.attachOpportunityFiles(actor, opportunityId, input),
+  );
+}
+
+export async function removeAttachmentAction(
+  opportunityId: string,
+  attachmentId: string,
+): Promise<ActionResult> {
+  return run("crm.opportunity.attachment.remove", async (actor) => {
+    await crm.removeOpportunityAttachment(actor, opportunityId, attachmentId);
+    return null;
+  });
+}

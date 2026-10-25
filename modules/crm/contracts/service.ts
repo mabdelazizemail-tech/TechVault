@@ -61,6 +61,14 @@ export {
   getDeletionImpact,
 } from "../services/deletion-service";
 
+export {
+  attachOpportunityFiles,
+  getOpportunityAttachmentLink,
+  listOpportunityAttachments,
+  prepareOpportunityAttachment,
+  removeOpportunityAttachment,
+} from "../services/attachment-service";
+
 export { searchCrm } from "../services/search-service";
 export { getCrmDashboard } from "../services/dashboard-service";
 

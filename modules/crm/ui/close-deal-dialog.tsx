@@ -17,12 +17,14 @@ import {
   type OpportunityListItem,
   type StageDto,
 } from "../contracts/types";
+import { AttachmentPicker, uploadAttachments } from "./attachments";
 import { toDateInputValue, toMajorInput } from "./format";
 
 /**
  * The lightweight confirmation shown when a deal moves into Closed Won or Closed
  * Lost. It asks only what the record genuinely needs: the final value and date for
- * a win, the reason for a loss.
+ * a win, the reason for a loss. A win can carry attachments — the signed contract or
+ * purchase order — which are uploaded and attached before the deal moves (ADR-039).
  */
 
 export type CloseInput =
@@ -82,12 +84,17 @@ function WonForm({
   const [finalAmount, setFinalAmount] = useState(() => toMajorInput(card.amountMinor));
   const [notes, setNotes] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [files, setFiles] = useState<File[]>([]);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [progress, setProgress] = useState<number | null>(null);
+  const uploading = progress !== null;
 
   return (
     <form
       noValidate
-      onSubmit={(event) => {
+      onSubmit={async (event) => {
         event.preventDefault();
+        if (uploading) return;
         const parsed = closeWonSchema.safeParse({
           kind: "WON",
           actualCloseDate,
@@ -101,6 +108,19 @@ function WonForm({
             ),
           );
           return;
+        }
+        setErrors({});
+        if (files.length > 0) {
+          // The files belong to the deal whatever happens next, so they are attached
+          // first; the deal moves only once every file has passed its check.
+          setUploadError(null);
+          setProgress(0);
+          const uploaded = await uploadAttachments(card.id, files, setProgress);
+          setProgress(null);
+          if (!uploaded.ok) {
+            setUploadError(uploaded.message);
+            return;
+          }
         }
         onConfirm({ kind: "WON", actualCloseDate, finalAmount, notes });
       }}
@@ -155,12 +175,20 @@ function WonForm({
           aria-describedby={describedBy("won-notes", null, "hint")}
         />
       </Field>
+      <AttachmentPicker files={files} onChange={setFiles} disabled={uploading} />
+      {uploadError !== null && (
+        <p role="alert" className="text-danger text-sm">
+          {uploadError} The deal has not been moved.
+        </p>
+      )}
       <DialogActions>
-        <Button variant="secondary" onClick={onCancel}>
+        <Button variant="secondary" onClick={onCancel} disabled={uploading}>
           Cancel
         </Button>
-        <Button type="submit" variant="primary">
-          Mark as won
+        <Button type="submit" variant="primary" isPending={uploading}>
+          {uploading
+            ? `Uploading ${Math.min(progress + 1, files.length)} of ${files.length}…`
+            : "Mark as won"}
         </Button>
       </DialogActions>
     </form>

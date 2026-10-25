@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  attachFilesSchema,
   activitySchema,
   createLeadSchema,
   moveOpportunitySchema,
@@ -312,5 +313,24 @@ describe("CRM input schemas", () => {
     expect(
       activitySchema.safeParse({ type: "CALL", subject: "Intro call" }).success,
     ).toBe(false);
+  });
+});
+
+describe("attaching files to a deal", () => {
+  const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
+
+  it("takes up to ten real ids, counting a repeated one once", () => {
+    expect(attachFilesSchema.parse({ attachmentIds: [id(1), id(1), id(2)] })).toEqual({
+      attachmentIds: [id(1), id(2)],
+    });
+    expect(
+      attachFilesSchema.safeParse({
+        attachmentIds: Array.from({ length: 11 }, (_, n) => id(n)),
+      }).success,
+    ).toBe(false);
+    expect(attachFilesSchema.safeParse({ attachmentIds: [] }).success).toBe(false);
+    expect(attachFilesSchema.safeParse({ attachmentIds: ["not-an-id"] }).success).toBe(
+      false,
+    );
   });
 });

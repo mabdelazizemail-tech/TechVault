@@ -25,4 +25,8 @@ export const CRM_EVENTS = {
   CONTACT_DELETED: "crm.ContactDeleted",
   OPPORTUNITY_DELETED: "crm.OpportunityDeleted",
   ACTIVITY_DELETED: "crm.ActivityDeleted",
+  /** { opportunityId, attachmentIds } — files checked and attached to a deal (ADR-039). */
+  OPPORTUNITY_ATTACHMENTS_ADDED: "crm.OpportunityAttachmentsAdded",
+  /** { opportunityId, attachmentId } */
+  OPPORTUNITY_ATTACHMENT_REMOVED: "crm.OpportunityAttachmentRemoved",
 } as const;

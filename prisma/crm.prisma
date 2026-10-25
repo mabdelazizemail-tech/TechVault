@@ -324,12 +324,13 @@ model CrmOpportunity {
   createdBy String?   @map("created_by") @db.Uuid
   updatedBy String?   @map("updated_by") @db.Uuid
 
-  account     CrmAccount              @relation(fields: [accountId], references: [id], onDelete: Restrict)
-  stage       CrmOpportunityStage     @relation(fields: [stageId], references: [id], onDelete: Restrict)
-  owner       User?                   @relation("CrmOpportunityOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  account     CrmAccount                 @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  stage       CrmOpportunityStage        @relation(fields: [stageId], references: [id], onDelete: Restrict)
+  owner       User?                      @relation("CrmOpportunityOwner", fields: [ownerId], references: [id], onDelete: SetNull)
   contacts    CrmOpportunityContact[]
   activities  CrmActivity[]
-  sourceLeads CrmLead[]               @relation("CrmLeadConvertedOpportunity")
+  sourceLeads CrmLead[]                  @relation("CrmLeadConvertedOpportunity")
+  attachments CrmOpportunityAttachment[]
 
   @@index([stageId])
   @@index([accountId])
@@ -337,6 +338,44 @@ model CrmOpportunity {
   @@index([status, closeDate])
   @@index([deletedAt])
   @@map("opportunities")
+  @@schema("crm")
+}
+
+enum CrmAttachmentStatus {
+  /// Upload authorised; the bytes may not have arrived or been checked yet.
+  PENDING
+  /// Checked by content and attached to the deal.
+  READY
+
+  @@schema("crm")
+}
+
+/// A file attached to a deal — a signed contract, a purchase order (ADR-039). The bytes
+/// live in the private storage bucket; this row holds what the CRM needs to authorise
+/// and audit access. Moves into ECM when it exists.
+model CrmOpportunityAttachment {
+  id            String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  opportunityId String              @map("opportunity_id") @db.Uuid
+  storageKey    String              @unique @map("storage_key")
+  /// Cleaned of any path; the content type comes from the platform's file rules, never the browser.
+  fileName      String              @map("file_name")
+  contentType   String              @map("content_type")
+  sizeBytes     Int                 @map("size_bytes")
+  status        CrmAttachmentStatus @default(PENDING)
+  uploadedBy    String              @map("uploaded_by") @db.Uuid
+  createdAt     DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  /// When it was checked and attached; set exactly when READY.
+  attachedAt    DateTime?           @map("attached_at") @db.Timestamptz(6)
+  /// A removed file stays on record (and in storage) but leaves the deal.
+  deletedAt     DateTime?           @map("deleted_at") @db.Timestamptz(6)
+  deletedBy     String?             @map("deleted_by") @db.Uuid
+
+  opportunity CrmOpportunity @relation(fields: [opportunityId], references: [id], onDelete: Restrict)
+  uploader    User           @relation("CrmAttachmentUploader", fields: [uploadedBy], references: [id], onDelete: Restrict)
+  remover     User?          @relation("CrmAttachmentRemover", fields: [deletedBy], references: [id], onDelete: Restrict)
+
+  @@index([opportunityId])
+  @@map("opportunity_attachments")
   @@schema("crm")
 }
 

@@ -8,11 +8,16 @@ import { cn } from "@/lib/cn";
 import { CRM_PERMISSIONS } from "@/modules/crm/contracts/permissions";
 import {
   getOpportunity,
+  listOpportunityAttachments,
   listStages,
   listTimeline,
 } from "@/modules/crm/contracts/service";
 import { LEAD_SOURCE_LABELS, LOST_REASON_LABELS } from "@/modules/crm/contracts/types";
 import { ActivityTimeline } from "@/modules/crm/ui/activity-timeline";
+import {
+  AddAttachmentsButton,
+  RemoveAttachmentButton,
+} from "@/modules/crm/ui/attachments";
 import { AddActivityButton } from "@/modules/crm/ui/add-activity";
 import { ChannelBadge, PriorityBadge, StageBadge } from "@/modules/crm/ui/badges";
 import { DeleteRecordButton } from "@/modules/crm/ui/delete-record";
@@ -28,6 +33,7 @@ import { orNotFound, uuidParam } from "@/modules/crm/ui/page-helpers";
 import { StageTracker } from "@/modules/crm/ui/stage-tracker";
 import { getActor } from "@/platform/auth/current-user";
 import { canAll } from "@/platform/authz/authz";
+import { fileLabel, formatBytes } from "@/platform/storage/file-types";
 
 export const metadata: Metadata = { title: "Opportunity" };
 
@@ -54,7 +60,7 @@ export default async function OpportunityPage({
     CRM_PERMISSIONS.OPPORTUNITY_DELETE,
     CRM_PERMISSIONS.ACTIVITY_DELETE,
   ]);
-  const [opportunity, rights, timeline, stages] = await Promise.all([
+  const [opportunity, rights, timeline, stages, attachments] = await Promise.all([
     orNotFound(getOpportunity(actor, id)),
     rightsPromise,
     rightsPromise.then((granted) =>
@@ -63,6 +69,7 @@ export default async function OpportunityPage({
         : [],
     ),
     listStages(actor),
+    orNotFound(listOpportunityAttachments(actor, id)),
   ]);
   const canEdit = rights[CRM_PERMISSIONS.OPPORTUNITY_UPDATE] === true;
 
@@ -254,6 +261,63 @@ export default async function OpportunityPage({
                   },
                 ]}
               />
+            )}
+          </Panel>
+
+          <Panel>
+            <PanelHeader
+              kicker="Files"
+              title="Documents"
+              actions={
+                attachments.canAdd && attachments.storageAvailable ? (
+                  <AddAttachmentsButton opportunityId={opportunity.id} />
+                ) : undefined
+              }
+            />
+            {attachments.items.length === 0 ? (
+              <EmptyState
+                title="No documents yet"
+                description={
+                  attachments.canAdd
+                    ? "Attach the signed contract, purchase order or anything else that belongs to this deal."
+                    : "Files attached to this deal appear here."
+                }
+              />
+            ) : (
+              <ul className="divide-border divide-y">
+                {attachments.items.map((file) => (
+                  <li key={file.id} className="flex items-center gap-3 px-4 py-2.5">
+                    <a
+                      href={`/crm/opportunities/${opportunity.id}/attachments/${file.id}`}
+                      target="_blank"
+                      rel="noopener"
+                      className="group min-w-0 flex-1"
+                    >
+                      <span
+                        dir="auto"
+                        className="text-primary-ink block truncate text-sm font-bold group-hover:underline"
+                      >
+                        {file.fileName}
+                      </span>
+                      <span className="text-foreground-muted block text-xs">
+                        {fileLabel(file.fileName)} · {formatBytes(file.sizeBytes)} ·{" "}
+                        {file.uploadedBy?.name ?? "Former user"} ·{" "}
+                        {formatDate(file.attachedAt)}
+                        <span className="sr-only">
+                          {file.preview ? " (opens in a new tab)" : " (downloads)"}
+                        </span>
+                      </span>
+                    </a>
+                    {file.canRemove && (
+                      <RemoveAttachmentButton
+                        opportunityId={opportunity.id}
+                        attachmentId={file.id}
+                        fileName={file.fileName}
+                      />
+                    )}
+                  </li>
+                ))}
+              </ul>
             )}
           </Panel>
         </div>

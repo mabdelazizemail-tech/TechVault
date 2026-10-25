@@ -454,3 +454,30 @@ export type CrmDashboard = {
   recentActivity: ActivityDto[];
   openTasks: ActivityDto[];
 };
+
+/* Deal attachments (ADR-039) ---------------------------------------------------- */
+
+/** A file attached to a deal. The bytes are fetched through an audited, expiring link. */
+export type OpportunityAttachmentDto = {
+  id: string;
+  fileName: string;
+  contentType: string;
+  sizeBytes: number;
+  uploadedBy: UserRef | null;
+  attachedAt: Date;
+  /** PDFs and images open in the browser; other files download. */
+  preview: boolean;
+  /** The uploader (while they may edit the deal) or someone who may delete deals. */
+  canRemove: boolean;
+};
+
+export type OpportunityAttachments = {
+  items: OpportunityAttachmentDto[];
+  /** Whether the viewer may attach files to this deal. */
+  canAdd: boolean;
+  /** False when the server has no storage configured. */
+  storageAvailable: boolean;
+};
+
+/** How many files one attach step accepts. */
+export const MAX_ATTACHMENTS_PER_UPLOAD = 10;

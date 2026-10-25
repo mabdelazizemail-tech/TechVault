@@ -8,6 +8,7 @@ import {
   LEAD_STATUSES,
   LOGGABLE_ACTIVITY_TYPES,
   LOST_REASONS,
+  MAX_ATTACHMENTS_PER_UPLOAD,
   PRIORITIES,
   PURCHASE_TIMELINES,
   SALES_CHANNELS,
@@ -387,3 +388,23 @@ export type MoveOpportunityInput = z.input<typeof moveOpportunitySchema>;
 export type ActivityInput = z.input<typeof activitySchema>;
 export type ListParams = z.output<typeof listParamsSchema>;
 export type PipelineFilters = z.output<typeof pipelineFiltersSchema>;
+
+/* Deal attachments (ADR-039) ---------------------------------------------------- */
+
+/** Asking to upload one file to a deal; its type and limits are checked on the server. */
+export const attachmentUploadSchema = z.object({
+  fileName: z.string().trim().min(1, "Choose a file.").max(255),
+  sizeBytes: z.number().int().positive("That file is empty."),
+});
+
+/** Attaching uploaded files to the deal, once their bytes are in storage. */
+export const attachFilesSchema = z.object({
+  attachmentIds: z
+    .array(z.uuid())
+    .min(1, "Choose at least one file.")
+    .max(
+      MAX_ATTACHMENTS_PER_UPLOAD,
+      `Attach at most ${MAX_ATTACHMENTS_PER_UPLOAD} files at a time.`,
+    )
+    .transform((ids) => [...new Set(ids)]),
+});

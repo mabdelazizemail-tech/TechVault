@@ -112,6 +112,7 @@ const TABLES = [
   "messaging.conversation_participants",
   "messaging.conversations",
   "messaging.user_presence",
+  "crm.opportunity_attachments",
   "crm.activities",
   "crm.opportunity_contacts",
   "crm.leads",

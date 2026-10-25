@@ -150,12 +150,14 @@ model User {
   // CRM ownership and assignment (crm.prisma). Real foreign keys to iam.users are
   // allowed for identity references (CLAUDE.md §8.3). Relation fields only —
   // they add no columns to this table.
-  crmAccountsOwned      CrmAccount[]     @relation("CrmAccountOwner")
-  crmContactsOwned      CrmContact[]     @relation("CrmContactOwner")
-  crmLeadsOwned         CrmLead[]        @relation("CrmLeadOwner")
-  crmOpportunitiesOwned CrmOpportunity[] @relation("CrmOpportunityOwner")
-  crmActivitiesAssigned CrmActivity[]    @relation("CrmActivityAssignee")
-  crmActivitiesCreated  CrmActivity[]    @relation("CrmActivityCreator")
+  crmAccountsOwned       CrmAccount[]               @relation("CrmAccountOwner")
+  crmContactsOwned       CrmContact[]               @relation("CrmContactOwner")
+  crmLeadsOwned          CrmLead[]                  @relation("CrmLeadOwner")
+  crmOpportunitiesOwned  CrmOpportunity[]           @relation("CrmOpportunityOwner")
+  crmAttachmentsUploaded CrmOpportunityAttachment[] @relation("CrmAttachmentUploader")
+  crmAttachmentsRemoved  CrmOpportunityAttachment[] @relation("CrmAttachmentRemover")
+  crmActivitiesAssigned  CrmActivity[]              @relation("CrmActivityAssignee")
+  crmActivitiesCreated   CrmActivity[]              @relation("CrmActivityCreator")
 
   // Messaging (messaging.prisma). Relation fields only.
   msgParticipations MsgParticipant[] @relation("MsgParticipantUser")
