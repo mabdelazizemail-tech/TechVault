@@ -57,6 +57,8 @@ export {
   listExpenseSubmitters,
   listExpenses,
   prepareReceiptUpload,
+  markExpensesPaid,
   reviewExpense,
+  undoExpensePayment,
   submitExpense,
 } from "../services/expense-service";

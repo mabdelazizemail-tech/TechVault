@@ -30,7 +30,9 @@ import {
   expenseListParamsSchema,
   expenseReviewSchema,
   expenseSchema,
+  markExpensesPaidSchema,
   receiptUploadSchema,
+  undoExpensePaymentSchema,
 } from "../contracts/schemas";
 import {
   PAGE_SIZE,
@@ -52,8 +54,10 @@ import {
   summariseExpenseGroups,
   conversionTiming,
   type ExpenseGroup,
+  type ExpenseStage,
   type ExpenseStatus,
 } from "../domain/expenses";
+import { formatCalendarDate } from "../domain/format";
 import {
   COMMITTEES_MODULE,
   assertId,
@@ -169,12 +173,14 @@ export async function convertPendingExpenses(): Promise<void> {
 export function toExpenseGroup(group: {
   currency: string;
   status: ExpenseStatus;
+  paidOn: Date | null;
   _sum: { amountMinor: number | null; amountUsdMinor: bigint | null };
   _count: { _all: number; usdRate: number };
 }): ExpenseGroup {
   return {
     currency: group.currency,
     status: group.status,
+    paid: group.paidOn !== null,
     amountMinor: group._sum.amountMinor ?? 0,
     count: group._count._all,
     convertedCount: group._count.usdRate,
@@ -381,6 +387,7 @@ const listSelect = {
   reviewedAt: true,
   receiptId: true,
   amountUsdMinor: true,
+  paidOn: true,
   mission: { select: { id: true, name: true } },
   submitter: { select: personSelect },
   reviewer: { select: personSelect },
@@ -404,7 +411,20 @@ function toListItem(row: ListRow): ExpenseListItem {
     reviewedAt: row.reviewedAt,
     hasReceipt: row.receiptId !== null,
     amountUsdMinor: row.amountUsdMinor === null ? null : Number(row.amountUsdMinor),
+    paidOn: row.paidOn === null ? null : isoDateOf(row.paidOn),
   };
+}
+
+/** The claims at one stage; "APPROVED" means approved and not yet paid (ADR-040). */
+function stageWhere(stage: ExpenseStage): Prisma.CommitteeMissionExpenseWhereInput {
+  switch (stage) {
+    case "APPROVED":
+      return { status: "APPROVED", paidOn: null };
+    case "PAID":
+      return { status: "APPROVED", paidOn: { not: null } };
+    default:
+      return { status: stage };
+  }
 }
 
 function listWhere(
@@ -418,7 +438,7 @@ function listWhere(
       // Only an approver sees other people's claims to filter by.
       viewer.isApprover && params.user !== undefined ? { submittedBy: params.user } : {},
       params.category !== undefined ? { category: params.category } : {},
-      params.status !== undefined ? { status: params.status } : {},
+      params.status !== undefined ? stageWhere(params.status) : {},
       params.from !== undefined ? { expenseDate: { gte: dateFromIso(params.from) } } : {},
       params.to !== undefined ? { expenseDate: { lte: dateFromIso(params.to) } } : {},
     ],
@@ -428,12 +448,12 @@ function listWhere(
 export async function listExpenses(
   actor: Actor,
   rawParams: Record<string, unknown> = {},
-): Promise<Paginated<ExpenseListItem> & { isApprover: boolean }> {
+): Promise<Paginated<ExpenseListItem> & { isApprover: boolean; canMarkPaid: boolean }> {
   const viewer = await expenseViewer(actor);
   const params = expenseListParamsSchema.parse(rawParams);
   await convertPendingExpenses();
   const where = listWhere(viewer, params);
-  const [total, rows] = await Promise.all([
+  const [total, rows, canMarkPaid] = await Promise.all([
     prisma.committeeMissionExpense.count({ where }),
     prisma.committeeMissionExpense.findMany({
       where,
@@ -442,6 +462,7 @@ export async function listExpenses(
       take: PAGE_SIZE,
       select: listSelect,
     }),
+    canGlobally(actor, COMMITTEES_PERMISSIONS.ADMINISTER),
   ]);
   return {
     rows: rows.map(toListItem),
@@ -449,6 +470,7 @@ export async function listExpenses(
     page: params.page,
     pageSize: PAGE_SIZE,
     isApprover: viewer.isApprover,
+    canMarkPaid,
   };
 }
 
@@ -464,7 +486,7 @@ export async function getExpenseTotals(
   const params = expenseListParamsSchema.parse(rawParams);
   await convertPendingExpenses();
   const groups = await prisma.committeeMissionExpense.groupBy({
-    by: ["currency", "status"],
+    by: ["currency", "status", "paidOn"],
     where: { AND: [listWhere(viewer, params), { status: { not: "REJECTED" } }] },
     _sum: { amountMinor: true, amountUsdMinor: true },
     _count: { _all: true, usdRate: true },
@@ -508,17 +530,32 @@ export async function getExpense(
       usdRateAt: true,
       usdRateSource: true,
       usdConvertedAt: true,
+      paidAt: true,
+      paymentReference: true,
+      payer: { select: personSelect },
       receipt: { select: { fileName: true, contentType: true, sizeBytes: true } },
     },
   });
   if (row === null) throw new NotFoundError("expense");
+  const isAdministrator = await canGlobally(actor, COMMITTEES_PERMISSIONS.ADMINISTER);
   return {
     ...toListItem(row),
     reviewNote: row.reviewNote,
     receipt: row.receipt,
     canReview:
       viewer.isApprover && row.status === "SUBMITTED" && row.submittedBy !== actor.id,
-    canDelete: await canGlobally(actor, COMMITTEES_PERMISSIONS.ADMINISTER),
+    canDelete: isAdministrator,
+    canMarkPaid: isAdministrator && row.status === "APPROVED" && row.paidOn === null,
+    canUndoPayment: isAdministrator && row.paidOn !== null,
+    payment:
+      row.paidOn === null || row.paidAt === null
+        ? null
+        : {
+            paidOn: isoDateOf(row.paidOn),
+            reference: row.paymentReference,
+            recordedBy: row.payer === null ? null : toPerson(row.payer),
+            recordedAt: row.paidAt,
+          },
     usd:
       row.usdRate === null ||
       row.usdRateAt === null ||
@@ -683,6 +720,225 @@ export async function deleteExpense(actor: Actor, expenseId: string): Promise<vo
       title: `${nameOf(actor.id) ?? "An administrator"} deleted your expense`,
       body: what,
       link: "/committees/expenses",
+    });
+  });
+}
+
+/* -------------------------------------------------------------------------- */
+/* Paying (ADR-040)                                                           */
+/* -------------------------------------------------------------------------- */
+
+const what = (claim: {
+  category: keyof typeof EXPENSE_CATEGORY_LABELS;
+  amountMinor: number;
+  currency: string;
+  mission: { name: string };
+}) =>
+  `${EXPENSE_CATEGORY_LABELS[claim.category]} ${formatExpenseAmount(claim.amountMinor, claim.currency)} on ${claim.mission.name}`;
+
+/**
+ * Records that approved claims have been paid, on a date and with an optional
+ * reference (a bank transfer number, "Cash"…). Committees administrators only,
+ * organisation-wide. All or none: if any chosen claim is not an approved, unpaid,
+ * live claim — or someone else changes one meanwhile — nothing is recorded. Each
+ * submitter is told once, about all of their claims in the batch.
+ */
+export async function markExpensesPaid(
+  actor: Actor,
+  rawInput: unknown,
+): Promise<{ paid: number }> {
+  await requireGlobalPermission(actor, COMMITTEES_PERMISSIONS.ADMINISTER);
+  const input = parseInput(markExpensesPaidSchema, rawInput);
+  // A day's grace, as for expense dates: a payment made abroad, a time zone ahead.
+  if (input.paidOn > addDays(todayInCairo(), 1)) {
+    throw new ValidationError("The payment date cannot be in the future.", {
+      paidOn: ["The payment date cannot be in the future."],
+    });
+  }
+
+  const claims = await prisma.committeeMissionExpense.findMany({
+    where: { id: { in: input.expenseIds }, deletedAt: null },
+    select: {
+      id: true,
+      status: true,
+      paidOn: true,
+      submittedBy: true,
+      category: true,
+      amountMinor: true,
+      currency: true,
+      mission: { select: { name: true } },
+    },
+  });
+  if (claims.length !== input.expenseIds.length) {
+    throw new ConflictError(
+      "Some of the chosen expenses no longer exist. Refresh the list and try again.",
+    );
+  }
+  const notApproved = claims.filter((claim) => claim.status !== "APPROVED").length;
+  if (notApproved > 0) {
+    throw new BusinessRuleError(
+      notApproved === 1
+        ? "One of the chosen expenses is not approved. Only approved expenses can be marked as paid."
+        : `${notApproved} of the chosen expenses are not approved. Only approved expenses can be marked as paid.`,
+    );
+  }
+  const alreadyPaid = claims.filter((claim) => claim.paidOn !== null).length;
+  if (alreadyPaid > 0) {
+    throw new ConflictError(
+      alreadyPaid === 1
+        ? "One of the chosen expenses is already marked as paid. Refresh the list and try again."
+        : `${alreadyPaid} of the chosen expenses are already marked as paid. Refresh the list and try again.`,
+    );
+  }
+
+  const [payer] = await findDirectoryPeople(actor, [actor.id]);
+  const payerName = payer?.name ?? "An administrator";
+  const paidOnLabel = formatCalendarDate(input.paidOn);
+  const referenceText = input.reference === null ? "" : ` (${input.reference})`;
+
+  await prisma.$transaction(async (tx) => {
+    // Conditional, so a claim paid, unapproved or deleted a moment ago is not paid twice.
+    const paid = await tx.committeeMissionExpense.updateMany({
+      where: {
+        id: { in: input.expenseIds },
+        status: "APPROVED",
+        paidOn: null,
+        deletedAt: null,
+      },
+      data: {
+        paidOn: dateFromIso(input.paidOn),
+        paidAt: new Date(),
+        paidBy: actor.id,
+        paymentReference: input.reference,
+      },
+    });
+    if (paid.count !== input.expenseIds.length) {
+      throw new ConflictError(
+        "Someone changed one of the chosen expenses just now. Refresh the list and try again.",
+      );
+    }
+    for (const claim of claims) {
+      await recordAudit(
+        {
+          ...auditFields(actor),
+          action: "committees.expense.paid",
+          module: COMMITTEES_MODULE,
+          entityType: "CommitteeMissionExpense",
+          entityId: claim.id,
+          summary: `Marked as paid on ${paidOnLabel}${referenceText}: ${what(claim)}`,
+        },
+        tx,
+      );
+    }
+    await publish(tx, {
+      name: COMMITTEES_EVENTS.MISSION_EXPENSES_PAID,
+      actorId: actor.id,
+      correlationId: actor.correlationId ?? null,
+      payload: { expenseIds: input.expenseIds, paidOn: input.paidOn },
+    });
+
+    const bySubmitter = new Map<string, typeof claims>();
+    for (const claim of claims) {
+      bySubmitter.set(claim.submittedBy, [
+        ...(bySubmitter.get(claim.submittedBy) ?? []),
+        claim,
+      ]);
+    }
+    for (const [submitter, theirs] of bySubmitter) {
+      const first = theirs[0];
+      if (first === undefined) continue;
+      await notify(tx, {
+        type: COMMITTEES_NOTIFICATIONS.EXPENSE_PAID,
+        module: COMMITTEES_MODULE,
+        entityType: "CommitteeMissionExpense",
+        entityId: first.id,
+        // One notice per person per batch, however many of their claims it covers.
+        sourceId: crypto.randomUUID(),
+        actorId: actor.id,
+        recipientIds: [submitter],
+        title:
+          theirs.length === 1
+            ? `${payerName} marked your expense as paid`
+            : `${payerName} marked ${theirs.length} of your expenses as paid`,
+        body: `Paid on ${paidOnLabel}${referenceText}: ${theirs.map(what).join("; ")}`,
+        link:
+          theirs.length === 1
+            ? `/committees/expenses/${first.id}`
+            : "/committees/expenses?status=PAID",
+      });
+    }
+  });
+  return { paid: input.expenseIds.length };
+}
+
+/**
+ * Marks a paid claim as not paid after all — a payment recorded by mistake. The
+ * reason goes to the audit trail, at WARNING, and the submitter is told. The claim
+ * can then be marked as paid again.
+ */
+export async function undoExpensePayment(
+  actor: Actor,
+  expenseId: string,
+  rawInput: unknown,
+): Promise<void> {
+  await requireGlobalPermission(actor, COMMITTEES_PERMISSIONS.ADMINISTER);
+  assertId(expenseId, "expense");
+  const input = parseInput(undoExpensePaymentSchema, rawInput);
+  const claim = await prisma.committeeMissionExpense.findFirst({
+    where: { id: expenseId, deletedAt: null },
+    select: {
+      paidOn: true,
+      submittedBy: true,
+      category: true,
+      amountMinor: true,
+      currency: true,
+      mission: { select: { name: true } },
+    },
+  });
+  if (claim === null) throw new NotFoundError("expense");
+  if (claim.paidOn === null) {
+    throw new ConflictError("This expense is not marked as paid.");
+  }
+  const wasPaidOn = formatCalendarDate(isoDateOf(claim.paidOn));
+  const [admin] = await findDirectoryPeople(actor, [actor.id]);
+
+  await prisma.$transaction(async (tx) => {
+    const cleared = await tx.committeeMissionExpense.updateMany({
+      where: { id: expenseId, paidOn: { not: null }, deletedAt: null },
+      data: { paidOn: null, paidAt: null, paidBy: null, paymentReference: null },
+    });
+    if (cleared.count !== 1) {
+      throw new ConflictError("This expense is not marked as paid.");
+    }
+    await recordAudit(
+      {
+        ...auditFields(actor),
+        action: "committees.expense.payment_undone",
+        module: COMMITTEES_MODULE,
+        entityType: "CommitteeMissionExpense",
+        entityId: expenseId,
+        summary: `Marked as not paid (was paid on ${wasPaidOn}): ${what(claim)} — “${input.reason}”`,
+        severity: "WARNING",
+      },
+      tx,
+    );
+    await publish(tx, {
+      name: COMMITTEES_EVENTS.MISSION_EXPENSE_PAYMENT_UNDONE,
+      actorId: actor.id,
+      correlationId: actor.correlationId ?? null,
+      payload: { expenseId },
+    });
+    await notify(tx, {
+      type: COMMITTEES_NOTIFICATIONS.EXPENSE_PAYMENT_UNDONE,
+      module: COMMITTEES_MODULE,
+      entityType: "CommitteeMissionExpense",
+      entityId: expenseId,
+      sourceId: crypto.randomUUID(),
+      actorId: actor.id,
+      recipientIds: [claim.submittedBy],
+      title: `${admin?.name ?? "An administrator"} marked your expense as not paid`,
+      body: `${what(claim)} — “${input.reason}”`,
+      link: `/committees/expenses/${expenseId}`,
     });
   });
 }

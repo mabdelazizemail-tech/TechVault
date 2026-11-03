@@ -3,7 +3,8 @@ import { isIsoDate } from "../domain/dates";
 import {
   EXPENSE_CATEGORIES,
   EXPENSE_CURRENCIES,
-  EXPENSE_STATUSES,
+  EXPENSE_STAGES,
+  MAX_PAYMENT_BATCH,
   parseAmountText,
 } from "../domain/expenses";
 import { DUE_WINDOWS, TASK_DISPLAY_STATUSES, TASK_STATUSES } from "./types";
@@ -231,12 +232,29 @@ export const expenseReviewSchema = z.object({
   note: optionalText(1000),
 });
 
+/** Recording that approved claims have been paid (ADR-040). */
+export const markExpensesPaidSchema = z.object({
+  expenseIds: z
+    .array(z.uuid())
+    .min(1, "Choose at least one expense.")
+    .max(MAX_PAYMENT_BATCH, `Mark at most ${MAX_PAYMENT_BATCH} expenses at a time.`)
+    .transform((ids) => [...new Set(ids)]),
+  paidOn: isoDate,
+  reference: optionalText(200),
+});
+
+/** Marking a paid claim as not paid after all; the reason goes to the audit trail. */
+export const undoExpensePaymentSchema = z.object({
+  reason: requiredText("A reason", 500),
+});
+
 export const expenseListParamsSchema = z.object({
   page: z.coerce.number().int().min(1).catch(1),
   mission: z.uuid().optional().catch(undefined),
   user: z.uuid().optional().catch(undefined),
   category: z.enum(EXPENSE_CATEGORIES).optional().catch(undefined),
-  status: z.enum(EXPENSE_STATUSES).optional().catch(undefined),
+  /** Where claims stand: "APPROVED" means approved and not yet paid (ADR-040). */
+  status: z.enum(EXPENSE_STAGES).optional().catch(undefined),
   from: z.string().refine(isIsoDate).optional().catch(undefined),
   to: z.string().refine(isIsoDate).optional().catch(undefined),
 });

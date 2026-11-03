@@ -227,6 +227,25 @@ export async function deleteExpenseAction(expenseId: string): Promise<ActionResu
   );
 }
 
+export async function markExpensesPaidAction(input: {
+  expenseIds: string[];
+  paidOn: string;
+  reference: string;
+}): Promise<ActionResult<{ paid: number }>> {
+  return run("committees.expense.pay", (actor) =>
+    committees.markExpensesPaid(actor, input),
+  );
+}
+
+export async function undoExpensePaymentAction(
+  expenseId: string,
+  input: { reason: string },
+): Promise<ActionResult> {
+  return run("committees.expense.unpay", (actor) =>
+    done(committees.undoExpensePayment(actor, expenseId, input)),
+  );
+}
+
 export async function createMissionAction(
   input: unknown,
 ): Promise<ActionResult<{ id: string }>> {

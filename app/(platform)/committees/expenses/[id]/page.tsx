@@ -22,7 +22,12 @@ import {
   DeleteExpenseButton,
   ExpenseReview,
 } from "@/modules/committees/ui/expense-review";
+import {
+  MarkPaidButton,
+  UndoPaymentButton,
+} from "@/modules/committees/ui/expense-payment";
 import { orNotFound } from "@/modules/committees/ui/page-helpers";
+import { todayInCairo } from "@/modules/committees/domain/dates";
 import { getActor } from "@/platform/auth/current-user";
 import { EXCHANGE_RATE_ATTRIBUTION } from "@/platform/integrations/exchange-rates";
 
@@ -58,7 +63,7 @@ export default async function ExpensePage({
           </h1>
         </div>
         <div className="flex items-center gap-2">
-          <ExpenseStatusBadge status={expense.status} />
+          <ExpenseStatusBadge status={expense.status} paidOn={expense.paidOn} />
           {expense.canDelete && (
             <DeleteExpenseButton
               expenseId={expense.id}
@@ -158,7 +163,7 @@ export default async function ExpensePage({
               </Fact>
               <Fact label="Submitted">{formatDateTime(expense.submittedAt)}</Fact>
               <Fact label="Status">
-                <ExpenseStatusBadge status={expense.status} />
+                <ExpenseStatusBadge status={expense.status} paidOn={expense.paidOn} />
               </Fact>
               {expense.reviewer !== null && expense.reviewedAt !== null && (
                 <Fact
@@ -179,6 +184,51 @@ export default async function ExpensePage({
               )}
             </dl>
           </Panel>
+
+          {expense.status === "APPROVED" && (
+            <Panel className="overflow-hidden">
+              <PanelHeader title="Payment" />
+              <div className="flex flex-col gap-3 px-4 py-4 text-sm">
+                {expense.payment === null ? (
+                  <p className="text-foreground-muted">
+                    Approved and waiting to be paid.
+                  </p>
+                ) : (
+                  <p className="text-foreground">
+                    Paid on <strong>{formatCalendarDate(expense.payment.paidOn)}</strong>
+                    {expense.payment.reference !== null && (
+                      <>
+                        {" "}
+                        · <span dir="auto">{expense.payment.reference}</span>
+                      </>
+                    )}
+                    <span className="text-foreground-muted block text-xs">
+                      Recorded by {expense.payment.recordedBy?.name ?? "a former user"} on{" "}
+                      {formatDateTime(expense.payment.recordedAt)}
+                    </span>
+                  </p>
+                )}
+                {expense.canMarkPaid && (
+                  <div>
+                    <MarkPaidButton
+                      today={todayInCairo()}
+                      expense={{
+                        id: expense.id,
+                        label: `${category} ${amount} · ${expense.submitter.name}`,
+                        amountMinor: expense.amountMinor,
+                        currency: expense.currency,
+                      }}
+                    />
+                  </div>
+                )}
+                {expense.canUndoPayment && (
+                  <div>
+                    <UndoPaymentButton expenseId={expense.id} label={label} />
+                  </div>
+                )}
+              </div>
+            </Panel>
+          )}
 
           {expense.canReview && (
             <Panel className="overflow-hidden">

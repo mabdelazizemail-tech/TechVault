@@ -70,9 +70,16 @@ export type DataTableProps<TRow> = {
    * `<form id={formId}>` through the `form` attribute, so the table stays a Server
    * Component and the bulk-action form reads the selection from its own FormData.
    * A row's value appears twice (table and phone card): the caller must keep boxes
-   * with the same value in step and de-duplicate what it counts and sends.
+   * with the same value in step and de-duplicate what it counts and sends. A row
+   * for which `selectable` returns false gets no checkbox, so "select all" reaches
+   * only the rows the bulk action applies to.
    */
-  selection?: { formId: string; name: string; rowLabel: (row: TRow) => string };
+  selection?: {
+    formId: string;
+    name: string;
+    rowLabel: (row: TRow) => string;
+    selectable?: (row: TRow) => boolean;
+  };
 };
 
 export function DataTable<TRow>({
@@ -160,14 +167,16 @@ export function DataTable<TRow>({
               >
                 {selection !== undefined && (
                   <td className="px-4 py-3 align-middle">
-                    <input
-                      type="checkbox"
-                      form={selection.formId}
-                      name={selection.name}
-                      value={rowKey(row)}
-                      aria-label={`Select ${selection.rowLabel(row)}`}
-                      className="accent-primary size-4 cursor-pointer align-middle"
-                    />
+                    {(selection.selectable?.(row) ?? true) && (
+                      <input
+                        type="checkbox"
+                        form={selection.formId}
+                        name={selection.name}
+                        value={rowKey(row)}
+                        aria-label={`Select ${selection.rowLabel(row)}`}
+                        className="accent-primary size-4 cursor-pointer align-middle"
+                      />
+                    )}
                   </td>
                 )}
                 {columns.map((column) => (
@@ -269,7 +278,7 @@ function CardList<TRow>({
             key={rowKey(row)}
             className="border-border flex items-start gap-1 border-b py-3 ps-1 pe-4 last:border-0"
           >
-            {selection !== undefined ? (
+            {selection !== undefined && (selection.selectable?.(row) ?? true) ? (
               // The label is the hit area: 44px square around a 20px box.
               <label className="-my-1.5 grid size-11 shrink-0 cursor-pointer place-items-center">
                 <input
@@ -282,7 +291,11 @@ function CardList<TRow>({
                 />
               </label>
             ) : (
-              <span aria-hidden="true" className="w-3 shrink-0" />
+              // A row that cannot be selected keeps the checkbox's width, so cards align.
+              <span
+                aria-hidden="true"
+                className={cn("shrink-0", selection !== undefined ? "w-11" : "w-3")}
+              />
             )}
             <div className="min-w-0 flex-1">
               <div className="text-foreground min-w-0 text-[15px] font-semibold break-words">

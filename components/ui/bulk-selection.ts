@@ -1,9 +1,9 @@
 /**
- * The rules behind the leads list's bulk selection, kept free of the DOM so they
- * can be tested.
+ * The rules behind a list's bulk selection (`DataTable` with `selection`), kept free
+ * of the DOM so they can be tested. Used by the CRM leads list and mission expenses.
  *
- * Each lead is on the page twice — a checkbox in the table and one in its phone
- * card — sharing the lead's id as their value. Only one layout is visible at a
+ * Each row is on the page twice — a checkbox in the table and one in its phone
+ * card — sharing the row's id as their value. Only one layout is visible at a
  * time, but both boxes are in the form, so a change to one must reach its twin,
  * and the selection is counted and sent as distinct ids.
  */

@@ -1,5 +1,6 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  BusinessRuleError,
   ConflictError,
   ForbiddenError,
   NotFoundError,
@@ -20,12 +21,15 @@ import {
   listExpenses,
   listMissionOptions,
   listMissions,
+  markExpensesPaid,
   prepareReceiptUpload,
   reviewExpense,
   submitExpense,
+  undoExpensePayment,
   updateMission,
 } from "@/modules/committees/contracts/service";
 import { addDays, todayInCairo } from "@/modules/committees/domain/dates";
+import { formatCalendarDate } from "@/modules/committees/domain/format";
 import {
   createRole,
   createUser,
@@ -354,16 +358,46 @@ describe.skipIf(!hasTestDatabase)("Mission expenses (integration)", () => {
       // TRY 100.00 → USD 2.02, TRY 30.00 → USD 0.61, EUR 20.00 → USD 22.36.
       expect(await getExpenseTotals(as(carol), { mission: turkey })).toEqual({
         currencies: [
-          { currency: "EUR", claimedMinor: 2000, approvedMinor: 0, count: 1 },
-          { currency: "TRY", claimedMinor: 13000, approvedMinor: 10000, count: 2 },
+          {
+            currency: "EUR",
+            claimedMinor: 2000,
+            approvedMinor: 0,
+            paidMinor: 0,
+            count: 1,
+          },
+          {
+            currency: "TRY",
+            claimedMinor: 13000,
+            approvedMinor: 10000,
+            paidMinor: 0,
+            count: 2,
+          },
         ],
-        usd: { claimedMinor: 2499, approvedMinor: 202, count: 3, pendingCount: 0 },
+        usd: {
+          claimedMinor: 2499,
+          approvedMinor: 202,
+          paidMinor: 0,
+          count: 3,
+          pendingCount: 0,
+        },
       });
       expect(await getExpenseTotals(as(alice))).toEqual({
         currencies: [
-          { currency: "TRY", claimedMinor: 10000, approvedMinor: 10000, count: 1 },
+          {
+            currency: "TRY",
+            claimedMinor: 10000,
+            approvedMinor: 10000,
+            paidMinor: 0,
+            count: 1,
+          },
         ],
-        usd: { claimedMinor: 202, approvedMinor: 202, count: 1, pendingCount: 0 },
+        usd: {
+          claimedMinor: 202,
+          approvedMinor: 202,
+          paidMinor: 0,
+          count: 1,
+          pendingCount: 0,
+        },
       });
       expect((await listExpenses(as(carol), { category: "COFFEE" })).total).toBe(1);
       expect((await listExpenses(as(carol), { status: "REJECTED" })).total).toBe(1);
@@ -387,7 +421,13 @@ describe.skipIf(!hasTestDatabase)("Mission expenses (integration)", () => {
           0,
           {
             currencies: [],
-            usd: { claimedMinor: 0, approvedMinor: 0, count: 0, pendingCount: 0 },
+            usd: {
+              claimedMinor: 0,
+              approvedMinor: 0,
+              paidMinor: 0,
+              count: 0,
+              pendingCount: 0,
+            },
           },
         ],
         [
@@ -395,10 +435,28 @@ describe.skipIf(!hasTestDatabase)("Mission expenses (integration)", () => {
           4,
           {
             currencies: [
-              { currency: "EUR", claimedMinor: 2000, approvedMinor: 0, count: 1 },
-              { currency: "TRY", claimedMinor: 13000, approvedMinor: 10000, count: 2 },
+              {
+                currency: "EUR",
+                claimedMinor: 2000,
+                approvedMinor: 0,
+                paidMinor: 0,
+                count: 1,
+              },
+              {
+                currency: "TRY",
+                claimedMinor: 13000,
+                approvedMinor: 10000,
+                paidMinor: 0,
+                count: 2,
+              },
             ],
-            usd: { claimedMinor: 2499, approvedMinor: 202, count: 3, pendingCount: 0 },
+            usd: {
+              claimedMinor: 2499,
+              approvedMinor: 202,
+              paidMinor: 0,
+              count: 3,
+              pendingCount: 0,
+            },
           },
         ],
       ]);
@@ -566,6 +624,7 @@ describe.skipIf(!hasTestDatabase)("Mission expenses (integration)", () => {
       expect((await getExpenseTotals(as(carol))).usd).toEqual({
         claimedMinor: 0,
         approvedMinor: 0,
+        paidMinor: 0,
         count: 1,
         pendingCount: 1,
       });
@@ -580,6 +639,7 @@ describe.skipIf(!hasTestDatabase)("Mission expenses (integration)", () => {
         expect((await getExpenseTotals(as(carol))).usd).toEqual({
           claimedMinor: 2529,
           approvedMinor: 2529,
+          paidMinor: 0,
           count: 1,
           pendingCount: 0,
         });
@@ -601,6 +661,7 @@ describe.skipIf(!hasTestDatabase)("Mission expenses (integration)", () => {
       expect(turkeyRow?.totals?.usd).toEqual({
         claimedMinor: 202,
         approvedMinor: 0,
+        paidMinor: 0,
         count: 2,
         pendingCount: 1,
       });
@@ -625,7 +686,7 @@ describe.skipIf(!hasTestDatabase)("Mission expenses (integration)", () => {
       ]);
       expect((await listExpenses(as(alice))).total).toBe(1);
       expect((await getExpenseTotals(as(carol))).currencies).toEqual([
-        { currency: "TRY", claimedMinor: 5000, approvedMinor: 0, count: 1 },
+        { currency: "TRY", claimedMinor: 5000, approvedMinor: 0, paidMinor: 0, count: 1 },
       ]);
       expect((await listMissions(as(carol))).rows[0]?.expenseCount).toBe(1);
       await expect(getExpense(as(alice), dinner.id)).rejects.toBeInstanceOf(
@@ -705,6 +766,264 @@ describe.skipIf(!hasTestDatabase)("Mission expenses (integration)", () => {
       });
       await expect(deleteExpense(as(gina), id)).rejects.toBeInstanceOf(ForbiddenError);
       expect((await listExpenses(as(carol))).total).toBe(1);
+    });
+  });
+
+  /* ------------------------------------------------------------------------ */
+  /* Paying (ADR-040)                                                         */
+  /* ------------------------------------------------------------------------ */
+
+  describe("paying", () => {
+    /** Submits a claim and has carol approve it. */
+    async function approved(user: U, overrides: Record<string, unknown> = {}) {
+      const { id } = await claim(user, overrides);
+      await reviewExpense(as(carol), id, { decision: "APPROVED" });
+      return id;
+    }
+
+    it("marks approved claims as paid in one go, telling each person once", async () => {
+      const dinner = await approved(alice, { amount: "100.00" });
+      const taxi = await approved(alice, { amount: "50.00", category: "TRANSPORTATION" });
+      const coffee = await approved(bob, {
+        amount: "20.00",
+        currency: "EUR",
+        category: "COFFEE",
+      });
+      const waiting = await claim(bob, { amount: "30.00" });
+      const today = todayInCairo();
+      expect((await listExpenses(as(carol))).canMarkPaid).toBe(true);
+      expect((await getExpense(as(carol), dinner)).canMarkPaid).toBe(true);
+
+      // A claim chosen twice (table and phone card) is paid once.
+      await expect(
+        markExpensesPaid(as(carol), {
+          expenseIds: [dinner, taxi, coffee, dinner],
+          paidOn: today,
+          reference: " TRF-1029 ",
+        }),
+      ).resolves.toEqual({ paid: 3 });
+
+      expect(await getExpense(as(alice), dinner)).toMatchObject({
+        status: "APPROVED",
+        paidOn: today,
+        canMarkPaid: false,
+        canUndoPayment: false,
+        payment: { paidOn: today, reference: "TRF-1029", recordedBy: { id: carol.id } },
+      });
+      expect(await getExpense(as(carol), dinner)).toMatchObject({
+        canMarkPaid: false,
+        canUndoPayment: true,
+      });
+
+      // "Paid" and "approved, awaiting payment" are filters of their own.
+      const ids = async (status: string) =>
+        (await listExpenses(as(carol), { status })).rows.map((row) => row.id).sort();
+      expect(await ids("PAID")).toEqual([dinner, taxi, coffee].sort());
+      expect(await ids("APPROVED")).toEqual([]);
+      expect(await ids("SUBMITTED")).toEqual([waiting.id]);
+      expect((await listExpenses(as(alice), { status: "PAID" })).total).toBe(2);
+
+      // One audit record per claim, one event for the whole batch.
+      const audits = await db().auditLog.findMany({
+        where: { action: "committees.expense.paid" },
+        select: { entityId: true, summary: true },
+      });
+      expect(audits.map((audit) => audit.entityId).sort()).toEqual(
+        [dinner, taxi, coffee].sort(),
+      );
+      expect(audits.map((audit) => audit.summary)).toContain(
+        `Marked as paid on ${formatCalendarDate(today)} (TRF-1029): Dinner TRY 100.00 on Turkey Trip`,
+      );
+      expect(
+        await db().eventOutbox.count({
+          where: { name: "committees.MissionExpensesPaid" },
+        }),
+      ).toBe(1);
+
+      // One notice per person, however many of their claims were paid.
+      const notices = await db().notification.findMany({
+        where: { type: "committees.expense.paid" },
+        select: { recipientId: true, title: true, link: true },
+      });
+      expect(notices).toHaveLength(2);
+      expect(notices.find((notice) => notice.recipientId === alice.id)).toMatchObject({
+        title: "carol marked 2 of your expenses as paid",
+        link: "/committees/expenses?status=PAID",
+      });
+      expect(notices.find((notice) => notice.recipientId === bob.id)).toMatchObject({
+        title: "carol marked your expense as paid",
+        link: `/committees/expenses/${coffee}`,
+      });
+    });
+
+    it("counts what was paid in the totals, per currency and in USD", async () => {
+      const dinner = await approved(alice, { amount: "100.00" });
+      await approved(bob, { amount: "30.00" });
+      await markExpensesPaid(as(carol), { expenseIds: [dinner], paidOn: todayInCairo() });
+      // TRY 100.00 → USD 2.02, TRY 30.00 → USD 0.61.
+      expect(await getExpenseTotals(as(carol))).toEqual({
+        currencies: [
+          {
+            currency: "TRY",
+            claimedMinor: 13000,
+            approvedMinor: 13000,
+            paidMinor: 10000,
+            count: 2,
+          },
+        ],
+        usd: {
+          claimedMinor: 263,
+          approvedMinor: 263,
+          paidMinor: 202,
+          count: 2,
+          pendingCount: 0,
+        },
+      });
+      expect((await listMissions(as(carol))).rows[0]?.totals?.usd.paidMinor).toBe(202);
+    });
+
+    it("pays only approved, unpaid, live claims, and all of the chosen ones or none", async () => {
+      const ready = await approved(alice);
+      const submitted = await claim(alice);
+      const rejected = await claim(bob);
+      await reviewExpense(as(carol), rejected.id, { decision: "REJECTED" });
+      const deleted = await approved(bob);
+      await deleteExpense(as(carol), deleted);
+      const today = todayInCairo();
+      const pay = (expenseIds: string[], paidOn = today) =>
+        markExpensesPaid(as(carol), { expenseIds, paidOn });
+
+      await expect(pay([ready, submitted.id])).rejects.toThrow(/not approved/);
+      await expect(pay([ready, rejected.id])).rejects.toBeInstanceOf(BusinessRuleError);
+      await expect(pay([ready, deleted])).rejects.toBeInstanceOf(ConflictError);
+      await expect(pay([ready, crypto.randomUUID()])).rejects.toBeInstanceOf(
+        ConflictError,
+      );
+      await expect(pay([ready], addDays(today, 2))).rejects.toBeInstanceOf(
+        ValidationError,
+      );
+      await expect(pay([])).rejects.toBeInstanceOf(ValidationError);
+      // None of those recorded anything.
+      expect((await getExpense(as(carol), ready)).payment).toBeNull();
+      expect(
+        await db().auditLog.count({ where: { action: "committees.expense.paid" } }),
+      ).toBe(0);
+      expect(
+        await db().notification.count({ where: { type: "committees.expense.paid" } }),
+      ).toBe(0);
+
+      // Tomorrow is allowed, for a payment made a time zone ahead.
+      await pay([ready], addDays(today, 1));
+      await expect(pay([ready])).rejects.toThrow(/already marked as paid/);
+    });
+
+    it("is refused to members, to approvers without the administrator right, and to a unit-scoped administrator", async () => {
+      const id = await approved(alice);
+      const today = todayInCairo();
+      const pay = (user: U) =>
+        markExpensesPaid(as(user), { expenseIds: [id], paidOn: today });
+      const unpay = (user: U) => undoExpensePayment(as(user), id, { reason: "Wrong" });
+
+      expect((await listExpenses(as(alice))).canMarkPaid).toBe(false);
+      expect((await getExpense(as(alice), id)).canMarkPaid).toBe(false);
+      await expect(pay(alice)).rejects.toBeInstanceOf(ForbiddenError);
+      await expect(pay(erin)).rejects.toBeInstanceOf(ForbiddenError);
+
+      // Approving a claim is not the right to record its payment.
+      const approver = await createRole("expense-approver", [
+        COMMITTEES_PERMISSIONS.ACCESS,
+        COMMITTEES_PERMISSIONS.EXPENSE_READ,
+        COMMITTEES_PERMISSIONS.EXPENSE_APPROVE,
+      ]);
+      const dana = await createUser({ email: "dana@example.com" });
+      await grantRole(dana.id, approver.id);
+      expect((await listExpenses(as(dana))).canMarkPaid).toBe(false);
+      expect((await getExpense(as(dana), id)).canMarkPaid).toBe(false);
+      await expect(pay(dana)).rejects.toBeInstanceOf(ForbiddenError);
+
+      const unit = await db().organizationalUnit.create({
+        data: { key: "alex", name: "Alexandria", path: "/alex", depth: 0 },
+        select: { id: true },
+      });
+      const scoped = await createRole("scoped-admin", [
+        COMMITTEES_PERMISSIONS.ACCESS,
+        COMMITTEES_PERMISSIONS.ADMINISTER,
+      ]);
+      const gina = await createUser({ email: "gina@example.com", orgUnitId: unit.id });
+      await grantRole(gina.id, scoped.id, {
+        scopeType: "ORG_UNIT",
+        scopeOrgUnitId: unit.id,
+      });
+      await expect(pay(gina)).rejects.toBeInstanceOf(ForbiddenError);
+
+      await pay(carol);
+      await expect(unpay(alice)).rejects.toBeInstanceOf(ForbiddenError);
+      await expect(unpay(dana)).rejects.toBeInstanceOf(ForbiddenError);
+      await expect(unpay(gina)).rejects.toBeInstanceOf(ForbiddenError);
+      expect((await getExpense(as(carol), id)).payment).not.toBeNull();
+    });
+
+    it("clears a payment recorded by mistake, with a reason, and the claim can be paid again", async () => {
+      const id = await approved(alice);
+      const today = todayInCairo();
+      await markExpensesPaid(as(carol), {
+        expenseIds: [id],
+        paidOn: today,
+        reference: "Cash",
+      });
+
+      await expect(
+        undoExpensePayment(as(carol), id, { reason: "  " }),
+      ).rejects.toBeInstanceOf(ValidationError);
+      await expect(
+        undoExpensePayment(as(carol), crypto.randomUUID(), { reason: "Wrong" }),
+      ).rejects.toBeInstanceOf(NotFoundError);
+      await undoExpensePayment(as(carol), id, { reason: "Paid to the wrong person" });
+
+      expect(await getExpense(as(carol), id)).toMatchObject({
+        status: "APPROVED",
+        paidOn: null,
+        payment: null,
+        canMarkPaid: true,
+        canUndoPayment: false,
+      });
+      expect(
+        await db().committeeMissionExpense.findUniqueOrThrow({
+          where: { id },
+          select: { paidAt: true, paidBy: true, paymentReference: true },
+        }),
+      ).toEqual({ paidAt: null, paidBy: null, paymentReference: null });
+      const audit = await db().auditLog.findFirst({
+        where: { action: "committees.expense.payment_undone" },
+      });
+      expect(audit?.severity).toBe("WARNING");
+      expect(audit?.summary).toContain(`was paid on ${formatCalendarDate(today)}`);
+      expect(audit?.summary).toContain("Paid to the wrong person");
+      expect(
+        await db().eventOutbox.count({
+          where: { name: "committees.MissionExpensePaymentUndone" },
+        }),
+      ).toBe(1);
+      const notice = await db().notification.findFirst({
+        where: { recipientId: alice.id, type: "committees.expense.payment_undone" },
+      });
+      expect(notice?.title).toBe("carol marked your expense as not paid");
+      expect(notice?.link).toBe(`/committees/expenses/${id}`);
+      await expect(
+        undoExpensePayment(as(carol), id, { reason: "Again" }),
+      ).rejects.toBeInstanceOf(ConflictError);
+
+      // Paid again: a fresh record, and the person is told again.
+      await markExpensesPaid(as(carol), { expenseIds: [id], paidOn: today });
+      expect((await getExpense(as(alice), id)).payment).toMatchObject({
+        paidOn: today,
+        reference: null,
+      });
+      expect(
+        await db().notification.count({
+          where: { recipientId: alice.id, type: "committees.expense.paid" },
+        }),
+      ).toBe(2);
     });
   });
 
@@ -812,6 +1131,61 @@ describe.skipIf(!hasTestDatabase)("Mission expenses (integration)", () => {
           VALUES (${turkey}::uuid, ${alice.id}::uuid, 'DINNER', CURRENT_DATE, 100, 'USD',
                   2, now(), 'test', now())`,
       ).rejects.toThrow(/mission_expenses_usd_par/);
+    });
+
+    it("records a payment whole, on an approved claim only, and clears it before another", async () => {
+      const { id } = await claim(alice);
+      const paySql = () => db().$executeRaw`
+        UPDATE committees.mission_expenses
+           SET paid_on = CURRENT_DATE, paid_at = now(), paid_by = ${carol.id}::uuid
+         WHERE id = ${id}::uuid`;
+      await expect(paySql()).rejects.toThrow(/paid only once it is approved/);
+      // Approving and paying are two acts, never one write.
+      await expect(
+        db().$executeRaw`
+          UPDATE committees.mission_expenses
+             SET status = 'APPROVED', reviewed_by = ${carol.id}::uuid, reviewed_at = now(),
+                 paid_on = CURRENT_DATE, paid_at = now(), paid_by = ${carol.id}::uuid
+           WHERE id = ${id}::uuid`,
+      ).rejects.toThrow(/paid only once it is approved/);
+
+      await reviewExpense(as(carol), id, { decision: "APPROVED" });
+      await expect(
+        db().$executeRaw`
+          UPDATE committees.mission_expenses SET paid_on = CURRENT_DATE WHERE id = ${id}::uuid`,
+      ).rejects.toThrow(/mission_expenses_paid_recorded/);
+      await expect(
+        db().$executeRaw`
+          UPDATE committees.mission_expenses SET payment_reference = 'TRF' WHERE id = ${id}::uuid`,
+      ).rejects.toThrow(/mission_expenses_payment_reference/);
+
+      await paySql();
+      await expect(
+        db().$executeRaw`
+          UPDATE committees.mission_expenses SET paid_on = paid_on - 1 WHERE id = ${id}::uuid`,
+      ).rejects.toThrow(/cleared before another is recorded/);
+      await expect(
+        db().$executeRaw`
+          UPDATE committees.mission_expenses SET payment_reference = 'Late note'
+           WHERE id = ${id}::uuid`,
+      ).rejects.toThrow(/cleared before another is recorded/);
+      await expect(
+        db().$executeRaw`
+          UPDATE committees.mission_expenses SET status = 'REJECTED' WHERE id = ${id}::uuid`,
+      ).rejects.toThrow(/reviewed mission expense cannot change/);
+      await expect(
+        db().$executeRaw`
+          UPDATE committees.mission_expenses
+             SET deleted_at = now(), deleted_by = ${carol.id}::uuid,
+                 paid_on = NULL, paid_at = NULL, paid_by = NULL
+           WHERE id = ${id}::uuid`,
+      ).rejects.toThrow(/cannot also change its payment/);
+
+      // Cleared whole, then recorded again.
+      await db().$executeRaw`
+        UPDATE committees.mission_expenses
+           SET paid_on = NULL, paid_at = NULL, paid_by = NULL WHERE id = ${id}::uuid`;
+      await paySql();
     });
 
     it("has row-level security on the new tables", async () => {

@@ -28,11 +28,42 @@ export const EXPENSE_CATEGORY_LABELS: Record<ExpenseCategory, string> = {
 export const EXPENSE_STATUSES = ["SUBMITTED", "APPROVED", "REJECTED"] as const;
 export type ExpenseStatus = (typeof EXPENSE_STATUSES)[number];
 
-export const EXPENSE_STATUS_LABELS: Record<ExpenseStatus, string> = {
+/**
+ * Where a claim stands, as people see it: an approved claim is "Paid" once an
+ * administrator has recorded its payment (ADR-040). Also the list's status filter.
+ */
+export const EXPENSE_STAGES = ["SUBMITTED", "APPROVED", "PAID", "REJECTED"] as const;
+export type ExpenseStage = (typeof EXPENSE_STAGES)[number];
+
+export const EXPENSE_STAGE_LABELS: Record<ExpenseStage, string> = {
   SUBMITTED: "Submitted",
   APPROVED: "Approved",
+  PAID: "Paid",
   REJECTED: "Rejected",
 };
+
+/** The filter's wording, which says what "Approved" leaves out. */
+export const EXPENSE_STAGE_FILTER_LABELS: Record<ExpenseStage, string> = {
+  SUBMITTED: "Submitted, awaiting review",
+  APPROVED: "Approved, awaiting payment",
+  PAID: "Paid",
+  REJECTED: "Rejected",
+};
+
+export function expenseStage(
+  status: ExpenseStatus,
+  paidOn: string | Date | null,
+): ExpenseStage {
+  return status === "APPROVED" && paidOn !== null ? "PAID" : status;
+}
+
+/** Only an approved claim not yet paid can be marked as paid. */
+export function isPayable(status: ExpenseStatus, paidOn: string | Date | null): boolean {
+  return status === "APPROVED" && paidOn === null;
+}
+
+/** How many claims one "Mark as paid" may cover — more than a page of the list. */
+export const MAX_PAYMENT_BATCH = 100;
 
 /* Currencies and amounts -------------------------------------------------------- */
 
@@ -106,13 +137,15 @@ export function formatExpenseAmount(minor: number, currency: string): string {
 /* Totals --------------------------------------------------------------------------- */
 
 /**
- * One currency's totals: submitted and approved claims, rejected ones left out.
- * Amounts in different currencies are never added together.
+ * One currency's totals: submitted and approved claims, rejected ones left out, and
+ * of the approved, what has been paid. Amounts in different currencies are never
+ * added together.
  */
 export type CurrencyTotal = {
   currency: string;
   claimedMinor: number;
   approvedMinor: number;
+  paidMinor: number;
   count: number;
 };
 
@@ -123,6 +156,7 @@ export function totalsByCurrency(
     status: ExpenseStatus;
     amountMinor: number;
     count: number;
+    paid?: boolean;
   }[],
 ): CurrencyTotal[] {
   const totals = new Map<string, CurrencyTotal>();
@@ -132,11 +166,15 @@ export function totalsByCurrency(
       currency: group.currency,
       claimedMinor: 0,
       approvedMinor: 0,
+      paidMinor: 0,
       count: 0,
     };
     total.claimedMinor += group.amountMinor;
     total.count += group.count;
     if (group.status === "APPROVED") total.approvedMinor += group.amountMinor;
+    if (group.status === "APPROVED" && group.paid === true) {
+      total.paidMinor += group.amountMinor;
+    }
     totals.set(group.currency, total);
   }
   return [...totals.values()].sort((a, b) => a.currency.localeCompare(b.currency));
@@ -150,14 +188,16 @@ export function totalsByCurrency(
 export type UsdTotal = {
   claimedMinor: number;
   approvedMinor: number;
+  paidMinor: number;
   count: number;
   pendingCount: number;
 };
 
-/** One database group: claims of one currency and status. */
+/** One database group: claims of one currency and status, paid or not. */
 export type ExpenseGroup = {
   currency: string;
   status: ExpenseStatus;
+  paid: boolean;
   amountMinor: number;
   count: number;
   /** Of `count`, how many have a USD rate, and their USD amount. */
@@ -170,11 +210,18 @@ export function summariseExpenseGroups(groups: readonly ExpenseGroup[]): {
   currencies: CurrencyTotal[];
   usd: UsdTotal;
 } {
-  const usd: UsdTotal = { claimedMinor: 0, approvedMinor: 0, count: 0, pendingCount: 0 };
+  const usd: UsdTotal = {
+    claimedMinor: 0,
+    approvedMinor: 0,
+    paidMinor: 0,
+    count: 0,
+    pendingCount: 0,
+  };
   for (const group of groups) {
     if (group.status === "REJECTED") continue;
     usd.claimedMinor += group.usdMinor;
     if (group.status === "APPROVED") usd.approvedMinor += group.usdMinor;
+    if (group.status === "APPROVED" && group.paid) usd.paidMinor += group.usdMinor;
     usd.count += group.count;
     usd.pendingCount += group.count - group.convertedCount;
   }

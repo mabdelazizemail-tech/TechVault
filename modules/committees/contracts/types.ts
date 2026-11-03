@@ -230,6 +230,17 @@ export type ExpenseListItem = {
   hasReceipt: boolean;
   /** The amount in USD at the claim's fixed rate; null while it waits for a rate. */
   amountUsdMinor: number | null;
+  /** The day it was paid ("YYYY-MM-DD"), once an administrator has recorded it (ADR-040). */
+  paidOn: string | null;
+};
+
+/** A recorded payment (ADR-040). */
+export type ExpensePayment = {
+  /** "YYYY-MM-DD". */
+  paidOn: string;
+  reference: string | null;
+  recordedBy: PersonRef | null;
+  recordedAt: Date;
 };
 
 /** How a claim was converted to USD (ADR-038). */
@@ -256,6 +267,12 @@ export type ExpenseDetail = ExpenseListItem & {
   canDelete: boolean;
   /** Null while the claim waits for a rate. */
   usd: ExpenseConversion | null;
+  /** Null until the claim is paid. */
+  payment: ExpensePayment | null;
+  /** A Committees administrator, on an approved claim not yet paid. */
+  canMarkPaid: boolean;
+  /** A Committees administrator, on a paid claim. */
+  canUndoPayment: boolean;
 };
 
 /** One currency: submitted and approved claims, rejected ones left out. */

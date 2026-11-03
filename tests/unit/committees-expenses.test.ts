@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { expenseSchema, missionSchema } from "@/modules/committees/contracts/schemas";
+import {
+  expenseSchema,
+  markExpensesPaidSchema,
+  missionSchema,
+} from "@/modules/committees/contracts/schemas";
 import {
   cleanReceiptName,
   formatExpenseAmount,
@@ -8,6 +12,8 @@ import {
   receiptMatchesContent,
   conversionTiming,
   formatRate,
+  expenseStage,
+  isPayable,
   summariseExpenseGroups,
   totalsByCurrency,
 } from "@/modules/committees/domain/expenses";
@@ -53,8 +59,20 @@ describe("totals", () => {
         { currency: "EUR", status: "APPROVED", amountMinor: 2000, count: 1 },
       ]),
     ).toEqual([
-      { currency: "EUR", claimedMinor: 2000, approvedMinor: 2000, count: 1 },
-      { currency: "TRY", claimedMinor: 13000, approvedMinor: 10000, count: 3 },
+      {
+        currency: "EUR",
+        claimedMinor: 2000,
+        approvedMinor: 2000,
+        paidMinor: 0,
+        count: 1,
+      },
+      {
+        currency: "TRY",
+        claimedMinor: 13000,
+        approvedMinor: 10000,
+        paidMinor: 0,
+        count: 3,
+      },
     ]);
     expect(totalsByCurrency([])).toEqual([]);
   });
@@ -67,6 +85,7 @@ describe("totals in USD", () => {
         {
           currency: "TRY",
           status: "APPROVED",
+          paid: false,
           amountMinor: 10000,
           count: 1,
           convertedCount: 1,
@@ -75,6 +94,7 @@ describe("totals in USD", () => {
         {
           currency: "TRY",
           status: "SUBMITTED",
+          paid: false,
           amountMinor: 8000,
           count: 2,
           convertedCount: 1,
@@ -83,6 +103,7 @@ describe("totals in USD", () => {
         {
           currency: "EUR",
           status: "SUBMITTED",
+          paid: false,
           amountMinor: 2000,
           count: 1,
           convertedCount: 1,
@@ -91,13 +112,20 @@ describe("totals in USD", () => {
         {
           currency: "TRY",
           status: "REJECTED",
+          paid: false,
           amountMinor: 99900,
           count: 1,
           convertedCount: 1,
           usdMinor: 2020,
         },
       ]).usd,
-    ).toEqual({ claimedMinor: 2499, approvedMinor: 202, count: 4, pendingCount: 1 });
+    ).toEqual({
+      claimedMinor: 2499,
+      approvedMinor: 202,
+      paidMinor: 0,
+      count: 4,
+      pendingCount: 1,
+    });
   });
 
   it("shows a stored rate without trailing zeros", () => {
@@ -113,6 +141,100 @@ describe("totals in USD", () => {
       "submission",
     );
     expect(conversionTiming(submitted, new Date("2026-10-15T09:10:00Z"))).toBe("later");
+  });
+});
+
+describe("paying", () => {
+  it("shows an approved claim as Paid once its payment is recorded", () => {
+    expect(expenseStage("APPROVED", null)).toBe("APPROVED");
+    expect(expenseStage("APPROVED", "2026-11-03")).toBe("PAID");
+    expect(expenseStage("SUBMITTED", null)).toBe("SUBMITTED");
+    expect(expenseStage("REJECTED", null)).toBe("REJECTED");
+  });
+
+  it("lets only an approved, unpaid claim be marked as paid", () => {
+    expect(isPayable("APPROVED", null)).toBe(true);
+    expect(isPayable("APPROVED", "2026-11-03")).toBe(false);
+    expect(isPayable("SUBMITTED", null)).toBe(false);
+    expect(isPayable("REJECTED", null)).toBe(false);
+  });
+
+  it("counts what was paid, per currency and in USD", () => {
+    const groups = [
+      {
+        currency: "EGP",
+        status: "APPROVED" as const,
+        paid: true,
+        amountMinor: 7589000,
+        count: 1,
+        convertedCount: 1,
+        usdMinor: 137443,
+      },
+      {
+        currency: "EGP",
+        status: "APPROVED" as const,
+        paid: false,
+        amountMinor: 8334400,
+        count: 1,
+        convertedCount: 1,
+        usdMinor: 150943,
+      },
+      {
+        currency: "USD",
+        status: "APPROVED" as const,
+        paid: true,
+        amountMinor: 4000,
+        count: 1,
+        convertedCount: 1,
+        usdMinor: 4000,
+      },
+    ];
+    const summary = summariseExpenseGroups(groups);
+    expect(summary.usd).toMatchObject({ approvedMinor: 292386, paidMinor: 141443 });
+    expect(summary.currencies).toEqual([
+      {
+        currency: "EGP",
+        claimedMinor: 15923400,
+        approvedMinor: 15923400,
+        paidMinor: 7589000,
+        count: 2,
+      },
+      {
+        currency: "USD",
+        claimedMinor: 4000,
+        approvedMinor: 4000,
+        paidMinor: 4000,
+        count: 1,
+      },
+    ]);
+  });
+
+  it("takes up to a hundred real claims once each, a valid date and an optional reference", () => {
+    const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
+    expect(
+      markExpensesPaidSchema.parse({
+        expenseIds: [id(1), id(1), id(2)],
+        paidOn: "2026-11-03",
+        reference: "  ",
+      }),
+    ).toEqual({ expenseIds: [id(1), id(2)], paidOn: "2026-11-03", reference: null });
+    const ok = { expenseIds: [id(1)], paidOn: "2026-11-03" };
+    expect(markExpensesPaidSchema.safeParse(ok).success).toBe(true);
+    expect(markExpensesPaidSchema.safeParse({ ...ok, expenseIds: [] }).success).toBe(
+      false,
+    );
+    expect(
+      markExpensesPaidSchema.safeParse({
+        ...ok,
+        expenseIds: Array.from({ length: 101 }, (_, n) => id(n)),
+      }).success,
+    ).toBe(false);
+    expect(
+      markExpensesPaidSchema.safeParse({ ...ok, paidOn: "2026-02-30" }).success,
+    ).toBe(false);
+    expect(
+      markExpensesPaidSchema.safeParse({ ...ok, reference: "x".repeat(201) }).success,
+    ).toBe(false);
   });
 });
 

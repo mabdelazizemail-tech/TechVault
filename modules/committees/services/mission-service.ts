@@ -108,7 +108,7 @@ async function missionTotals(
   if (missionIds.length === 0) return new Map();
   await convertPendingExpenses();
   const groups = await prisma.committeeMissionExpense.groupBy({
-    by: ["missionId", "currency", "status"],
+    by: ["missionId", "currency", "status", "paidOn"],
     where: {
       missionId: { in: missionIds },
       deletedAt: null,

@@ -4,7 +4,7 @@ import {
   distinctIds,
   selectionState,
   type SelectionBox,
-} from "@/modules/crm/ui/bulk-selection";
+} from "@/components/ui/bulk-selection";
 
 /**
  * Each lead has a checkbox in the table and another in its phone card, with the

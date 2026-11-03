@@ -12,15 +12,21 @@ import {
   listMissionOptions,
 } from "@/modules/committees/contracts/service";
 import type { ExpenseListItem } from "@/modules/committees/contracts/types";
+import { todayInCairo } from "@/modules/committees/domain/dates";
 import {
   EXPENSE_CATEGORIES,
   EXPENSE_CATEGORY_LABELS,
-  EXPENSE_STATUSES,
-  EXPENSE_STATUS_LABELS,
+  EXPENSE_STAGES,
+  EXPENSE_STAGE_FILTER_LABELS,
   formatExpenseAmount,
+  isPayable,
 } from "@/modules/committees/domain/expenses";
 import { formatCalendarDate, formatDate } from "@/modules/committees/domain/format";
 import { ExpenseStatusBadge } from "@/modules/committees/ui/expense-badges";
+import {
+  ExpensePaymentBar,
+  type PayableExpense,
+} from "@/modules/committees/ui/expense-payment";
 import { flatParams } from "@/modules/committees/ui/page-helpers";
 import { getActor } from "@/platform/auth/current-user";
 import { EXCHANGE_RATE_ATTRIBUTION } from "@/platform/integrations/exchange-rates";
@@ -30,6 +36,7 @@ import { preview } from "@/platform/notifications/rules";
 export const metadata: Metadata = { title: "Mission expenses" };
 
 const BASE = "/committees/expenses";
+const PAYMENT_FORM_ID = "expense-payments";
 
 /**
  * Mission expenses: your own claims, or everyone's for an approver — filtered by
@@ -50,6 +57,17 @@ export default async function ExpensesPage({
     can(actor, COMMITTEES_PERMISSIONS.EXPENSE_CREATE),
   ]);
   const approver = page.isApprover;
+  // Committees administrators record payments; only approved, unpaid claims qualify.
+  const payable: PayableExpense[] = page.canMarkPaid
+    ? page.rows
+        .filter((expense) => isPayable(expense.status, expense.paidOn))
+        .map((expense) => ({
+          id: expense.id,
+          label: `${EXPENSE_CATEGORY_LABELS[expense.category]} ${formatExpenseAmount(expense.amountMinor, expense.currency)} · ${expense.submitter.name}`,
+          amountMinor: expense.amountMinor,
+          currency: expense.currency,
+        }))
+    : [];
 
   const columns: Column<ExpenseListItem>[] = [
     {
@@ -136,7 +154,16 @@ export default async function ExpensesPage({
     {
       key: "status",
       header: "Status",
-      cell: (expense) => <ExpenseStatusBadge status={expense.status} />,
+      cell: (expense) => (
+        <span className="inline-flex flex-col items-start gap-0.5">
+          <ExpenseStatusBadge status={expense.status} paidOn={expense.paidOn} />
+          {expense.paidOn !== null && (
+            <span className="text-foreground-muted text-xs whitespace-nowrap">
+              {formatCalendarDate(expense.paidOn)}
+            </span>
+          )}
+        </span>
+      ),
     },
   ];
 
@@ -155,7 +182,9 @@ export default async function ExpensesPage({
         title="Mission expenses"
         description={
           approver
-            ? "Everyone's claims on missions. Open one to see its receipt and approve or reject it."
+            ? page.canMarkPaid
+              ? "Everyone's claims on missions. Open one to approve or reject it; select approved ones to mark them as paid."
+              : "Everyone's claims on missions. Open one to see its receipt and approve or reject it."
             : "Your expense claims on missions, with their receipts and review status."
         }
         actions={
@@ -183,8 +212,9 @@ export default async function ExpensesPage({
                 {formatExpenseAmount(totals.usd.claimedMinor, "USD")}
               </p>
               <p className="text-foreground-muted mt-1 text-xs">
-                Approved {formatExpenseAmount(totals.usd.approvedMinor, "USD")} · each
-                claim at its rate when submitted
+                Approved {formatExpenseAmount(totals.usd.approvedMinor, "USD")} · paid{" "}
+                {formatExpenseAmount(totals.usd.paidMinor, "USD")} · each claim at its
+                rate when submitted
                 {totals.usd.pendingCount > 0 &&
                   ` · ${totals.usd.pendingCount} not converted yet`}
               </p>
@@ -197,7 +227,8 @@ export default async function ExpensesPage({
                 </p>
                 <p className="text-foreground-muted mt-1 text-xs">
                   {total.count} {total.count === 1 ? "claim" : "claims"} · approved{" "}
-                  {formatExpenseAmount(total.approvedMinor, total.currency)}
+                  {formatExpenseAmount(total.approvedMinor, total.currency)} · paid{" "}
+                  {formatExpenseAmount(total.paidMinor, total.currency)}
                 </p>
               </li>
             ))}
@@ -260,20 +291,39 @@ export default async function ExpensesPage({
             label: "Status",
             value: params.status,
             allLabel: "All statuses",
-            options: EXPENSE_STATUSES.map((status) => ({
-              value: status,
-              label: EXPENSE_STATUS_LABELS[status],
+            options: EXPENSE_STAGES.map((stage) => ({
+              value: stage,
+              label: EXPENSE_STAGE_FILTER_LABELS[stage],
             })),
           },
         ]}
       />
 
       <Panel>
+        {payable.length > 0 && (
+          <ExpensePaymentBar
+            key={JSON.stringify(params)}
+            formId={PAYMENT_FORM_ID}
+            today={todayInCairo()}
+            payable={payable}
+          />
+        )}
         <DataTable
           columns={columns}
           rows={page.rows}
           rowKey={(expense) => expense.id}
           rowHref={(expense) => `${BASE}/${expense.id}`}
+          selection={
+            payable.length > 0
+              ? {
+                  formId: PAYMENT_FORM_ID,
+                  name: "expenseIds",
+                  rowLabel: (expense) =>
+                    `${EXPENSE_CATEGORY_LABELS[expense.category]} ${formatExpenseAmount(expense.amountMinor, expense.currency)}`,
+                  selectable: (expense) => isPayable(expense.status, expense.paidOn),
+                }
+              : undefined
+          }
           basePath={BASE}
           searchParams={kept}
           page={{ page: page.page, pageSize: page.pageSize, total: page.total }}

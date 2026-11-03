@@ -6,7 +6,7 @@ import { controlClasses } from "@/components/ui/form-controls";
 import { cn } from "@/lib/cn";
 import { LEAD_STATUSES, LEAD_STATUS_LABELS } from "../contracts/types";
 import { bulkUpdateLeadsAction } from "./actions";
-import { applySelection, distinctIds } from "./bulk-selection";
+import { applySelection, distinctIds } from "@/components/ui/bulk-selection";
 
 /**
  * Bulk status and owner changes for the leads table.

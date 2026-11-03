@@ -69,6 +69,9 @@ const columns: Column<MissionDto>[] = [
           <span className="text-foreground-muted text-xs">
             {formatExpenseAmount(mission.totals.usd.approvedMinor, "USD")} approved
           </span>
+          <span className="text-foreground-muted text-xs">
+            {formatExpenseAmount(mission.totals.usd.paidMinor, "USD")} paid
+          </span>
           {mission.totals.usd.pendingCount > 0 && (
             <span className="text-warning text-xs">
               {mission.totals.usd.pendingCount} not converted yet
